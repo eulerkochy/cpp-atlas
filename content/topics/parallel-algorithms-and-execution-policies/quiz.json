@@ -1,0 +1,145 @@
+{
+  "questions": [
+    {
+      "id": "parallel-algorithms-accumulate-policy",
+      "kind": "warmup",
+      "prompt": "Is this function well-formed?",
+      "code": "#include <execution>\n#include <numeric>\n#include <vector>\n\nint total(const std::vector<int>& v) {\n  return std::accumulate(std::execution::par, v.begin(), v.end(), 0);\n}",
+      "options": [
+        "Yes, and it runs in parallel if the library supports it",
+        "Yes, but the policy is ignored",
+        "Yes, but the result is unspecified because addition is reordered",
+        "No: `std::accumulate` has no execution-policy overload, so it is ill-formed"
+      ],
+      "answer": 3,
+      "explanation": "`std::accumulate` is defined as a strict left fold, which cannot be split across threads, so the standard gives it no policy overload. With four arguments the only candidate is `accumulate(first, last, init, op)`, and deduction fails because the first two arguments have different types. The parallel equivalent is `std::reduce(std::execution::par, v.begin(), v.end(), 0)`.",
+      "refs": [
+        "[accumulate]",
+        "[reduce]"
+      ]
+    },
+    {
+      "id": "parallel-algorithms-push-back-race",
+      "kind": "warmup",
+      "prompt": "What is the behavior of this function, assuming `v` contains several even numbers?",
+      "code": "#include <algorithm>\n#include <execution>\n#include <vector>\n\nstd::vector<int> evens(const std::vector<int>& v) {\n  std::vector<int> out;\n  std::for_each(std::execution::par, v.begin(), v.end(), [&](int x) {\n    if (x % 2 == 0) out.push_back(x);\n  });\n  return out;\n}",
+      "options": [
+        "Undefined behavior: concurrent `push_back` calls are a data race",
+        "Well-defined; only the order of `out` is unspecified",
+        "Well-defined: the library serializes calls that touch the same container",
+        "Well-defined, because a library may always run `par` sequentially"
+      ],
+      "answer": 0,
+      "explanation": "Under `par`, element access functions may run concurrently on different threads, and the library adds no synchronization; avoiding data races is the caller's job. Two concurrent `push_back` calls on one vector are a data race, so the behavior is undefined. The last option is tempting because libstdc++ without TBB does run this serially, but the program's validity is judged against what the policy permits, not what one library happens to do.",
+      "refs": [
+        "[algorithms.parallel.exec]",
+        "[intro.races]"
+      ]
+    },
+    {
+      "id": "parallel-algorithms-seq-exception",
+      "kind": "warmup",
+      "prompt": "What happens when this program runs?",
+      "code": "#include <algorithm>\n#include <cstdio>\n#include <execution>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3};\n  try {\n    std::for_each(std::execution::seq, v.begin(), v.end(),\n                  [](int) { throw 42; });\n  } catch (int) {\n    std::puts(\"caught\");\n  }\n}",
+      "options": [
+        "It prints `caught`, because `seq` runs on the calling thread",
+        "An `std::exception_list` is thrown and not caught by `catch (int)`",
+        "`std::terminate` is called",
+        "The behavior is undefined"
+      ],
+      "answer": 2,
+      "explanation": "For all four standard execution policies, an element access function that exits via an uncaught exception causes `std::terminate` to be called, and `seq` is no exception. The `try` block never sees the `int`. `exception_list` was the design of the Parallelism TS and is not in the standard. Without the policy argument, the exception would propagate and `caught` would be printed.",
+      "refs": [
+        "[algorithms.parallel.exceptions]",
+        "[execpol.seq]"
+      ]
+    },
+    {
+      "id": "parallel-algorithms-reduce-minus",
+      "kind": "tricky",
+      "prompt": "What does the standard say about the value returned?",
+      "code": "#include <functional>\n#include <numeric>\n#include <vector>\n\nint f() {\n  std::vector<int> v{1, 2, 3};\n  return std::reduce(v.begin(), v.end(), 10, std::minus<>{});\n}",
+      "options": [
+        "It is 4, because no execution policy was given",
+        "It is unspecified, because `reduce` may regroup and reorder the operands",
+        "It is undefined behavior",
+        "It is ill-formed, because `std::minus` is not associative"
+      ],
+      "answer": 1,
+      "explanation": "`std::reduce` is specified as a generalized sum, which may group and order the operands, including `init`, arbitrarily, even without an execution policy. Subtraction is neither associative nor commutative, so different groupings give different values; the result is one of them, not undefined behavior. Nothing checks associativity at compile time. `std::accumulate` would guarantee `((10 - 1) - 2) - 3`, which is 4.",
+      "refs": [
+        "[reduce]",
+        "[numerics.defns]"
+      ]
+    },
+    {
+      "id": "parallel-algorithms-seq-order",
+      "kind": "tricky",
+      "prompt": "Does the standard guarantee that `order` is `{0, 1, 2, 3}` after this call?",
+      "code": "#include <algorithm>\n#include <execution>\n#include <vector>\n\nstd::vector<int> visit() {\n  std::vector<int> idx{0, 1, 2, 3};\n  std::vector<int> order;\n  std::for_each(std::execution::seq, idx.begin(), idx.end(),\n                [&](int i) { order.push_back(i); });\n  return order;\n}",
+      "options": [
+        "Yes: `seq` means sequential, in order",
+        "No: each element is visited exactly once, but in an unspecified order",
+        "No: it is a data race, so the behavior is undefined",
+        "Yes, because `for_each` always proceeds from first to last"
+      ],
+      "answer": 1,
+      "explanation": "With `sequenced_policy`, all invocations happen on the calling thread and do not overlap, so there is no data race. But they are only indeterminately sequenced: the policy overload of `for_each` does not promise the first-to-last order that the non-policy overload does. Every implementation tested visits in order, but that is not guaranteed.",
+      "refs": [
+        "[algorithms.parallel.exec]",
+        "[alg.foreach]"
+      ]
+    },
+    {
+      "id": "parallel-algorithms-mutex-par-unseq",
+      "kind": "tricky",
+      "prompt": "What is the behavior of this function?",
+      "code": "#include <algorithm>\n#include <execution>\n#include <mutex>\n#include <vector>\n\nint sum(const std::vector<int>& v) {\n  std::mutex m;\n  int total = 0;\n  std::for_each(std::execution::par_unseq, v.begin(), v.end(), [&](int x) {\n    std::lock_guard<std::mutex> lock(m);\n    total += x;\n  });\n  return total;\n}",
+      "options": [
+        "Well-defined: the mutex prevents the data race",
+        "Guaranteed to deadlock",
+        "Undefined behavior: mutex locking is vectorization-unsafe and may not be called under `par_unseq`",
+        "Well-defined, but slower than a plain loop"
+      ],
+      "answer": 2,
+      "explanation": "Under `par_unseq`, invocations on the same thread may be interleaved, so one thread could start a second `lock()` before the first invocation unlocks, deadlocking against itself. The standard therefore forbids calling vectorization-unsafe functions, those that synchronize with another invocation, from element access functions under the unsequenced policies, and violating that is undefined behavior rather than a guaranteed deadlock. With `par`, the same code would be well-defined.",
+      "refs": [
+        "[algorithms.parallel.exec]",
+        "[execpol.parunseq]"
+      ]
+    },
+    {
+      "id": "parallel-algorithms-unseq-meaning",
+      "kind": "standardese",
+      "prompt": "Which policy permits element access functions to be interleaved, but only on the calling thread?",
+      "options": [
+        "`std::execution::unseq`",
+        "`std::execution::seq`",
+        "`std::execution::par`",
+        "`std::execution::par_unseq`"
+      ],
+      "answer": 0,
+      "explanation": "`unsequenced_policy`, added in C++20, keeps all invocations on the calling thread but leaves them unsequenced with respect to each other, which allows vectorization. `par_unseq` also allows interleaving but adds multiple threads. `seq` and `par` both keep invocations on one thread indeterminately sequenced, meaning they never overlap.",
+      "refs": [
+        "[execpol.unseq]",
+        "[algorithms.parallel.exec]"
+      ]
+    },
+    {
+      "id": "parallel-algorithms-bad-alloc",
+      "kind": "standardese",
+      "prompt": "A parallel algorithm needs temporary memory to parallelize and cannot obtain it. What does the standard say happens?",
+      "options": [
+        "`std::terminate` is called",
+        "It throws `std::bad_alloc`",
+        "It falls back to sequential execution",
+        "The behavior is undefined"
+      ],
+      "answer": 1,
+      "explanation": "[algorithms.parallel.exceptions] makes this the one exception a parallel algorithm itself may throw: if temporary memory resources required for parallelization are unavailable, it throws `std::bad_alloc`. The `std::terminate` rule applies to exceptions escaping element access functions, which are your callbacks and the element operations, not to the algorithm's own allocation.",
+      "refs": [
+        "[algorithms.parallel.exceptions]"
+      ]
+    }
+  ]
+}

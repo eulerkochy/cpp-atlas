@@ -1,0 +1,152 @@
+{
+  "questions": [
+    {
+      "id": "erroneous-behaviour-and-cpp26-language-changes-placeholder-use",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, what happens with this function?",
+      "code": "int f() {\n  int _ = 1;\n  int _ = 2;\n  return _;\n}",
+      "options": [
+        "It returns 2, because the second `_` hides the first",
+        "It returns 1, because the first `_` is the one that was named",
+        "It is ill-formed: `int _ = 2;` redefines `_`",
+        "It is ill-formed: the declarations are fine, but `return _;` is ambiguous"
+      ],
+      "answer": 3,
+      "explanation": "Since P2169, a local variable named `_` is name-independent, so a second `int _` in the same scope is not a redefinition. Once there are two such declarations, though, a use of `_` finds both, and the program is ill-formed. Declaring `_` several times is meant for objects you never refer to, such as lock guards or ignored structured bindings. A single `_` can still be used normally.",
+      "refs": [
+        "[basic.scope.scope]",
+        "[basic.lookup.general]"
+      ]
+    },
+    {
+      "id": "erroneous-behaviour-and-cpp26-language-changes-uninit-local",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, what is the status of the initialization of `y`?",
+      "code": "void g() {\n  int x;\n  int y = x;\n  (void)y;\n}",
+      "options": [
+        "Undefined behavior, as in C++23",
+        "Erroneous behavior: `x` holds an implementation-chosen erroneous value",
+        "Well-defined: `y` is guaranteed to be 0",
+        "Ill-formed: an uninitialized variable cannot be read"
+      ],
+      "answer": 1,
+      "explanation": "In C++26 the bytes of an automatic variable without an initializer have erroneous values, and evaluating an erroneous value is erroneous behavior. That behavior is well-defined, but it is a bug that the implementation is recommended to diagnose and may terminate on. The value is fixed by the implementation, not guaranteed to be 0, although GCC 16 happens to choose 0. It is not ill-formed, because the program may never execute `g`.",
+      "refs": [
+        "[basic.indet]",
+        "[defns.erroneous]",
+        "[intro.abstract]"
+      ]
+    },
+    {
+      "id": "erroneous-behaviour-and-cpp26-language-changes-ellipsis-comma",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, what does this declaration declare?",
+      "code": "void f(int...);",
+      "options": [
+        "A function template with a parameter pack of `int`s",
+        "Nothing: it is ill-formed in C++26",
+        "A C-style variadic function taking an `int` followed by `...`; the spelling without a comma is deprecated",
+        "A function taking a single array of `int` of unknown bound"
+      ],
+      "answer": 2,
+      "explanation": "Without a comma, `int...` is still the C-style ellipsis after one `int` parameter, exactly like `void f(int, ...)`. P3176 deprecated that spelling, so it is listed in [depr.ellipsis.comma] but remains valid. The reason is that `void g(auto...)` declares a function parameter pack, and the two forms are easy to confuse. GCC 16 and Clang 21 both warn about it in C++26 mode.",
+      "refs": [
+        "[depr.ellipsis.comma]",
+        "[dcl.fct]"
+      ]
+    },
+    {
+      "id": "erroneous-behaviour-and-cpp26-language-changes-binding-condition",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, what happens with this code?",
+      "code": "#include <map>\n\nbool add(std::map<int, int>& m) {\n  if (auto [it, ok] = m.insert({1, 2}))\n    return ok;\n  return false;\n}",
+      "options": [
+        "It is ill-formed: the condition converts the whole `std::pair` to `bool`, and `pair` has no such conversion",
+        "It compiles, and the condition tests `ok`, the last binding",
+        "It compiles, and the condition tests `it`, the first binding",
+        "It is ill-formed: structured bindings cannot appear in a condition"
+      ],
+      "answer": 0,
+      "explanation": "P0963 allows a structured binding declaration as a condition. The value tested is the hidden object that the bindings refer to, contextually converted to `bool` before the bindings are initialized. `std::pair<iterator, bool>` is not convertible to `bool`, so this is ill-formed. It works for types designed for it, such as a result type with an `explicit operator bool`. Neither binding is ever tested on its own.",
+      "refs": [
+        "[dcl.struct.bind]",
+        "[stmt.pre]"
+      ]
+    },
+    {
+      "id": "erroneous-behaviour-and-cpp26-language-changes-which-is-ub",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, which marked read has undefined behavior rather than erroneous behavior?",
+      "code": "void use(int);\n\nvoid h() {\n  int a;\n  use(a);                    // (1)\n  int b [[indeterminate]];\n  use(b);                    // (2)\n  static int c;\n  use(c);                    // (3)\n}",
+      "options": [
+        "(1)",
+        "(2)",
+        "(3)",
+        "None: in C++26 none of these reads has undefined behavior"
+      ],
+      "answer": 1,
+      "explanation": "`[[indeterminate]]` opts the variable out of erroneous values, so `b` starts with an indeterminate value, and evaluating it is undefined behavior. `a` has an erroneous value, so read (1) is erroneous behavior, which is defined but a bug. `c` has static storage duration and is zero-initialized, so read (3) is correct and reads 0. Memory from `new` also still starts out indeterminate.",
+      "refs": [
+        "[basic.indet]",
+        "[dcl.attr.indet]",
+        "[basic.start.static]"
+      ]
+    },
+    {
+      "id": "erroneous-behaviour-and-cpp26-language-changes-return-temporary",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, what happens with this function?",
+      "code": "const double& value() {\n  static int x = 42;\n  return x;\n}",
+      "options": [
+        "It returns a reference to `x`, viewed as a `double`",
+        "It compiles, but using the result is undefined behavior",
+        "Its result refers to a temporary whose lifetime is extended to match the reference",
+        "It is ill-formed: the returned reference would be bound to a temporary"
+      ],
+      "answer": 3,
+      "explanation": "Binding a `const double&` to an `int` lvalue creates a temporary `double` holding 42.0. That temporary would die at the end of the `return`, leaving a dangling reference. Until C++23 this compiled and using the result was undefined behavior. P2748 makes a `return` statement that binds the returned reference to a temporary ill-formed, and lifetime extension never applies to a returned reference.",
+      "refs": [
+        "[stmt.return]",
+        "[class.temporary]",
+        "[dcl.init.ref]"
+      ]
+    },
+    {
+      "id": "erroneous-behaviour-and-cpp26-language-changes-delete-incomplete",
+      "kind": "standardese",
+      "prompt": "Under the C++26 draft, what is the status of this translation unit?",
+      "code": "struct Widget;\n\nvoid destroy(Widget* p) {\n  delete p;\n}",
+      "options": [
+        "Well-formed, and the behavior is undefined only if `Widget` turns out to have a non-trivial destructor",
+        "Ill-formed",
+        "Well-formed, and `delete` calls `operator delete` without running a destructor",
+        "Ill-formed, no diagnostic required"
+      ],
+      "answer": 1,
+      "explanation": "Up to C++23, deleting a pointer to an incomplete class type was allowed, and it had undefined behavior when the complete class had a non-trivial destructor or a class-specific `operator delete`. P3144 changes [expr.delete] so that the object being deleted must not have incomplete class type, which makes the program ill-formed with a required diagnostic. GCC 16 and Clang 21 both reject it in C++26 mode.",
+      "refs": [
+        "[expr.delete]",
+        "[diff.cpp23]"
+      ]
+    },
+    {
+      "id": "erroneous-behaviour-and-cpp26-language-changes-constexpr-uninit",
+      "kind": "standardese",
+      "prompt": "Under the C++26 draft, what is the status of the declaration of `v`?",
+      "code": "constexpr int f() {\n  int x;\n  return x;\n}\n\nconstexpr int v = f();",
+      "options": [
+        "Well-formed: `v` is initialized with the implementation's erroneous value",
+        "Well-formed: `v` is 0",
+        "Ill-formed: evaluating `f()` would read an erroneous value, so it is not a constant expression",
+        "Undefined behavior during compilation"
+      ],
+      "answer": 2,
+      "explanation": "An expression whose evaluation would have undefined or erroneous behavior, as specified in the core language clauses, is not a core constant expression. Reading `x` evaluates an erroneous value, so `f()` cannot initialize a `constexpr` variable, and the declaration is ill-formed. The definition of erroneous behavior states this directly: a constant expression never exhibits behavior specified as erroneous. The function itself is fine, because `int x;` without an initializer is allowed in a `constexpr` function.",
+      "refs": [
+        "[expr.const]",
+        "[defns.erroneous]",
+        "[basic.indet]"
+      ]
+    }
+  ]
+}

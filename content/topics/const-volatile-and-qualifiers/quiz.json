@@ -1,0 +1,150 @@
+{
+  "questions": [
+    {
+      "id": "const-volatile-pointer-levels",
+      "kind": "warmup",
+      "prompt": "Which two of the commented statements would be ill-formed if uncommented?",
+      "code": "void demo() {\n  int a = 0, b = 0;\n  const int* p = &a;\n  int* const q = &a;\n  // *p = 1;   // (1)\n  // p = &b;    // (2)\n  // *q = 1;    // (3)\n  // q = &b;    // (4)\n  (void)p; (void)q; (void)b;\n}",
+      "options": [
+        "(1) and (3)",
+        "(1) and (4)",
+        "(2) and (3)",
+        "(2) and (4)"
+      ],
+      "answer": 1,
+      "explanation": "In `const int* p` the `const` qualifies the `int`, so the pointee cannot be written through `p` but `p` itself can be reseated: (1) fails, (2) is fine. In `int* const q` the `const` qualifies the pointer, so `q` cannot be reseated but the `int` can be written: (3) is fine, (4) fails. Reading each declaration right to left from the name gives the answer directly.",
+      "refs": [
+        "[dcl.ptr]",
+        "[basic.type.qualifier]"
+      ]
+    },
+    {
+      "id": "const-volatile-mutable-counter",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct Widget {\n  mutable int reads = 0;\n  int value = 42;\n  int get() const { ++reads; return value; }\n};\n\nint main() {\n  const Widget w;\n  w.get();\n  w.get();\n  std::printf(\"%d\\n\", w.reads);\n}",
+      "options": [
+        "Nothing: `get` modifies the object but is `const`, so the program is ill-formed",
+        "Undefined behavior: `w` is a const object",
+        "`0`",
+        "`2`"
+      ],
+      "answer": 3,
+      "explanation": "A `mutable` member is not part of the const object: [basic.type.qualifier] defines a const object's subobjects as const only when they are non-mutable. So `get` may increment `reads` even through `const Widget*`, and doing so on a const object is well-defined. The program prints `2`. Without `mutable`, the increment would be ill-formed, not undefined.",
+      "refs": [
+        "[dcl.stc]",
+        "[basic.type.qualifier]",
+        "[dcl.type.cv]"
+      ]
+    },
+    {
+      "id": "const-volatile-parameter-top-level",
+      "kind": "warmup",
+      "prompt": "How many distinct functions do these declarations declare?",
+      "code": "void f(int);\nvoid f(const int);\nvoid f(int*);\nvoid f(const int*);\nvoid f(int* const);",
+      "options": [
+        "3",
+        "5",
+        "4",
+        "2"
+      ],
+      "answer": 0,
+      "explanation": "When the function type is formed, top-level cv-qualifiers on parameter types are removed, so `f(const int)` redeclares `f(int)` and `f(int* const)` redeclares `f(int*)`. The `const` in `f(const int*)` is low-level, part of the pointee type, so that one is a distinct overload. That leaves `f(int)`, `f(int*)` and `f(const int*)`.",
+      "refs": [
+        "[dcl.fct]",
+        "[over.load]"
+      ]
+    },
+    {
+      "id": "const-volatile-double-pointer-conversion",
+      "kind": "tricky",
+      "prompt": "Which of these initializations are ill-formed?",
+      "code": "void demo() {\n  int* p = nullptr;\n  int** pp = &p;\n  const int** a = pp;        // (A)\n  const int* const* b = pp;  // (B)\n  int* const* c = pp;        // (C)\n  (void)a; (void)b; (void)c;\n}",
+      "options": [
+        "(B) only",
+        "(A) and (B)",
+        "(A) only",
+        "None of them"
+      ],
+      "answer": 2,
+      "explanation": "Adding `const` two levels down is only allowed if every level in between, except the outermost, becomes `const` as well. (A) leaves the middle pointer writable, so through `a` you could store the address of a `const int` into `p` and then modify it through `p`; the conversion is banned and (A) is ill-formed. (B) makes the middle level const, closing that hole, and (C) adds `const` only one level down, which is always safe.",
+      "refs": [
+        "[conv.qual]"
+      ]
+    },
+    {
+      "id": "const-volatile-constexpr-pointer",
+      "kind": "tricky",
+      "prompt": "What does the standard say about this code?",
+      "code": "int g = 0;\nconstexpr int* p = &g;\n\nvoid set() { *p = 5; }",
+      "options": [
+        "Well-formed: `p` has type `int* const`, so the pointee is modifiable",
+        "Ill-formed: `constexpr` makes `*p` const",
+        "Ill-formed: a constexpr pointer cannot point to a non-const object",
+        "Undefined behavior: it modifies an object that a constant expression refers to"
+      ],
+      "answer": 0,
+      "explanation": "`constexpr` on a variable implies `const` on that variable only, which is top-level. `p` is a constant pointer to a modifiable `int`, and `&g` is a constant expression because `g` has static storage duration. Writing through `p` modifies `g`, which is not a const object. To protect the pointee as well you would write `constexpr const int* p`.",
+      "refs": [
+        "[dcl.constexpr]",
+        "[expr.const]"
+      ]
+    },
+    {
+      "id": "const-volatile-shallow-const-member",
+      "kind": "tricky",
+      "prompt": "What does the standard say about calling `clear` on a `const Buffer` whose `data` points to a non-const `int` array?",
+      "code": "struct Buffer {\n  int* data;\n  void clear() const { data[0] = 0; }\n};",
+      "options": [
+        "Ill-formed: inside a const member function `data[0]` is const",
+        "Ill-formed unless `data` is declared `mutable`",
+        "Undefined behavior whenever it is called on a const `Buffer`",
+        "Well-formed and well-defined: only the pointer `data` itself is const inside `clear`"
+      ],
+      "answer": 3,
+      "explanation": "In a const member function, `this` is `const Buffer*`, so the member `data` is accessed as `int* const`: the pointer is const, the pointee is not. Writing `data[0]` modifies an `int` that is not part of the `Buffer` object and not const, so there is no undefined behavior. This shallowness is the gap between bitwise const and logical const.",
+      "refs": [
+        "[class.this]",
+        "[expr.ref]",
+        "[dcl.type.cv]"
+      ]
+    },
+    {
+      "id": "const-volatile-cpp23-deprecations",
+      "kind": "standardese",
+      "prompt": "Given `volatile int v;` at namespace scope, which statement inside a function is deprecated in C++23?",
+      "options": [
+        "`v += 1;`",
+        "`++v;`",
+        "`v |= 1;`",
+        "`int x = v;`"
+      ],
+      "answer": 1,
+      "explanation": "C++20 (P1152) deprecated increment and decrement of volatile objects, and that deprecation remains in C++23. P1152 also deprecated compound assignment, but P2327 restored the bitwise forms and CWG 2654 restored the rest, so `v += 1` is not deprecated in C++23; GCC 16 and Clang 21 warn only about `++v`. Reading a volatile object is the plain, intended use.",
+      "refs": [
+        "[expr.pre.incr]",
+        "[expr.ass]",
+        "[depr.volatile.type]"
+      ]
+    },
+    {
+      "id": "const-volatile-constexpr-member-not-const",
+      "kind": "standardese",
+      "prompt": "In C++23, what does the standard say about this code?",
+      "code": "struct S {\n  int v;\n  constexpr int get() { return v; }\n};\n\nconstexpr S s{1};\nstatic_assert(s.get() == 1);",
+      "options": [
+        "Well-formed: constexpr member functions are implicitly `const`",
+        "Well-formed: `s` is constexpr, so `get` is evaluated at compile time regardless",
+        "Ill-formed: `get` is not a const member function and `s` is const",
+        "Ill-formed: `S` needs a constexpr constructor to be used in a constexpr variable"
+      ],
+      "answer": 2,
+      "explanation": "A `constexpr` variable is implicitly `const`, so `s.get()` needs a const member function. In C++11 a constexpr non-static member function was implicitly const, which is the tempting first option, but C++14 removed that rule, so `get` here is a non-const function and cannot be called on `s`. `S` is an aggregate, so it needs no constructor for `s{1}`.",
+      "refs": [
+        "[dcl.constexpr]",
+        "[class.mfct.non.static]",
+        "[over.match.funcs]"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "questions": [
+    {
+      "id": "span-and-mdspan-shallow-const",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <span>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3};\n  const std::span<int> cs = v;\n  cs[0] = 42;\n  std::cout << v[0] << '\\n';\n}",
+      "options": [
+        "`42`",
+        "`1`",
+        "Nothing: the program is ill-formed because `cs` is const",
+        "Undefined behavior"
+      ],
+      "answer": 0,
+      "explanation": "Constness of a `span` is shallow, like a pointer: `const std::span<int>` is a constant view, but the elements are still `int`, so `operator[]` returns `int&`. To forbid writes you need `std::span<const int>`. The program therefore compiles and prints `42`.",
+      "refs": [
+        "[views.span]"
+      ]
+    },
+    {
+      "id": "span-and-mdspan-const-source",
+      "kind": "warmup",
+      "prompt": "Which line is ill-formed?",
+      "code": "#include <span>\n#include <vector>\n\nvoid f(const std::vector<int>& cr) {\n  std::vector<int> v{1, 2, 3};\n  std::span<const int> a = v;   // (1)\n  std::span<int> b = cr;        // (2)\n  std::span<int> c = v;         // (3)\n  int arr[3] = {1, 2, 3};\n  std::span<int, 3> d = arr;    // (4)\n}",
+      "options": [
+        "(1)",
+        "(2)",
+        "(3)",
+        "(4)"
+      ],
+      "answer": 1,
+      "explanation": "A `std::span<int>` can only be built from a range whose elements are convertible without dropping `const`, and `cr` gives `const int`. Line (1) adds `const`, which is allowed, (3) is an exact match, and (4) is an array of the right static size, which converts implicitly.",
+      "refs": [
+        "[span.cons]"
+      ]
+    },
+    {
+      "id": "span-and-mdspan-mdspan-layout",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <mdspan>\n#include <vector>\n\nint main() {\n  std::vector<int> v(12);\n  for (int i = 0; i < 12; ++i) v[i] = i;\n  std::mdspan m(v.data(), 3, 4);\n  std::cout << m[1, 2] << '\\n';\n}",
+      "options": [
+        "`7`",
+        "`6`",
+        "`9`",
+        "`5`"
+      ],
+      "answer": 1,
+      "explanation": "The default layout is `std::layout_right`, which is row-major: the last index varies fastest, so element `[1, 2]` of a 3 by 4 view lives at offset `1 * 4 + 2 = 6`. The value `7` is what `layout_left`, the column-major layout, would give for `1 + 2 * 3`.",
+      "refs": [
+        "[mdspan.layout.right]",
+        "[mdspan.mdspan]"
+      ]
+    },
+    {
+      "id": "span-and-mdspan-rvalue-vector",
+      "kind": "tricky",
+      "prompt": "What can be said about this code in C++23?",
+      "code": "#include <span>\n#include <vector>\n\nint sum() {\n  std::span<const int> s = std::vector<int>{1, 2, 3};\n  int total = 0;\n  for (int x : s) total += x;\n  return total;\n}",
+      "options": [
+        "Well-formed, but the loop reads a destroyed vector: undefined behavior",
+        "Ill-formed: a span cannot be built from an rvalue vector",
+        "Well-formed and well-defined: the temporary vector's lifetime is extended",
+        "Well-formed and well-defined: the span copies the elements"
+      ],
+      "answer": 0,
+      "explanation": "A `span` can be built from an rvalue range only when its element type is `const` (or the range is a borrowed range), because then the usual hazard is considered acceptable, so the declaration compiles. The span stores only a pointer and a size, so no lifetime extension applies, and the vector is destroyed at the end of the declaration. The loop then reads freed memory. With `std::span<int>` the declaration would be ill-formed.",
+      "refs": [
+        "[span.cons]",
+        "[class.temporary]"
+      ]
+    },
+    {
+      "id": "span-and-mdspan-subspan-ub",
+      "kind": "tricky",
+      "prompt": "`s` is a `std::span<int>` over exactly 3 elements. In C++23, which call has undefined behavior?",
+      "code": "#include <array>\n#include <span>\n\nvoid f() {\n  std::array<int, 3> a{1, 2, 3};\n  std::span<int> s = a;\n  auto p = s.first(3);      // (1)\n  auto q = s.last(0);       // (2)\n  auto r = s.subspan(3);    // (3)\n  auto t = s.subspan(1, 3); // (4)\n}",
+      "options": [
+        "(1)",
+        "(2)",
+        "(3)",
+        "(4)"
+      ],
+      "answer": 3,
+      "explanation": "`subspan(offset, count)` requires `offset <= size()` and, when `count` is given, `count <= size() - offset`. Here `offset == 1` leaves 2 elements, so asking for 3 breaks the precondition. Calls (1) and (2) take the full size and zero, and (3) uses `offset == size()`, which is valid and gives an empty span, so it is not the off-by-one trap it looks like.",
+      "refs": [
+        "[span.sub]"
+      ]
+    },
+    {
+      "id": "span-and-mdspan-first-static",
+      "kind": "tricky",
+      "prompt": "What is the type of `s.first<2>()` when `s` is a `std::span<int>` with dynamic extent?",
+      "code": "#include <span>\n#include <type_traits>\n\nvoid f(std::span<int> s) {\n  auto t = s.first<2>();\n}",
+      "options": [
+        "`std::span<int>`",
+        "Ill-formed: the template form needs a static-extent span",
+        "`std::span<int, 2>`",
+        "`std::span<int, std::dynamic_extent>`, with the 2 checked at run time"
+      ],
+      "answer": 2,
+      "explanation": "The template overloads `first<Count>`, `last<Count>` and `subspan<Offset, Count>` always return a span with a static extent, even when the source has a dynamic one. They carry a precondition `Count <= size()`, which is not checked by the type system. The function-argument overloads such as `first(2)` return a dynamic-extent span.",
+      "refs": [
+        "[span.sub]"
+      ]
+    },
+    {
+      "id": "span-and-mdspan-mdspan-subscript",
+      "kind": "standardese",
+      "prompt": "In C++23, what is the status of `m[1][2]` below?",
+      "code": "#include <mdspan>\n#include <vector>\n\nint main() {\n  std::vector<int> v(12);\n  std::mdspan m(v.data(), 3, 4);\n  int x = m[1][2];\n  (void)x;\n}",
+      "options": [
+        "Ill-formed: `operator[]` of a rank-2 `mdspan` requires two indices",
+        "Well-formed: `m[1]` is a row view that is then subscripted",
+        "Undefined behavior",
+        "Well-formed, but returns an element of the wrong row"
+      ],
+      "answer": 0,
+      "explanation": "C++23 allows a multidimensional `operator[]`, and `mdspan::operator[]` is constrained so that the number of indices equals the rank. `m[1]` with one index therefore has no viable overload and the program is ill-formed. A row view requires `std::submdspan`, which arrives in C++26.",
+      "refs": [
+        "[mdspan.mdspan.members]"
+      ]
+    },
+    {
+      "id": "span-and-mdspan-static-extent-size",
+      "kind": "standardese",
+      "prompt": "In C++23, what is the status of the declaration of `s`?",
+      "code": "#include <span>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3};\n  std::span<int, 4> s(v);\n}",
+      "options": [
+        "Ill-formed: a span of static extent cannot be built from a vector",
+        "Well-formed, and throws `std::length_error` at run time",
+        "Undefined behavior: the range size must equal the static extent",
+        "Well-formed, and `s.size()` is 3"
+      ],
+      "answer": 2,
+      "explanation": "The range constructor for a static extent is `explicit`, so direct-initialization like this compiles, and it has the precondition that `ranges::size(r) == extent`. A vector of 3 elements violates it, which is undefined behavior and not an exception. Building `std::span<int, 4>` from an array of three ints would instead be ill-formed, because the array constructor constrains the sizes at compile time.",
+      "refs": [
+        "[span.cons]"
+      ]
+    }
+  ]
+}

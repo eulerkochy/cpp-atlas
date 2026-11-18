@@ -1,0 +1,145 @@
+{
+  "questions": [
+    {
+      "id": "fs-append-absolute",
+      "kind": "warmup",
+      "prompt": "On a POSIX system, what does this program print?",
+      "code": "#include <filesystem>\n#include <iostream>\n\nint main() {\n  std::filesystem::path p = \"/usr/lib\";\n  std::cout << (p / \"/opt\").string() << '\\n';\n}",
+      "options": [
+        "`/usr/lib/opt`",
+        "`/usr/lib//opt`",
+        "`/usr/lib`",
+        "`/opt`"
+      ],
+      "answer": 3,
+      "explanation": "`operator/` follows the rules of `append`: if the right-hand operand is absolute, it replaces the left-hand path instead of being joined to it. The result is `/opt`. Plain string concatenation would give the first option, which is what `+=` on a path does for relative text.",
+      "refs": [
+        "[fs.path.append]"
+      ]
+    },
+    {
+      "id": "fs-stem-extension",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <filesystem>\n#include <iostream>\n\nint main() {\n  std::filesystem::path p = \"/tmp/archive.tar.gz\";\n  std::cout << p.stem().string() << ' ' << p.extension().string() << '\\n';\n}",
+      "options": [
+        "`archive .tar.gz`",
+        "`archive.tar .gz`",
+        "`archive.tar.gz .gz`",
+        "`archive .gz`"
+      ],
+      "answer": 1,
+      "explanation": "The extension is the part of the filename from the last dot, so it is `.gz`, and the stem is everything before that, which is `archive.tar`. Peeling several extensions requires calling `stem()` repeatedly.",
+      "refs": [
+        "[fs.path.decompose]"
+      ]
+    },
+    {
+      "id": "fs-dangling-symlink",
+      "kind": "warmup",
+      "prompt": "On a POSIX system, what does this program print?",
+      "code": "#include <filesystem>\n#include <iostream>\n\nnamespace fs = std::filesystem;\n\nint main() {\n  fs::path dir = fs::temp_directory_path() / \"atlas_dangling_demo\";\n  fs::remove_all(dir);\n  fs::create_directory(dir);\n  fs::create_symlink(dir / \"missing\", dir / \"link\");\n  std::cout << fs::exists(dir / \"link\") << ' ' << fs::is_symlink(dir / \"link\") << '\\n';\n  fs::remove_all(dir);\n}",
+      "options": [
+        "`0 1`",
+        "`1 1`",
+        "`0 0`",
+        "`1 0`"
+      ],
+      "answer": 0,
+      "explanation": "`exists` and `is_regular_file` use `status`, which follows symlinks, so a symlink whose target is missing is reported as not existing. `is_symlink` uses `symlink_status`, which looks at the link itself, and finds one. To ask about the link, use the `symlink_status` family.",
+      "refs": [
+        "[fs.op.exists]",
+        "[fs.op.is.symlink]"
+      ]
+    },
+    {
+      "id": "fs-normal-dotdot",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <filesystem>\n#include <iostream>\n\nint main() {\n  std::filesystem::path p = \"a/b/../..\";\n  std::cout << '[' << p.lexically_normal().string() << \"]\\n\";\n}",
+      "options": [
+        "`[]`",
+        "`[.]`",
+        "`[a/b/../..]`",
+        "`[..]`"
+      ],
+      "answer": 1,
+      "explanation": "Normalization removes `b/..` and then `a/..`, leaving nothing. The standard says that if the result would be empty it is a single dot. An empty path means no path at all, so the dot is the way to name the current directory.",
+      "refs": [
+        "[fs.path.generic]"
+      ]
+    },
+    {
+      "id": "fs-dotdot-through-symlink",
+      "kind": "tricky",
+      "prompt": "On a POSIX system, what does this program print?",
+      "code": "#include <filesystem>\n#include <iostream>\n\nnamespace fs = std::filesystem;\n\nint main() {\n  fs::path root = fs::temp_directory_path() / \"atlas_dotdot_demo\";\n  fs::remove_all(root);\n  fs::create_directories(root / \"real\" / \"sub\");\n  fs::create_directory_symlink(root / \"real\" / \"sub\", root / \"link\");\n\n  fs::path p = root / \"link\" / \"..\";\n  std::cout << fs::equivalent(p, root / \"real\") << ' '\n            << fs::equivalent(p.lexically_normal(), root / \"real\") << '\\n';\n  fs::remove_all(root);\n}",
+      "options": [
+        "`0 1`",
+        "`1 1`",
+        "`0 0`",
+        "`1 0`"
+      ],
+      "answer": 3,
+      "explanation": "The operating system resolves `link/..` by following the link first, so it names the parent of `real/sub`, which is `real`. Lexical normalization knows nothing about links and cancels `link/..`, leaving `root`, which is a different directory. That is why `lexically_normal` is unsafe on paths that may contain symlinks, and why `canonical` exists.",
+      "refs": [
+        "[fs.path.generic]",
+        "[fs.op.equivalent]"
+      ]
+    },
+    {
+      "id": "fs-path-equality",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <filesystem>\n#include <iostream>\n\nint main() {\n  using std::filesystem::path;\n  std::cout << (path(\"a//b\") == path(\"a/b\")) << ' '\n            << (path(\"a/b/\") == path(\"a/b\")) << ' '\n            << (path(\"a/./b\") == path(\"a/b\")) << '\\n';\n}",
+      "options": [
+        "`1 1 1`",
+        "`0 0 0`",
+        "`1 0 0`",
+        "`1 1 0`"
+      ],
+      "answer": 2,
+      "explanation": "Path comparison goes element by element, and repeated separators do not create extra elements, so `a//b` equals `a/b`. A trailing separator does produce a final empty element, and `.` is an element, so the other two comparisons are false. Comparison never normalizes.",
+      "refs": [
+        "[fs.path.compare]",
+        "[fs.path.itr]"
+      ]
+    },
+    {
+      "id": "fs-u8string-cpp20",
+      "kind": "standardese",
+      "prompt": "Is this well-formed in C++20?",
+      "code": "#include <filesystem>\n#include <string>\n\nint main() {\n  std::filesystem::path p(u8\"caf\\u00e9\");\n  std::string s = p.u8string();\n  (void)s;\n}",
+      "options": [
+        "Yes: `u8string()` returns a `std::string` holding UTF-8",
+        "Yes, but only if the file name is ASCII",
+        "No: `u8string()` returns `std::u8string`, which does not convert to `std::string`",
+        "No: a `path` cannot be constructed from a `u8` literal"
+      ],
+      "answer": 2,
+      "explanation": "C++20 changed `path::u8string()` to return `std::u8string`, because UTF-8 text now has its own character type. A `std::u8string` cannot be converted to `std::string`. In C++17, where `u8` literals are `char`, the same code compiles. Construction from a `u8` literal is fine in both versions.",
+      "refs": [
+        "[fs.path.native.obs]",
+        "[fs.path.type.cvt]"
+      ]
+    },
+    {
+      "id": "fs-error-code-overload",
+      "kind": "standardese",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdint>\n#include <filesystem>\n#include <iostream>\n#include <system_error>\n\nint main() {\n  std::error_code ec;\n  std::uintmax_t n = std::filesystem::file_size(\"/no/such/file/anywhere\", ec);\n  std::cout << static_cast<bool>(ec) << ' '\n            << (n == static_cast<std::uintmax_t>(-1)) << '\\n';\n}",
+      "options": [
+        "`1 1`",
+        "`1 0`",
+        "`0 0`",
+        "Nothing: it throws `std::filesystem::filesystem_error`"
+      ],
+      "answer": 0,
+      "explanation": "The overload taking an `error_code&` reports failure through the argument and never throws a `filesystem_error`; the standard specifies that `file_size` returns `static_cast<uintmax_t>(-1)` on error. Without the `ec` argument, the same call throws. The `ec` argument is set to the system's error code.",
+      "refs": [
+        "[fs.err.report]",
+        "[fs.op.file.size]"
+      ]
+    }
+  ]
+}

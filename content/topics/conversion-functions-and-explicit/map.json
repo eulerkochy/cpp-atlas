@@ -1,0 +1,61 @@
+{
+  "root": {
+    "label": "Conversion functions and explicit",
+    "note": "User-defined conversions in both directions, at most one per implicit conversion.",
+    "children": [
+      {
+        "label": "Two directions",
+        "note": "A constructor converts into the class; operator U() converts out of it.",
+        "children": [
+          { "label": "Converting constructor", "note": "Any non-explicit constructor, including multi-parameter ones used by braced lists." },
+          { "label": "Conversion function", "note": "No parameters, no declared return type; may be const, virtual, a template or operator auto." },
+          { "label": "Never used implicitly", "note": "Conversion to the class itself, a base class, or void is never applied implicitly." }
+        ]
+      },
+      {
+        "label": "One-conversion limit",
+        "note": "At most one user-defined conversion is applied implicitly to a single value.",
+        "children": [
+          { "label": "Standard conversions around", "note": "Promotions or conversions may come before and after the one user-defined call." },
+          { "label": "Two hops fail", "note": "const char* to std::string to Name is two user-defined conversions, so it fails." },
+          { "label": "Per value", "note": "Direct-initialization converts a constructor's argument separately, so B b(1) can work where B b = 1 fails." }
+        ]
+      },
+      {
+        "label": "Candidate sets",
+        "note": "The form of initialization decides which functions are even considered.",
+        "children": [
+          { "label": "Copy-initialization", "note": "Converting constructors plus non-explicit conversion functions; explicit ones are not candidates." },
+          { "label": "Direct-initialization", "note": "All constructors, plus explicit conversion functions followed by at most a qualification conversion." },
+          { "label": "Copy-list-initialization", "note": "Explicit constructors are candidates, and choosing one makes it ill-formed." },
+          { "label": "Ctor versus conv function", "note": "A(const B&) and B::operator A() const make A a = B{} ambiguous." }
+        ]
+      },
+      {
+        "label": "explicit operator bool",
+        "note": "C++11 replacement for the safe-bool idiom.",
+        "children": [
+          { "label": "Contextual contexts", "note": "if, while, for, do, !, &&, ||, the first operand of ?:, static_assert and noexcept(expr)." },
+          { "label": "Not contextual", "note": "bool b = f, return f, f == true and int i(f) are all ill-formed." },
+          { "label": "Safe-bool history", "note": "Before C++11, classes converted to a member pointer so they were testable but not arithmetic." }
+        ]
+      },
+      {
+        "label": "explicit(bool)",
+        "note": "C++20: a constant bool decides whether the constructor is explicit.",
+        "children": [
+          { "label": "Conditionally explicit", "note": "explicit(!is_convertible_v<U, T>) makes a wrapper exactly as implicit as T." },
+          { "label": "Library use", "note": "std::pair and std::optional constructors are conditionally explicit this way." }
+        ]
+      },
+      {
+        "label": "Conversion templates",
+        "note": "template<class T> operator T() deduces T from the required target type.",
+        "children": [
+          { "label": "Deduction rule", "note": "References and top-level cv are stripped, so const int& deduces int." },
+          { "label": "Converts to anything", "note": "Makes every overload viable; constrain it to avoid accidental matches." }
+        ]
+      }
+    ]
+  }
+}

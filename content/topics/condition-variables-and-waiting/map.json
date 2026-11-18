@@ -1,0 +1,62 @@
+{
+  "root": {
+    "label": "Condition variables and waiting",
+    "note": "Sleep until mutex-guarded state changes, rechecking a predicate on every wake; C++20 adds lighter primitives.",
+    "children": [
+      {
+        "label": "wait semantics",
+        "note": "Atomically unlock and block, then relock before returning.",
+        "children": [
+          { "label": "Spurious wakeups", "note": "wait may return without any notify, so the predicate must be rechecked." },
+          { "label": "Predicate overload", "note": "wait(lock, pred) is while (!pred()) wait(lock); it returns at once if pred is true." },
+          { "label": "unique_lock only", "note": "condition_variable takes unique_lock<mutex>; a lock_guard cannot be unlocked by wait." },
+          { "label": "One mutex", "note": "All threads waiting at the same time must pass the same mutex, or behavior is undefined." }
+        ]
+      },
+      {
+        "label": "Notification",
+        "note": "A notify is a nudge, never stored; with no waiter it does nothing.",
+        "children": [
+          { "label": "Lost wakeup", "note": "Changing the predicate without the mutex lets a notify land between check and sleep." },
+          { "label": "Atomic is not enough", "note": "An atomic flag avoids a data race but not the lost wakeup; take the mutex to change it." },
+          { "label": "Notify under lock", "note": "Correct either way; under the lock also keeps a waiter from destroying the cv too early." }
+        ]
+      },
+      {
+        "label": "condition_variable_any",
+        "note": "Works with any BasicLockable, such as shared_lock, at some extra cost.",
+        "children": [
+          { "label": "Stop-aware waits", "note": "C++20 wait(lock, stoken, pred) wakes on stop requests and returns pred()." },
+          { "label": "False means stopped", "note": "A false result means stop was requested while the predicate still did not hold." }
+        ]
+      },
+      {
+        "label": "Timed waits",
+        "note": "wait_for and wait_until bound the sleep; timeouts may always be late.",
+        "children": [
+          { "label": "cv_status", "note": "Bare timed waits return timeout or no_timeout; no_timeout includes spurious wakes." },
+          { "label": "Predicate on timeout", "note": "Predicate forms return the predicate's value at the deadline, not simply false." },
+          { "label": "Clocks", "note": "wait_for uses steady_clock; a system_clock deadline follows wall-clock adjustments." }
+        ]
+      },
+      {
+        "label": "C++20 primitives",
+        "note": "Mutex-free tools for patterns a condition variable expresses clumsily.",
+        "children": [
+          { "label": "atomic::wait", "note": "Blocks while the value equals old; returns at once if it differs; never spuriously unchanged." },
+          { "label": "counting_semaphore", "note": "acquire and release a counter; no owner, so any thread may release." },
+          { "label": "latch", "note": "Single-use countdown; going below zero is undefined; try_wait may rarely report false." },
+          { "label": "barrier", "note": "Reusable phases; a noexcept completion step runs once per phase on an arriving thread." }
+        ]
+      },
+      {
+        "label": "Choosing",
+        "note": "Pick the narrowest primitive that expresses the wait.",
+        "children": [
+          { "label": "Arbitrary state", "note": "Use a condition_variable with a predicate under the guarding mutex." },
+          { "label": "One result", "note": "Use a future when waiting for a single value or exception." }
+        ]
+      }
+    ]
+  }
+}

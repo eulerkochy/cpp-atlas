@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "Casts",
+    "note": "Four named casts with narrow permissions, plus C-style and functional casts that try them in order.",
+    "children": [
+      {
+        "label": "static_cast",
+        "note": "Conversions the compiler can check from the types alone.",
+        "children": [
+          { "label": "Direct-init power", "note": "Valid when T t(e); would be, including explicit constructors and conversion functions." },
+          { "label": "Reverse conversions", "note": "void* to T*, int or float to enum, base to derived; never removes const." },
+          { "label": "Wrong downcast is UB", "note": "If the Base is not inside a Derived, the cast itself is undefined." },
+          { "label": "To T&&", "note": "Turns a glvalue into an xvalue; this is what std::move does." }
+        ]
+      },
+      {
+        "label": "const_cast",
+        "note": "Adds or removes const and volatile, and changes nothing else.",
+        "children": [
+          { "label": "Const objects", "note": "Writing to an object created const is undefined, even after a valid const_cast." },
+          { "label": "Const paths", "note": "Writing to a non-const object reached through a const pointer is fine." },
+          { "label": "as_const idiom", "note": "Implement a non-const member via the const one, then const_cast the result." }
+        ]
+      },
+      {
+        "label": "reinterpret_cast",
+        "note": "Reuses an address or bits under another type.",
+        "children": [
+          { "label": "Pointer and integer", "note": "Round trip through an integer large enough, such as uintptr_t, restores the pointer." },
+          { "label": "Pointer to pointer", "note": "Same address; reading through it is limited by the aliasing rules." },
+          { "label": "Cannot do", "note": "Cannot remove const, convert arithmetic values or appear in a constant expression." }
+        ]
+      },
+      {
+        "label": "dynamic_cast",
+        "note": "Checks the most derived object at run time.",
+        "children": [
+          { "label": "Needs polymorphism", "note": "Except for upcasts, the source class must have a virtual function." },
+          { "label": "Failure", "note": "Pointer form returns null; reference form throws std::bad_cast." },
+          { "label": "Cross-cast", "note": "Can reach a sibling base if the most derived object has it publicly and unambiguously." },
+          { "label": "void* target", "note": "Returns the address of the most derived object." }
+        ]
+      },
+      {
+        "label": "C-style and functional",
+        "note": "(T)e and T(e) try the named casts in a fixed order.",
+        "children": [
+          { "label": "Order", "note": "const, static, static then const, reinterpret, reinterpret then const." },
+          { "label": "Ignores access", "note": "Its static steps may convert to or from an inaccessible base class." },
+          { "label": "Incomplete classes", "note": "Unspecified whether static or reinterpret semantics apply, so the address may not adjust." },
+          { "label": "T{e} differs", "note": "Braces are list-initialization: implicit conversions only, no narrowing." }
+        ]
+      },
+      {
+        "label": "Results and bit_cast",
+        "note": "Value category rules and the C++20 bit copy.",
+        "children": [
+          { "label": "Value category", "note": "T& gives an lvalue, T&& to an object gives an xvalue, anything else a prvalue." },
+          { "label": "cv on prvalues", "note": "Non-class prvalues are never cv-qualified, so static_cast<const int> yields int." },
+          { "label": "std::bit_cast (C++20)", "note": "Copies bits into a new object of the same size; trivially copyable types; often constexpr." }
+        ]
+      }
+    ]
+  }
+}

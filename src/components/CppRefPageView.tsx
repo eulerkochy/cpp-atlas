@@ -10,7 +10,11 @@ import { SectionRail } from "@/components/SectionRail";
 import { TrackProgressCount } from "@/components/TrackProgressCount";
 import { UniversalPageAtlas } from "@/components/UniversalPageAtlas";
 import { getCompanionForPath } from "@/data/companions";
-import { getRelatedPagesForLangPath } from "@/lib/cppref-index";
+import { JsonLd } from "@/components/JsonLd";
+import { REFERENCE_LICENSE, REFERENCE_SNAPSHOT } from "@/lib/cppref-engine";
+import { getSiblingPages } from "@/lib/cppref-index";
+import { referenceHref } from "@/lib/reference";
+import { absoluteUrl, SITE } from "@/lib/site";
 import { getSimulatorForCppPath, topicsForCppPath } from "@/lib/topics";
 import { cn } from "@/lib/utils";
 import type { CppRefPageData } from "@/types/cpp";
@@ -42,33 +46,74 @@ function BreakableTitle({ text }: { text: string }) {
   );
 }
 
+const CHILDREN_SHOWN = 12;
+
+function readingMinutes(words: number): number {
+  return Math.max(1, Math.round(words / 230));
+}
+
 export function CppRefPageView({ page }: { page: CppRefPageData }) {
-  const basePrefix = `/w/${page.lang}`;
+  const basePrefix = referenceHref(page.lang, "");
+  const isRoot = page.pagePath === "";
+  const href = (p: string) => referenceHref(page.lang, p);
   const companion =
-    page.lang === "cpp" && page.pagePath !== "index"
+    page.lang === "cpp" && !isRoot
       ? getCompanionForPath(page.pagePath)
       : undefined;
   const mappedSimulator =
-    page.lang === "cpp" && page.pagePath !== "index"
+    page.lang === "cpp" && !isRoot
       ? getSimulatorForCppPath(page.pagePath)
       : undefined;
   const primarySimulator = mappedSimulator ?? companion?.id;
-  const related = getRelatedPagesForLangPath(page.lang, page.pagePath);
+  // Breadcrumbs and children come straight from the imported page data.
+  const parent = page.breadcrumbs.at(-1) ?? null;
+  const ancestors = page.breadcrumbs.filter((c) => c.path !== "");
+  const children = page.children;
+  const siblings = getSiblingPages(page.lang, page.pagePath);
   const studyTopics =
-    page.lang === "cpp" && page.pagePath !== "index"
-      ? topicsForCppPath(page.pagePath)
-      : [];
-  const segments =
-    page.pagePath === "index" ? [] : page.pagePath.split("/").filter(Boolean);
-  const fileStem = segments[segments.length - 1] ?? page.lang;
+    page.lang === "cpp" && !isRoot ? topicsForCppPath(page.pagePath) : [];
+  const fileStem = page.pagePath.split("/").pop() || page.lang;
   const codeTitle = isCodeTitle(page.title);
+  const pageUrl = href(page.pagePath);
+  const minutes = readingMinutes(page.wordCount);
 
-  const notebookEndpoint =
-    page.lang === "c"
-      ? `/api/notebook/c/${page.pagePath === "index" ? "index" : page.pagePath}`
-      : page.pagePath === "index"
-        ? "/api/notebook/index"
-        : `/api/notebook/${page.pagePath}`;
+  const notebookEndpoint = `/api/notebook/${page.lang}${
+    isRoot ? "" : pageUrl.slice(basePrefix.length)
+  }`;
+
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      headline: page.title,
+      description: page.summary || undefined,
+      url: absoluteUrl(pageUrl),
+      inLanguage: "en",
+      wordCount: page.wordCount,
+      isPartOf: { "@type": "WebSite", name: SITE.name, url: SITE.url },
+      isBasedOn: {
+        "@type": "CreativeWork",
+        name: `${page.title} (cppreference.com)`,
+        url: page.originalUrl,
+      },
+      license: REFERENCE_LICENSE.ccBySa,
+      dateModified: REFERENCE_SNAPSHOT,
+      about: page.cppStandards.map((s) => ({ "@type": "Thing", name: s })),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        ...page.breadcrumbs,
+        { path: page.pagePath, title: page.title },
+      ].map((c, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: c.title,
+        item: absoluteUrl(href(c.path)),
+      })),
+    },
+  ];
 
   const readPanel = (
     <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[12rem_minmax(0,1fr)] xl:grid-cols-[12rem_minmax(0,1fr)_15rem] xl:gap-12">
@@ -192,7 +237,8 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
 
         <CppRefArticleInteractive
           lang={page.lang}
-          pagePath={page.pagePath}
+          // Progress keys predate the "" root path; the root keeps its old "index" key.
+          pagePath={page.pagePath || "index"}
           bodyHtml={page.bodyHtml}
         />
       </div>
@@ -224,44 +270,32 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
             </div>
           ) : null}
 
-          {(related.parent ||
-            related.children.length > 0 ||
-            related.siblings.length > 0) && (
+          {(parent || children.length > 0 || siblings.length > 0) && (
             <nav aria-label="In this section" className="space-y-6">
-              {related.parent ? (
+              {parent ? (
                 <div>
                   <p className="mb-2 font-medium text-ink">Parent page</p>
-                  <Link
-                    href={`${basePrefix}/${related.parent.path}`}
-                    className="block font-mono text-xs leading-snug text-ink-soft underline decoration-line-strong underline-offset-3 [overflow-wrap:anywhere] hover:text-ink hover:decoration-ink"
-                  >
-                    {related.parent.name}
+                  <Link href={href(parent.path)} className="block font-mono text-xs leading-snug text-ink-soft underline decoration-line-strong underline-offset-3 [overflow-wrap:anywhere] hover:text-ink hover:decoration-ink">
+                    {parent.title}
                   </Link>
                 </div>
               ) : null}
 
-              {related.children.length > 0 ? (
+              {children.length > 0 ? (
                 <div>
                   <p className="mb-2 font-medium text-ink">
-                    In this section (
-                    {related.totalChildren > related.children.length
-                      ? `${related.children.length} of ${related.totalChildren.toLocaleString("en-US")}`
-                      : related.totalChildren.toLocaleString("en-US")}
-                    )
+                    In this section ({children.length.toLocaleString("en-US")})
                   </p>
                   <ul className="space-y-1.5">
-                    {related.children.slice(0, 12).map((ch) => (
-                      <li key={ch.path + ch.name}>
-                        <Link
-                          href={`${basePrefix}/${ch.path}`}
-                          className="block font-mono text-xs leading-snug text-ink-soft underline decoration-line-strong underline-offset-3 [overflow-wrap:anywhere] hover:text-ink hover:decoration-ink"
-                        >
-                          {ch.name}
+                    {children.slice(0, CHILDREN_SHOWN).map((ch) => (
+                      <li key={ch.path}>
+                        <Link href={href(ch.path)} className="block font-mono text-xs leading-snug text-ink-soft underline decoration-line-strong underline-offset-3 [overflow-wrap:anywhere] hover:text-ink hover:decoration-ink">
+                          {ch.title}
                         </Link>
                       </li>
                     ))}
                   </ul>
-                  {related.children.length > 12 ? (
+                  {children.length > CHILDREN_SHOWN ? (
                     <details className="group mt-2">
                       <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-ink-soft hover:text-ink [&::-webkit-details-marker]:hidden">
                         <ChevronDown
@@ -269,58 +303,46 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
                           aria-hidden
                         />
                         <span className="group-open:hidden">
-                          {related.totalChildren > related.children.length
-                            ? `Show ${related.children.length} listed`
-                            : `Show all ${related.children.length}`}
+                          Show all {children.length.toLocaleString("en-US")}
                         </span>
                         <span className="hidden group-open:inline">
                           Show fewer
                         </span>
                       </summary>
                       <ul className="mt-2 space-y-1.5">
-                        {related.children.slice(12).map((ch) => (
-                          <li key={ch.path + ch.name}>
-                            <Link
-                              href={`${basePrefix}/${ch.path}`}
-                              className="block font-mono text-xs leading-snug text-ink-soft underline decoration-line-strong underline-offset-3 [overflow-wrap:anywhere] hover:text-ink hover:decoration-ink"
-                            >
-                              {ch.name}
+                        {children.slice(CHILDREN_SHOWN).map((ch) => (
+                          <li key={ch.path}>
+                            <Link href={href(ch.path)} className="block font-mono text-xs leading-snug text-ink-soft underline decoration-line-strong underline-offset-3 [overflow-wrap:anywhere] hover:text-ink hover:decoration-ink">
+                              {ch.title}
                             </Link>
                           </li>
                         ))}
                       </ul>
                     </details>
                   ) : null}
-                  {related.totalChildren > related.children.length ? (
-                    <Link
-                      href={
-                        page.domain
-                          ? `/explore?lang=${page.lang}&domain=${encodeURIComponent(page.domain)}`
-                          : `/explore?lang=${page.lang}`
-                      }
-                      className="mt-2 inline-block text-xs text-ink-soft underline decoration-line-strong underline-offset-3 hover:text-ink hover:decoration-ink"
-                    >
-                      Browse all in directory
-                    </Link>
-                  ) : null}
                 </div>
               ) : null}
 
-              {related.siblings.length > 0 ? (
+              {siblings.length > 0 ? (
                 <div>
-                  <p className="mb-2 font-medium text-ink">Nearby topics</p>
+                  <p className="mb-2 font-medium text-ink">Nearby pages</p>
                   <ul className="space-y-1.5">
-                    {related.siblings.slice(0, 10).map((sib) => (
-                      <li key={sib.path + sib.name}>
-                        <Link
-                          href={`${basePrefix}/${sib.path}`}
-                          className="block font-mono text-xs leading-snug text-ink-soft underline decoration-line-strong underline-offset-3 [overflow-wrap:anywhere] hover:text-ink hover:decoration-ink"
-                        >
+                    {siblings.slice(0, 10).map((sib) => (
+                      <li key={sib.path}>
+                        <Link href={href(sib.path)} className="block font-mono text-xs leading-snug text-ink-soft underline decoration-line-strong underline-offset-3 [overflow-wrap:anywhere] hover:text-ink hover:decoration-ink">
                           {sib.name}
                         </Link>
                       </li>
                     ))}
                   </ul>
+                  {siblings.length > 10 && parent ? (
+                    <Link
+                      href={href(parent.path)}
+                      className="mt-2 inline-block text-xs text-ink-soft underline decoration-line-strong underline-offset-3 hover:text-ink hover:decoration-ink"
+                    >
+                      All {(siblings.length + 1).toLocaleString("en-US")} pages under {parent.title}
+                    </Link>
+                  ) : null}
                 </div>
               ) : null}
             </nav>
@@ -362,7 +384,7 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
       insights={page.insights}
       cppStandards={page.cppStandards}
       headings={page.headings}
-      childCount={related.totalChildren}
+      childCount={children.length}
     />
   );
 
@@ -403,6 +425,7 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
 
   return (
     <>
+      <JsonLd data={jsonLd} />
       <header className="mx-auto max-w-7xl px-4 pt-28 pb-10 sm:px-6 sm:pt-36">
         <nav aria-label="Breadcrumb">
           <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-ink-soft">
@@ -420,39 +443,41 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
             <li>
               <Link
                 href={basePrefix}
-                aria-current={segments.length === 0 ? "page" : undefined}
+                aria-current={isRoot ? "page" : undefined}
                 className={cn(
                   "underline decoration-transparent underline-offset-4 hover:text-ink hover:decoration-line-strong",
-                  segments.length === 0 && "font-medium text-ink"
+                  isRoot && "font-medium text-ink"
                 )}
               >
                 {page.lang === "c" ? "C reference" : "C++ reference"}
               </Link>
             </li>
-            {segments.map((seg, i) => {
-              const pathUpTo = segments.slice(0, i + 1).join("/");
-              const isCurrent = i === segments.length - 1;
-              return (
-                <li
-                  key={pathUpTo}
-                  className="flex min-w-0 items-center gap-x-1.5"
+            {ancestors.map((crumb) => (
+              <li key={crumb.path} className="flex min-w-0 items-center gap-x-1.5">
+                <span aria-hidden className="text-ink-faint">
+                  /
+                </span>
+                <Link
+                  href={href(crumb.path)}
+                  className="underline decoration-transparent underline-offset-4 [overflow-wrap:anywhere] hover:text-ink hover:decoration-line-strong"
                 >
-                  <span aria-hidden className="text-ink-faint">
-                    /
-                  </span>
-                  <Link
-                    href={`${basePrefix}/${pathUpTo}`}
-                    aria-current={isCurrent ? "page" : undefined}
-                    className={cn(
-                      "font-mono text-[0.85em] underline decoration-transparent underline-offset-4 hover:text-ink hover:decoration-line-strong",
-                      isCurrent && "font-medium text-ink"
-                    )}
-                  >
-                    {seg}
-                  </Link>
-                </li>
-              );
-            })}
+                  {crumb.title}
+                </Link>
+              </li>
+            ))}
+            {!isRoot ? (
+              <li className="flex min-w-0 items-center gap-x-1.5">
+                <span aria-hidden className="text-ink-faint">
+                  /
+                </span>
+                <span
+                  aria-current="page"
+                  className="font-mono text-[0.85em] font-medium text-ink [overflow-wrap:anywhere]"
+                >
+                  {fileStem}
+                </span>
+              </li>
+            ) : null}
           </ol>
         </nav>
 
@@ -471,16 +496,11 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
           <p className="mt-5 max-w-[60ch] text-[1.125rem] leading-relaxed text-ink-soft sm:text-[1.2rem]">
             {companion.subtitle}
           </p>
-        ) : (
+        ) : page.summary ? (
           <p className="mt-5 max-w-[60ch] text-[1.05rem] leading-relaxed text-ink-soft">
-            1:1 specification page for{" "}
-            <span className="font-mono text-[0.9em] text-ink">
-              en.cppreference.com{basePrefix}
-              {page.pagePath === "index" ? "" : `/${page.pagePath}`}
-            </span>
-            .
+            {page.summary}
           </p>
-        )}
+        ) : null}
 
         <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-ink-faint">
           {page.domain ? (
@@ -495,9 +515,9 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
           {page.cppStandards.length > 0 ? (
             <ul
               className="flex flex-wrap gap-1.5"
-              aria-label="Standard revisions mentioned on this page"
+              aria-label="Standard revisions marked on this page"
             >
-              {page.cppStandards.slice(0, 6).map((s) => (
+              {page.cppStandards.map((s) => (
                 <li
                   key={s}
                   className="inline-flex rounded-[var(--radius-chip)] border border-line bg-paper-raised px-2 py-0.5 font-mono text-xs text-ink-soft"
@@ -513,6 +533,12 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
               questionIds={companion.quizzes.map((q) => q.id)}
               className="text-xs"
             />
+          ) : null}
+
+          {page.wordCount > 0 ? (
+            <span className="text-xs tabular-nums">
+              {minutes} min read
+            </span>
           ) : null}
 
           <a

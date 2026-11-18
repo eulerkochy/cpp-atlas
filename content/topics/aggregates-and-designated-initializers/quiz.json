@@ -1,0 +1,145 @@
+{
+  "questions": [
+    {
+      "id": "aggregates-and-designated-initializers-deleted-ctor",
+      "kind": "warmup",
+      "prompt": "In C++20, is the declaration of `n` well-formed?",
+      "code": "struct NoDefault {\n  NoDefault() = delete;\n  int x;\n};\n\nint main() {\n  NoDefault n{};\n  (void)n;\n}",
+      "options": [
+        "Yes: `NoDefault` is an aggregate, so `{}` never calls the constructor",
+        "Yes: `n.x` is zero-initialized",
+        "No: the type is not an aggregate, so `{}` calls the deleted default constructor",
+        "Yes in C++20, but it was ill-formed in C++17"
+      ],
+      "answer": 2,
+      "explanation": "Since C++20 (P1008) a class with any user-declared constructor is not an aggregate, and a deleted constructor is user-declared. Empty braces on a class with a default constructor value-initialize, which selects the deleted constructor, so the program is ill-formed. The first option was true in C++11 through C++17, where only user-provided constructors disqualified a type, so the code compiled; the last option has the history backwards.",
+      "refs": [
+        "[dcl.init.aggr]",
+        "[dcl.init.list]"
+      ]
+    },
+    {
+      "id": "aggregates-and-designated-initializers-order",
+      "kind": "warmup",
+      "prompt": "In C++20, is this declaration well-formed?",
+      "code": "struct P { int x, y; };\n\nP p{.y = 1, .x = 2};",
+      "options": [
+        "No: designators must appear in declaration order",
+        "Yes: `p.x` is 2 and `p.y` is 1, as in C",
+        "Yes: the values are applied positionally, so `p.x` is 1",
+        "Yes, but the order in which `x` and `y` are initialized is unspecified"
+      ],
+      "answer": 0,
+      "explanation": "C++20 designated initializers must name members in the order they are declared, so this is ill-formed. C accepts any order, which makes the second option tempting, and Clang accepts it as an extension with a `-Wreorder-init-list` warning; GCC rejects it. The rule exists so that initializers are evaluated in the same order as members are initialized.",
+      "refs": [
+        "[dcl.init.aggr]",
+        "[dcl.init.general]"
+      ]
+    },
+    {
+      "id": "aggregates-and-designated-initializers-omitted",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct Opts {\n  int a;\n  int b = 5;\n  int c;\n};\n\nint main() {\n  Opts o{1};\n  std::printf(\"%d %d %d\\n\", o.a, o.b, o.c);\n}",
+      "options": [
+        "`1 0 0`",
+        "Nothing useful: `o.c` is indeterminate, so the behavior is undefined",
+        "It does not compile: `c` needs an initializer",
+        "`1 5 0`"
+      ],
+      "answer": 3,
+      "explanation": "`Opts` is an aggregate (default member initializers are allowed since C++14). Elements without an initializer use their default member initializer, so `b` is 5, and otherwise are copy-initialized from an empty initializer list, which zeroes `c`. The indeterminate answer would be right for `Opts o;`, which default-initializes, but any brace list makes every element initialized.",
+      "refs": [
+        "[dcl.init.aggr]"
+      ]
+    },
+    {
+      "id": "aggregates-and-designated-initializers-array-elision",
+      "kind": "tricky",
+      "prompt": "Is the declaration of `a` well-formed?",
+      "code": "#include <array>\n\nstruct P { int x, y; };\n\nstd::array<P, 2> a{{1, 2}, {3, 4}};",
+      "options": [
+        "Yes: it creates `P{1, 2}` and `P{3, 4}`",
+        "No: `{1, 2}` initializes the inner array, so `{3, 4}` is an excess initializer",
+        "Yes, but `a[1]` is value-initialized and `{3, 4}` is ignored",
+        "No: `std::array` cannot be initialized from nested braces"
+      ],
+      "answer": 1,
+      "explanation": "`std::array<P, 2>` is a struct whose single element is a built-in `P[2]`. The first clause `{1, 2}` is a braced list, so it initializes that inner array, as `P[2]{1, 2}`, filling `a[0]`. The second clause has no element left to initialize, so the program is ill-formed. Brace elision only helps when you elide all the inner braces, `{1, 2, 3, 4}`, or write all of them, `{{{1, 2}, {3, 4}}}`.",
+      "refs": [
+        "[dcl.init.aggr]",
+        "[array.overview]"
+      ]
+    },
+    {
+      "id": "aggregates-and-designated-initializers-paren-dangling",
+      "kind": "tricky",
+      "prompt": "In C++20, what does the standard say about this program?",
+      "code": "struct Ref { const int& r; };\n\nint main() {\n  Ref a{42};\n  Ref b(42);\n  return a.r + b.r;\n}",
+      "options": [
+        "It returns 84",
+        "It is ill-formed: an aggregate with a reference member cannot be initialized with parentheses",
+        "The behavior is undefined: `b.r` refers to a temporary that has been destroyed",
+        "The behavior is undefined: both `a.r` and `b.r` dangle"
+      ],
+      "answer": 2,
+      "explanation": "Both declarations are aggregate initialization; the parenthesized form is valid since C++20. With braces, the temporary bound to the reference member is lifetime-extended to the lifetime of `a`. [class.temporary] makes an exception for an aggregate initialized from a parenthesized expression-list, so the temporary behind `b.r` dies at the end of that declaration and reading it is undefined behavior. That asymmetry is why the first option is so tempting.",
+      "refs": [
+        "[class.temporary]",
+        "[dcl.init.general]"
+      ]
+    },
+    {
+      "id": "aggregates-and-designated-initializers-protected-base",
+      "kind": "tricky",
+      "prompt": "In C++20, is the declaration of `b` well-formed?",
+      "code": "struct Guarded { protected: Guarded() = default; };\nstruct Open : Guarded {};\n\nint main() {\n  Open b{};\n  (void)b;\n}",
+      "options": [
+        "No: `Open` is an aggregate, and `Guarded()` is not accessible where the base is initialized",
+        "Yes: `Open`'s implicit default constructor calls `Guarded()`",
+        "Yes: a derived class may always call a protected base constructor",
+        "It is implementation-defined"
+      ],
+      "answer": 0,
+      "explanation": "Since C++17 a class with a public base can be an aggregate, so `Open{}` is aggregate initialization and the base element is copy-initialized from `{}` in the context of `main`, where the protected constructor is inaccessible. The program is ill-formed. Before C++17 `Open` was not an aggregate and its implicit constructor called `Guarded()` from inside the derived class, which is what the second option describes; `Open b;` still works that way.",
+      "refs": [
+        "[dcl.init.aggr]",
+        "[class.protected]"
+      ]
+    },
+    {
+      "id": "aggregates-and-designated-initializers-which-aggregate",
+      "kind": "standardese",
+      "prompt": "Which of these is an aggregate in C++20?",
+      "options": [
+        "`struct A { private: int x; };`",
+        "`struct B { B() = default; int x; };`",
+        "The closure type of `[] {}`",
+        "`struct D : Base { int d; void f(); ~D(); };` where `Base` is a class with only public members"
+      ],
+      "answer": 3,
+      "explanation": "Member functions and a user-declared destructor never disqualify a class, and since C++17 a public non-virtual base is allowed, so `D` is an aggregate. A private non-static data member disqualifies `A`. `B` has a user-declared constructor, which disqualifies it since C++20 even though it is defaulted, the tempting answer for anyone who learned the C++17 rule. The standard states outright that a closure type is not an aggregate.",
+      "refs": [
+        "[dcl.init.aggr]",
+        "[expr.prim.lambda.closure]"
+      ]
+    },
+    {
+      "id": "aggregates-and-designated-initializers-ctad",
+      "kind": "standardese",
+      "prompt": "In C++20, with no deduction guides declared, what is `decltype(p)`?",
+      "code": "template <class T, class U>\nstruct Pair { T first; U second; };\n\nPair p{1, 2.0};",
+      "options": [
+        "The declaration is ill-formed: there is no constructor or guide to deduce from",
+        "`Pair<int, double>`",
+        "`Pair<double, double>`",
+        "`Pair<int, int>`"
+      ],
+      "answer": 1,
+      "explanation": "C++20 adds an aggregate deduction candidate: for an aggregate class template, the compiler synthesizes a candidate whose parameters are the element types, so `T` deduces from `1` and `U` from `2.0`. In C++17 deduction failed here unless you wrote a guide, which is the first option and the reason `std::array` ships with one.",
+      "refs": [
+        "[over.match.class.deduct]"
+      ]
+    }
+  ]
+}

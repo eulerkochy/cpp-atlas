@@ -1,0 +1,147 @@
+{
+  "questions": [
+    {
+      "id": "ios-sticky-vs-oneshot",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iomanip>\n#include <iostream>\n\nint main() {\n  std::cout << std::hex << std::setw(4) << std::setfill('0') << 255 << ' ' << 255 << '\\n';\n}",
+      "options": [
+        "`00ff ff`",
+        "`00ff 00ff`",
+        "`00ff 255`",
+        "`ff ff`"
+      ],
+      "answer": 0,
+      "explanation": "`std::setw` applies only to the next formatted output and is then reset to zero, while `std::hex` and `std::setfill` stay in effect. The second `255` therefore prints in hex with no padding. The tempting `00ff 00ff` would need `setw(4)` repeated.",
+      "refs": [
+        "[ostream.formatted.reqmts]"
+      ]
+    },
+    {
+      "id": "ios-getline-after-extraction",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <sstream>\n#include <string>\n\nint main() {\n  std::istringstream in(\"5\\nhello\\n\");\n  int n;\n  std::string line;\n  in >> n;\n  std::getline(in, line);\n  std::cout << '[' << line << \"]\\n\";\n}",
+      "options": [
+        "`[hello]`",
+        "`[5]`",
+        "`[]`",
+        "`[\\n]`"
+      ],
+      "answer": 2,
+      "explanation": "`operator>>` for an integer stops at the newline and leaves it in the stream. `std::getline` then reads up to that newline, producing an empty string, and consumes the newline. Discard the rest of the line with `in.ignore(...)` before calling `getline`.",
+      "refs": [
+        "[string.io]",
+        "[istream.formatted.arithmetic]"
+      ]
+    },
+    {
+      "id": "ios-failed-extraction-state",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <sstream>\n\nint main() {\n  std::istringstream in(\"abc\");\n  int x = 7;\n  in >> x;\n  std::cout << x << ' ' << in.eof() << ' ' << in.fail() << ' ' << in.bad() << '\\n';\n}",
+      "options": [
+        "`7 0 1 0`",
+        "`0 1 1 0`",
+        "`0 0 1 1`",
+        "`0 0 1 0`"
+      ],
+      "answer": 3,
+      "explanation": "The characters do not form a number, so the conversion fails: `failbit` is set and, since C++11, the value 0 is stored. The stream was not at the end of input when the failure was detected, so `eofbit` is clear. `badbit` is reserved for loss of integrity of the stream buffer, not for a parse error, and the old value 7 is not preserved.",
+      "refs": [
+        "[facet.num.get.virtuals]",
+        "[istream.formatted.arithmetic]",
+        "[iostate.flags]"
+      ]
+    },
+    {
+      "id": "ios-eof-loop",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <sstream>\n\nint main() {\n  std::istringstream in(\"1 2 3\\n\");\n  int x;\n  while (!in.eof()) {\n    in >> x;\n    std::cout << x << ' ';\n  }\n  std::cout << '\\n';\n}",
+      "options": [
+        "`1 2 3 3 `",
+        "`1 2 3 `",
+        "`1 2 3 0 `",
+        "`1 2 3 ` and then it loops forever"
+      ],
+      "answer": 0,
+      "explanation": "After reading `3` the stream is not at EOF, because the newline is still unread, so `eof()` is false. The next `>>` skips the whitespace, reaches the end, and sets `eofbit` and `failbit` without storing anything, so `x` keeps the old value 3 and it is printed again. Testing `eof()` before reading is the bug; test the extraction itself with `while (in >> x)`.",
+      "refs": [
+        "[istream.formatted.arithmetic]",
+        "[istream.sentry]",
+        "[iostate.flags]"
+      ]
+    },
+    {
+      "id": "ios-eofbit-on-success",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <sstream>\n\nint main() {\n  std::istringstream in(\"42\");\n  int x = 0;\n  in >> x;\n  std::cout << x << ' ' << in.eof() << ' ' << in.fail() << '\\n';\n}",
+      "options": [
+        "`42 0 0`",
+        "`42 1 0`",
+        "`42 1 1`",
+        "`0 1 1`"
+      ],
+      "answer": 1,
+      "explanation": "To know that the number has ended, the extraction must try to read one more character, and it finds the end of input. That sets `eofbit`, but the extraction itself succeeded, so `failbit` is clear and `x` is 42. This is why `eof()` alone cannot tell you whether the last read worked.",
+      "refs": [
+        "[facet.num.get.virtuals]",
+        "[iostate.flags]"
+      ]
+    },
+    {
+      "id": "ios-str-does-not-clear",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <sstream>\n\nint main() {\n  std::istringstream in(\"42\");\n  int x = 0;\n  in >> x;\n  in.str(\"7\");\n  in >> x;\n  std::cout << x << ' ' << in.fail() << '\\n';\n}",
+      "options": [
+        "`7 0`",
+        "`42 1`",
+        "`42 0`",
+        "`0 1`"
+      ],
+      "answer": 1,
+      "explanation": "`str()` replaces the buffer contents but does not touch the stream's state bits. The first read left `eofbit` set, so the second extraction's sentry fails, sets `failbit`, and leaves `x` at 42. Call `in.clear()` after `str(...)` to reuse the stream.",
+      "refs": [
+        "[stringbuf.members]",
+        "[istream.sentry]"
+      ]
+    },
+    {
+      "id": "ios-exceptions-mask",
+      "kind": "standardese",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <sstream>\n\nint main() {\n  std::istringstream in(\"1 2\");\n  in.exceptions(std::ios::failbit);\n  int x;\n  try {\n    while (in >> x) std::cout << x << ',';\n    std::cout << \"done\\n\";\n  } catch (const std::ios_base::failure&) {\n    std::cout << \"threw\\n\";\n  }\n}",
+      "options": [
+        "`1,2,done`",
+        "`1,2,` then `done`, because `eofbit` is not in the mask",
+        "`1,2,threw`",
+        "`threw` immediately, before any output"
+      ],
+      "answer": 2,
+      "explanation": "The idiomatic loop ends because the third extraction sets `failbit`. With `failbit` in the exceptions mask, setting it throws `std::ios_base::failure` instead of returning a stream that converts to false. The `done` line is never reached. The `eofbit` is set too, but it is the `failbit` that matches the mask.",
+      "refs": [
+        "[iostate.flags]"
+      ]
+    },
+    {
+      "id": "ios-unsigned-negative",
+      "kind": "standardese",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <limits>\n#include <sstream>\n\nint main() {\n  std::istringstream in(\"-1\");\n  unsigned x = 0;\n  in >> x;\n  std::cout << (x == std::numeric_limits<unsigned>::max()) << ' ' << in.fail() << '\\n';\n}",
+      "options": [
+        "`1 0`",
+        "`0 1`",
+        "`0 0`",
+        "`1 1`"
+      ],
+      "answer": 0,
+      "explanation": "The numeric extraction converts with the rules of `strtoull`, which accepts a leading minus sign for unsigned types and negates the result modulo the type's range. So `-1` becomes the maximum value and no failure is reported. The tempting `0 1` assumes the library rejects a negative number for an unsigned target; it does not.",
+      "refs": [
+        "[facet.num.get.virtuals]"
+      ]
+    }
+  ]
+}

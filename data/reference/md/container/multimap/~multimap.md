@@ -1,0 +1,13 @@
+# std::multimap<Key,T,Compare,Allocator>::~multimap
+
+Source: https://en.cppreference.com/w/cpp/container/multimap/~multimap
+
+```cpp
+~multimap();
+```
+
+A destructor. Destructs the `multimap`. The destructors of the elements are called and the used storage is deallocated. Note, that if the elements are pointers, the pointed-to objects are not destroyed.
+
+## Complexity
+
+Linear in the size of the `multimap`.

@@ -1,0 +1,151 @@
+{
+  "questions": [
+    {
+      "id": "customization-points-and-niebloids-qualified-swap",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <utility>\n\nnamespace lib {\n  struct Widget {\n    int id;\n    friend void swap(Widget& a, Widget& b) noexcept {\n      std::puts(\"lib swap\");\n      std::swap(a.id, b.id);\n    }\n  };\n}\n\ntemplate <class T> void exchange_them(T& a, T& b) { std::swap(a, b); }\n\nint main() {\n  lib::Widget a{1}, b{2};\n  exchange_them(a, b);\n}",
+      "options": [
+        "`lib swap`",
+        "Nothing",
+        "`lib swap` twice",
+        "It is ill-formed: the call is ambiguous"
+      ],
+      "answer": 1,
+      "explanation": "A qualified call `std::swap(a, b)` performs no argument-dependent lookup, so the hidden friend in `lib` is never a candidate. The generic `std::swap` template exchanges the values with one move construction and two move assignments, printing nothing. To reach the custom `swap`, write `using std::swap; swap(a, b);` or call `std::ranges::swap(a, b)`.",
+      "refs": [
+        "[basic.lookup.argdep]",
+        "[utility.swap]"
+      ]
+    },
+    {
+      "id": "customization-points-and-niebloids-hidden-friend-conversion",
+      "kind": "warmup",
+      "prompt": "Which statement about the two marked calls is true?",
+      "code": "#include <cstdio>\n\nnamespace geo {\n  struct Meters {\n    double v;\n    Meters(double d) : v(d) {}\n    friend void print(Meters m) { std::printf(\"%g m\\n\", m.v); }\n  };\n}\n\nint main() {\n  geo::Meters m{2.0};\n  print(m);    // 1\n  print(3.0);  // 2\n}",
+      "options": [
+        "Both compile; call 2 converts `3.0` to `Meters`",
+        "Call 1 is ill-formed because `print` is not declared at namespace scope",
+        "Call 2 is ill-formed: no argument has type `Meters`, so ADL never looks inside `geo`",
+        "Both are ill-formed, because a friend function cannot be called without qualification"
+      ],
+      "answer": 2,
+      "explanation": "A friend defined only inside a class is a hidden friend: it belongs to `geo` but ordinary lookup cannot find it, and only argument-dependent lookup triggered by an argument of type `Meters` can. Call 1 has such an argument, so it works. Call 2 passes a `double`, which has no associated namespaces, so the name is not found at all and the implicit conversion is never considered. That is a deliberate benefit of hidden friends.",
+      "refs": [
+        "[hidden.friends]",
+        "[basic.lookup.argdep]",
+        "[namespace.memdef]"
+      ]
+    },
+    {
+      "id": "customization-points-and-niebloids-using-cpo",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <concepts>\n#include <cstdio>\n#include <utility>\n\nnamespace lib {\n  struct Widget {\n    int id;\n    friend void swap(Widget& a, Widget& b) noexcept {\n      std::puts(\"lib swap\");\n      std::swap(a.id, b.id);\n    }\n  };\n}\n\nint main() {\n  lib::Widget a{1}, b{2};\n  using std::ranges::swap;\n  swap(a, b);\n}",
+      "options": [
+        "`lib swap`",
+        "Nothing: the using-declaration names an object, so ADL is switched off and `lib::swap` is never called",
+        "`lib swap` twice",
+        "It is ill-formed: the call is ambiguous between the object and the friend"
+      ],
+      "answer": 0,
+      "explanation": "Ordinary lookup finds the object `std::ranges::swap`, and because it is not a function, ADL is not performed for this call, so there is no ambiguity. The object's call operator then performs its own unqualified, ADL-based lookup for `swap(t, u)`, which finds the hidden friend and prints once. The second option is right that ADL is suppressed at the call site, but misses that the customization point object does the lookup internally.",
+      "refs": [
+        "[basic.lookup.argdep]",
+        "[concept.swappable]",
+        "[customization.point.object]"
+      ]
+    },
+    {
+      "id": "customization-points-and-niebloids-std-find-hijack",
+      "kind": "tricky",
+      "prompt": "What happens with the call to `find`?",
+      "code": "#include <algorithm>\n#include <vector>\n\nnamespace lib {\n  struct Rec { int v; bool operator==(const Rec&) const = default; };\n  template <class It, class T> It find(It, It last, const T&) { return last; }\n}\n\nvoid f(std::vector<lib::Rec>& v) {\n  using std::find;\n  find(v.begin(), v.end(), lib::Rec{1});\n}",
+      "options": [
+        "It calls `std::find`, because the using-declaration takes priority",
+        "It calls `lib::find`, because ADL results are preferred",
+        "It calls `std::ranges::find`",
+        "It is ill-formed: the call is ambiguous between `std::find` and `lib::find`"
+      ],
+      "answer": 3,
+      "explanation": "`std::find` is a function template, so ADL still runs, and `lib` is an associated namespace through the template argument `lib::Rec` of the vector's iterator type. Both templates have the same parameter pattern, neither is more specialized, and the call is ambiguous. Had the using-declaration named the niebloid `std::ranges::find`, ordinary lookup would find an object, ADL would be suppressed, and the call would be unambiguous.",
+      "refs": [
+        "[basic.lookup.argdep]",
+        "[over.match.best]",
+        "[algorithms.requirements]"
+      ]
+    },
+    {
+      "id": "customization-points-and-niebloids-member-before-adl",
+      "kind": "tricky",
+      "prompt": "Does this compile?",
+      "code": "#include <ranges>\n\nnamespace lib {\n  struct Both {\n    int d[2]{};\n    int* begin() { return d; }\n    int* end() { return d + 2; }\n  };\n  int* begin(Both&) = delete;\n  int* end(Both&) = delete;\n}\n\nstatic_assert(std::ranges::range<lib::Both>);",
+      "options": [
+        "Yes: `ranges::begin` and `ranges::end` use the members and never reach the ADL step",
+        "No: ADL finds the deleted functions, which makes `ranges::begin` ill-formed",
+        "No: the member and the free function make the call ambiguous",
+        "Yes, but only because deleted functions are ignored by overload resolution"
+      ],
+      "answer": 0,
+      "explanation": "`ranges::begin` tries its strategies in order: array, then a valid member `t.begin()` returning an iterator, then ADL-only `begin(t)`. The member is valid here, so the deleted free functions are never looked at. The last option is wrong on its own terms: deleted functions do take part in overload resolution, and selecting one makes the expression invalid, which is exactly what would happen if there were no members.",
+      "refs": [
+        "[range.access.begin]",
+        "[range.access.end]",
+        "[range.range]"
+      ]
+    },
+    {
+      "id": "customization-points-and-niebloids-swap-unequal-arrays",
+      "kind": "tricky",
+      "prompt": "What happens with this call?",
+      "code": "#include <concepts>\n\nint main() {\n  int x[2]{1, 2}, y[3]{3, 4, 5};\n  std::ranges::swap(x, y);\n}",
+      "options": [
+        "It swaps the first two elements and leaves `y[2]` alone",
+        "It is ill-formed: no strategy of `ranges::swap` applies",
+        "It compiles but has undefined behavior",
+        "It swaps what the two names refer to"
+      ],
+      "answer": 1,
+      "explanation": "`ranges::swap` tries an ADL `swap`, which needs a class or enumeration argument; then `swap_ranges` for lvalue arrays of equal extent; then a move-based exchange of two lvalues of the same movable type. `int[2]` and `int[3]` fail all three, so the call operator is not viable and the call does not compile. Arrays are never swapped partially.",
+      "refs": [
+        "[concept.swappable]",
+        "[customization.point.object]"
+      ]
+    },
+    {
+      "id": "customization-points-and-niebloids-specialize-std-swap",
+      "kind": "standardese",
+      "prompt": "In C++20 and later, what is the status of this explicit specialization?",
+      "code": "#include <utility>\n\nnamespace lib { struct Widget { int id; }; }\n\ntemplate <>\nvoid std::swap<lib::Widget>(lib::Widget& a, lib::Widget& b) noexcept {\n  std::swap(a.id, b.id);\n}",
+      "options": [
+        "Allowed, because it depends on a program-defined type",
+        "Ill-formed: a diagnostic is required",
+        "Allowed only if it is declared `noexcept`",
+        "Undefined behavior"
+      ],
+      "answer": 3,
+      "explanation": "Since C++20 (P0551), [namespace.std] allows programs to specialize standard library class templates for program-defined types, but no longer function templates, so this declaration has undefined behavior. Until C++17 it was permitted, which is why the first option is tempting. Compilers accept it silently; put a hidden friend `swap` in the class instead.",
+      "refs": [
+        "[namespace.std]"
+      ]
+    },
+    {
+      "id": "customization-points-and-niebloids-allowed-specializations",
+      "kind": "standardese",
+      "prompt": "`MyType` and `MyView` are program-defined types that meet the relevant requirements. Which of these declarations has undefined behavior?",
+      "options": [
+        "`template<> struct std::hash<MyType> { std::size_t operator()(const MyType&) const; };`",
+        "`template<> struct std::is_integral<MyType> : std::true_type {};`",
+        "`template<> inline constexpr bool std::ranges::enable_borrowed_range<MyView> = true;`",
+        "`template<> struct std::tuple_size<MyType> : std::integral_constant<std::size_t, 2> {};`"
+      ],
+      "answer": 1,
+      "explanation": "[namespace.std] and [meta.rqmts] forbid specializing the templates in `<type_traits>`, with `common_type` and `basic_common_reference` as the only exceptions, so specializing `is_integral` is undefined behavior. `std::hash` is a class template specialized for a program-defined type, which is allowed. `enable_borrowed_range` is one of the variable templates the standard explicitly lets programs specialize for their own types. Specializing `std::tuple_size`, as for structured bindings, is an ordinary class template specialization and is allowed too.",
+      "refs": [
+        "[namespace.std]",
+        "[meta.rqmts]",
+        "[range.range]"
+      ]
+    }
+  ]
+}

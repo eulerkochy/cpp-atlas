@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "Multiple and virtual inheritance",
+    "note": "One subobject per non-virtual base; one shared subobject per virtual base.",
+    "children": [
+      {
+        "label": "Pointer adjustment",
+        "note": "A base pointer points at a subobject, often at a different address.",
+        "children": [
+          { "label": "static_cast adjusts", "note": "Implicit and static conversions add or subtract the base offset; null stays null." },
+          { "label": "reinterpret_cast does not", "note": "C* from a second-base B* still points at the B; using it as a C is undefined." },
+          { "label": "Comparison converts", "note": "pb == &c converts &c to B* first, so it is true for the same object." },
+          { "label": "void* round trips", "note": "Cast back only to the exact type you stored." }
+        ]
+      },
+      {
+        "label": "Name lookup",
+        "note": "Lookup merges results from every base before overload resolution.",
+        "children": [
+          { "label": "Ambiguity", "note": "A name found in two different base subobjects is ill-formed to use." },
+          { "label": "Qualify or using", "note": "d.Reader::put picks one; two using-declarations make them overload." },
+          { "label": "Same entity is fine", "note": "Static members, types and enumerators found via several paths are not ambiguous." },
+          { "label": "Dominance", "note": "With a shared virtual base, a derived declaration wins over the base's." }
+        ]
+      },
+      {
+        "label": "The diamond",
+        "note": "Two paths to the same base class.",
+        "children": [
+          { "label": "Non-virtual", "note": "Two Top subobjects; converting Bottom* to Top* is ambiguous." },
+          { "label": "Virtual", "note": "One shared Top; its constructor runs once." },
+          { "label": "Unique final overrider", "note": "If two paths override a shared base's virtual, the most derived must override too." }
+        ]
+      },
+      {
+        "label": "Virtual base initialization",
+        "note": "The most derived class owns the shared base's construction.",
+        "children": [
+          { "label": "Intermediates ignored", "note": "Mem-initializers for a virtual base run only in the most derived constructor." },
+          { "label": "Default otherwise", "note": "If the most derived class omits it, the base is default-initialized or ill-formed." },
+          { "label": "Constructed first", "note": "Virtual bases precede all non-virtual bases, depth-first and left to right." }
+        ]
+      },
+      {
+        "label": "Casts across the graph",
+        "note": "Which cast can navigate which edge.",
+        "children": [
+          { "label": "No static downcast", "note": "static_cast from a virtual base to a derived class is ill-formed." },
+          { "label": "dynamic_cast cross-cast", "note": "Moves sideways from A* to B* inside the same most derived object." },
+          { "label": "dynamic_cast to void*", "note": "Returns the address of the most derived object." },
+          { "label": "Distinct addresses", "note": "Two subobjects of the same type never share an address, limiting EBO." }
+        ]
+      },
+      {
+        "label": "Layout (ABI practice)",
+        "note": "Itanium ABI details, not standard guarantees.",
+        "children": [
+          { "label": "Primary base", "note": "The first non-virtual polymorphic base sits at offset zero and shares the vptr." },
+          { "label": "Thunks", "note": "Secondary vtable slots adjust this before jumping to the override." },
+          { "label": "Virtual base offset", "note": "Stored in the vtable and loaded at run time; MSVC uses a vbptr instead." }
+        ]
+      }
+    ]
+  }
+}

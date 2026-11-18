@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Threads and jthread",
+    "note": "A thread handle owns at most one thread and must join or detach it; jthread stops and joins for you.",
+    "children": [
+      {
+        "label": "Construction",
+        "note": "The callable and arguments are decay-copied in the calling thread, then invoked as rvalues.",
+        "children": [
+          { "label": "int& parameters", "note": "A plain argument cannot bind to int&; the call is ill-formed without std::ref." },
+          { "label": "std::ref", "note": "Passes a reference_wrapper, so the thread sees the original object; it must outlive the use." },
+          { "label": "Deferred conversion", "note": "A char array is copied as char*; the std::string parameter is built later, in the new thread." },
+          { "label": "Start synchronizes", "note": "The end of the constructor synchronizes with the start of the thread's function." }
+        ]
+      },
+      {
+        "label": "Joinable lifecycle",
+        "note": "Joinable from construction until join, detach or move; default-constructed handles are not.",
+        "children": [
+          { "label": "Destructor terminates", "note": "Destroying or move-assigning over a joinable std::thread calls std::terminate." },
+          { "label": "join", "note": "Thread completion synchronizes with join's return; self-join throws resource_deadlock_would_occur." },
+          { "label": "detach", "note": "Nothing can wait for it later; using the library after static destruction starts is undefined." }
+        ]
+      },
+      {
+        "label": "Exceptions",
+        "note": "Exceptions never cross from one thread to another.",
+        "children": [
+          { "label": "Escape terminates", "note": "An exception leaving the thread function calls std::terminate; try around join cannot catch it." },
+          { "label": "Carry it across", "note": "Catch inside, store a std::exception_ptr, or use a promise or packaged_task." }
+        ]
+      },
+      {
+        "label": "std::jthread (C++20)",
+        "note": "Owns a stop_source; the destructor calls request_stop() and then join().",
+        "children": [
+          { "label": "Token injection", "note": "If the callable takes a stop_token first, jthread passes its own token automatically." },
+          { "label": "Cooperative", "note": "Nothing interrupts the thread; it must poll stop_requested or block in a stop-aware wait." },
+          { "label": "request_stop", "note": "Returns true only for the call that actually makes the request." },
+          { "label": "stop_callback", "note": "Runs in the requesting thread, or at once in its constructor if stop was already requested." },
+          { "label": "stop_possible", "note": "False with no stop state, or when no stop_source remains that could still request." }
+        ]
+      },
+      {
+        "label": "Identity and hints",
+        "note": "Ids name threads; hardware_concurrency is only advice.",
+        "children": [
+          { "label": "thread::id", "note": "Default id means no thread; ids are ordered and hashable, and may be reused after a thread ends." },
+          { "label": "hardware_concurrency", "note": "Number of hardware thread contexts as a hint; may return 0." }
+        ]
+      },
+      {
+        "label": "thread_local",
+        "note": "Each thread has its own instance, destroyed when that thread exits.",
+        "children": [
+          { "label": "Initialization", "note": "Block scope: first pass in each thread. Namespace scope: may be deferred until first use." },
+          { "label": "Destruction", "note": "Reverse construction order at thread exit, completed before join returns." },
+          { "label": "Main thread", "note": "Main's thread_local objects are destroyed before any static-storage object." }
+        ]
+      }
+    ]
+  }
+}

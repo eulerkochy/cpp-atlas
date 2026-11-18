@@ -1,0 +1,149 @@
+{
+  "questions": [
+    {
+      "id": "ub-union-punning",
+      "kind": "warmup",
+      "prompt": "Ignoring compiler extensions, what does standard C++23 say about `bits(1.0f)`?",
+      "code": "#include <cstdint>\nunion U { float f; std::uint32_t u; };\n\nstd::uint32_t bits(float v) {\n  U x;\n  x.f = v;\n  return x.u;\n}",
+      "options": [
+        "Well-defined: it returns the IEEE-754 bit pattern, as it does in C",
+        "Implementation-defined: the result depends on the floating-point format",
+        "Undefined behavior: `u` is not the active member, so it is read outside its lifetime",
+        "Unspecified: it returns some valid `uint32_t` value"
+      ],
+      "answer": 2,
+      "explanation": "In C++ a union has at most one active member. After `x.f = v`, only `f` is within its lifetime, and reading `x.u` is undefined. In a constant expression GCC and Clang both reject it as reading an inactive member. C does define this reinterpretation, and GCC documents it as a run-time extension in C++, which is why the first option is tempting, but neither makes it standard C++. Use `std::bit_cast<std::uint32_t>(v)` instead.",
+      "refs": [
+        "[class.union]",
+        "[basic.life]",
+        "[expr.const]"
+      ]
+    },
+    {
+      "id": "ub-bit-cast-requirements",
+      "kind": "warmup",
+      "prompt": "Which set of requirements does `std::bit_cast<To>(from)` (C++20) impose on `To` and `From`?",
+      "options": [
+        "Same size, and both trivially copyable",
+        "Same size and same alignment",
+        "Same size, both trivially copyable, and `To` default-constructible",
+        "Both standard-layout"
+      ],
+      "answer": 0,
+      "explanation": "`std::bit_cast` participates in overload resolution only when `sizeof(To) == sizeof(From)` and both types are trivially copyable. It creates its result object directly, so, unlike the `memcpy` idiom, which needs a destination object to copy into, it does not require `To` to be default-constructible. Alignment is irrelevant because the result is a fresh value, and standard-layout is not required.",
+      "refs": [
+        "[bit.cast]"
+      ]
+    },
+    {
+      "id": "ub-signed-overflow-fold",
+      "kind": "warmup",
+      "prompt": "What may a conforming optimizing compiler emit for `f`?",
+      "code": "bool f(int x) {\n  return x + 1 > x;\n}",
+      "options": [
+        "It must emit a comparison, because `x == INT_MAX` has to return `false`",
+        "It may emit `return true;`",
+        "It must wrap around like unsigned arithmetic, because the representation is two's complement since C++20",
+        "It must trap when `x == INT_MAX`"
+      ],
+      "answer": 1,
+      "explanation": "Signed integer overflow is undefined, so the compiler may assume `x + 1` never overflows, and then `x + 1 > x` is always true. GCC at `-O2` emits exactly `return true`. C++20 did mandate two's-complement representation, but it left overflow in arithmetic undefined, which is why the third option is wrong. Only the `unsigned` version is required to handle wraparound.",
+      "refs": [
+        "[expr.pre]",
+        "[basic.fundamental]",
+        "[intro.abstract]"
+      ]
+    },
+    {
+      "id": "ub-char-buffer-as-int",
+      "kind": "tricky",
+      "prompt": "Is this program well-defined?",
+      "code": "int main() {\n  alignas(int) char buf[sizeof(int)] = {};\n  int* p = reinterpret_cast<int*>(buf);\n  *p = 1;\n  return buf[0];\n}",
+      "options": [
+        "Yes: `char` may alias anything, and the buffer is correctly aligned",
+        "Yes, but `buf[0]` is implementation-defined because of endianness",
+        "Ill-formed: `reinterpret_cast` from `char*` to `int*` is not allowed",
+        "No: it is undefined behavior, because no `int` object exists in `buf`, and the character-type exemption does not work in reverse"
+      ],
+      "answer": 3,
+      "explanation": "The aliasing rule lets you access an object of *any* type through a `char`, `unsigned char` or `std::byte` glvalue. It does not let you access a `char` array through an `int` glvalue. `buf` is an array of `char`, not `unsigned char` or `std::byte`, so it does not even provide storage for an `int`. The fix is to declare the buffer as `unsigned char` or `std::byte`, use `std::construct_at` or placement new, and access the `int` through the returned pointer, or simply to `memcpy` into an `int`.",
+      "refs": [
+        "[basic.lval]",
+        "[intro.object]",
+        "[expr.reinterpret.cast]"
+      ]
+    },
+    {
+      "id": "ub-pointer-before-begin",
+      "kind": "tricky",
+      "prompt": "Which numbered line, if any, has undefined behavior? None of the pointers is ever dereferenced.",
+      "code": "void f() {\n  int a[4]{};\n  int* end = a + 4;    // (1)\n  bool b = end != a;   // (2)\n  int* q = a - 1;      // (3)\n  (void)b; (void)q;\n}",
+      "options": [
+        "None: pointer arithmetic is only undefined if you dereference the result",
+        "(1), because `a + 4` points outside the array",
+        "(3), because forming a pointer before the first element is undefined even without a dereference",
+        "(2) and (3)"
+      ],
+      "answer": 2,
+      "explanation": "Pointer arithmetic is defined only for results from the first element up to one past the last. `a + 4` is the one-past-the-end pointer, which may be formed and compared but not dereferenced. `a - 1` falls outside that range, so computing it is already undefined. The 'only dereference is UB' intuition comes from flat-address-space hardware, but the abstract machine does not work that way. Clang rejects line (3) in a constant expression.",
+      "refs": [
+        "[expr.add]",
+        "[basic.compound]"
+      ]
+    },
+    {
+      "id": "ub-constexpr-diagnoses-overflow",
+      "kind": "tricky",
+      "prompt": "What does the standard say about declarations (1) and (2)?",
+      "code": "#include <climits>\nconstexpr int g(int i) { return i + 1; }\n\nconstexpr int a = g(INT_MAX);   // (1)\nint b = g(INT_MAX);             // (2)",
+      "options": [
+        "Both are ill-formed, because `g(INT_MAX)` is never a constant expression",
+        "(1) is ill-formed and must be diagnosed; (2) compiles and has undefined behavior when it runs",
+        "Both are undefined behavior, and the compiler is not required to diagnose either",
+        "Both are well-defined and wrap to `INT_MIN`"
+      ],
+      "answer": 1,
+      "explanation": "An expression that would perform core-language undefined behavior is not a core constant expression, so the `constexpr` variable in (1) has an invalid initializer and must be diagnosed. For (2), the implementation tries constant initialization, fails, and falls back to dynamic initialization at program start, and that dynamic initialization overflows, which is undefined at run time. Being `constexpr` does not make a function constant-only, which is why 'both ill-formed' is wrong.",
+      "refs": [
+        "[expr.const]",
+        "[basic.start.static]",
+        "[expr.pre]"
+      ]
+    },
+    {
+      "id": "ub-signed-char-not-exempt",
+      "kind": "standardese",
+      "prompt": "An object has dynamic type `int`. Accessing its stored value through a glvalue of which type is undefined behavior under C++23 [basic.lval]?",
+      "options": [
+        "`unsigned int`",
+        "`const volatile int`",
+        "`char`",
+        "`signed char`"
+      ],
+      "answer": 3,
+      "explanation": "The permitted types are those similar to the dynamic type, the signed or unsigned type corresponding to the dynamic type, and `char`, `unsigned char` or `std::byte`. `unsigned int` is the corresponding unsigned type, `const volatile int` is similar to `int`, and `char` is explicitly listed. `signed char` is not on the list, so reading an `int` through it is undefined. C's rule covers all character types, which is why this one surprises people.",
+      "refs": [
+        "[basic.lval]",
+        "[conv.qual]"
+      ]
+    },
+    {
+      "id": "ub-sequenced-assignment",
+      "kind": "standardese",
+      "prompt": "Under C++17 and later, what is the value of `i` after the assignment?",
+      "code": "int i = 1;\ni = i++ + 2;",
+      "options": [
+        "3",
+        "Undefined behavior: `i` is modified twice without sequencing",
+        "Unspecified: either 3 or 4",
+        "4"
+      ],
+      "answer": 0,
+      "explanation": "Since C++17 (P0145), the right operand of an assignment is sequenced before the left operand, and the assignment itself takes effect after both. So `i++` yields 1 and its increment completes, then `1 + 2` is assigned and `i` becomes 3. Before C++17, the two modifications were unsequenced and this was undefined, which is the folklore answer. GCC 16 still emits a `-Wsequence-point` warning here even in C++23 mode, but the program prints 3.",
+      "refs": [
+        "[expr.ass]",
+        "[intro.execution]"
+      ]
+    }
+  ]
+}

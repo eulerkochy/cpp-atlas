@@ -1,0 +1,62 @@
+{
+  "root": {
+    "label": "Futures, promises and async",
+    "note": "Providers and futures share one state that carries exactly one value or exception between threads.",
+    "children": [
+      {
+        "label": "Shared state",
+        "note": "Holds a value or exception, a ready flag, and possibly a deferred function.",
+        "children": [
+          { "label": "Providers", "note": "promise, packaged_task and std::async write the result into the state." },
+          { "label": "Return objects", "note": "future and shared_future read the result; the last reference destroys the state." },
+          { "label": "Synchronization", "note": "Making the state ready synchronizes with the wait or get that observes it." }
+        ]
+      },
+      {
+        "label": "promise and future",
+        "note": "A one-shot pipe: one get_future, one result, one get.",
+        "children": [
+          { "label": "broken_promise", "note": "A provider destroyed without a result stores this error, so get throws instead of hanging." },
+          { "label": "Single-use errors", "note": "future_already_retrieved for a second get_future; promise_already_satisfied for a second result." },
+          { "label": "get moves out", "note": "future<T>::get moves the value and releases the state; valid() is then false." },
+          { "label": "Invalid future", "note": "Using a future with valid() false is undefined; throwing no_state is only recommended." },
+          { "label": "At thread exit", "note": "set_value_at_thread_exit makes the state ready after thread_local objects are destroyed." }
+        ]
+      },
+      {
+        "label": "shared_future",
+        "note": "Copyable view of the state for many consumers, made by future::share().",
+        "children": [
+          { "label": "Repeatable get", "note": "get returns const T& and leaves the value in place; every get rethrows a stored exception." },
+          { "label": "One copy per thread", "note": "Give each thread its own shared_future object rather than sharing one." }
+        ]
+      },
+      {
+        "label": "packaged_task",
+        "note": "A move-only callable that stores its result or exception in a shared state.",
+        "children": [
+          { "label": "Run once", "note": "A second call throws promise_already_satisfied." },
+          { "label": "reset", "note": "Abandons the old state and creates a fresh one, which needs a new future." }
+        ]
+      },
+      {
+        "label": "std::async",
+        "note": "Decay-copies arguments and returns a future for the function's result.",
+        "children": [
+          { "label": "launch::async", "note": "Runs as if on a new thread; throws system_error if no thread can be started." },
+          { "label": "launch::deferred", "note": "Runs lazily in the thread that first calls get or wait; never if nobody asks." },
+          { "label": "Default policy", "note": "async | deferred lets the implementation choose; timed waits may return deferred forever." },
+          { "label": "Blocking destructor", "note": "The last future for a launched async state waits for the task, so discarded results serialize." }
+        ]
+      },
+      {
+        "label": "No continuations",
+        "note": "Standard futures can only be blocked on or polled, never chained.",
+        "children": [
+          { "label": "Concurrency TS", "note": "future::then, when_all and when_any stayed in std::experimental and were not adopted." },
+          { "label": "C++26 senders", "note": "std::execution composes work lazily with schedulers; see senders-and-receivers." }
+        ]
+      }
+    ]
+  }
+}

@@ -248,7 +248,7 @@ export function QuizModule({
                     <CopyCodeButton code={q.code} showGodbolt={false} />
                   </div>
                 </div>
-                <pre className="m-0 overflow-x-auto px-5 py-4 font-mono text-[0.84rem] leading-[1.7] text-[#262626]">
+                <pre className="m-0 overflow-x-auto px-5 py-4 font-mono text-[0.84rem] leading-[1.7] text-[var(--code-ink)]">
                   <code
                     dangerouslySetInnerHTML={{ __html: highlightCppCode(q.code) }}
                   />
@@ -294,8 +294,8 @@ export function QuizModule({
                           state === "idle" &&
                             "border-line-strong text-ink-soft",
                           state === "right" &&
-                            "border-[var(--right)] bg-[var(--right)] text-white",
-                          state === "wrong" && "border-wrong bg-wrong text-white"
+                            "border-[var(--right)] bg-[var(--right)] text-paper-raised",
+                          state === "wrong" && "border-wrong bg-wrong text-paper-raised"
                         )}
                       >
                         {state === "right" ? (

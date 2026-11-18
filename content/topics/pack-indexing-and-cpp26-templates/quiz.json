@@ -1,0 +1,152 @@
+{
+  "questions": [
+    {
+      "id": "pack-indexing-and-cpp26-templates-sb-pack-count",
+      "kind": "warmup",
+      "prompt": "In C++26, what does this program print?",
+      "code": "#include <cstdio>\n\nstruct C { int x, y, z; };\n\ntemplate<class T> int f(T t) {\n  auto [first, ...rest] = t;\n  return first * 100 + sizeof...(rest);\n}\n\nint main() { std::printf(\"%d\\n\", f(C{1, 2, 3})); }",
+      "options": [
+        "`103`",
+        "`101`",
+        "`102`",
+        "Nothing: a structured binding pack must be the last name in the list"
+      ],
+      "answer": 2,
+      "explanation": "`first` binds to `x`, and the structured binding pack `rest` takes the remaining two members, so `sizeof...(rest)` is 2 and the result is `1 * 100 + 2`. `103` comes from counting every binding rather than only the pack's elements. A pack may appear anywhere in the list, not only at the end, and this declaration is inside a function template, as P1061R10 requires.",
+      "refs": [
+        "[dcl.struct.bind]",
+        "[temp.variadic]"
+      ]
+    },
+    {
+      "id": "pack-indexing-and-cpp26-templates-decltype-index",
+      "kind": "warmup",
+      "prompt": "In C++26, for the call `f(1, 'c')`, what type is `R`?",
+      "code": "template<class... T> void f(T... xs) {\n  using R = decltype(xs...[0]);\n  (void)sizeof(R);\n}\n\nint main() { f(1, 'c'); }",
+      "options": [
+        "`int&`, because `xs...[0]` is an lvalue",
+        "`int`",
+        "`int&&`",
+        "Ill-formed: `decltype` cannot be applied to a pack-index-expression"
+      ],
+      "answer": 1,
+      "explanation": "A pack-index-expression is an id-expression, and its instantiation is simply the name of the selected parameter. `decltype` of an unparenthesized id-expression is the declared type of the entity, which is `int`. The `int&` answer is what `decltype((xs...[0]))` gives, because the extra parentheses make `decltype` look at the value category, which is lvalue.",
+      "refs": [
+        "[expr.prim.pack.index]",
+        "[temp.variadic]",
+        "[dcl.type.decltype]"
+      ]
+    },
+    {
+      "id": "pack-indexing-and-cpp26-templates-friend-class-pack",
+      "kind": "warmup",
+      "prompt": "In C++26, which member declaration is ill-formed?",
+      "code": "struct A; struct B;\n\ntemplate<class... Ts> class X {\n  friend Ts...;          // #1\n  friend A, B;           // #2\n  friend class Ts...;    // #3\n};",
+      "options": [
+        "`#1`",
+        "`#2`",
+        "`#3`",
+        "None of them"
+      ],
+      "answer": 2,
+      "explanation": "P2893R3 lets a friend-type-declaration take a list of friend-type-specifiers, each of which may be a pack expansion, so `#1` and `#2` are valid C++26. `#3` uses an elaborated-type-specifier, and [dcl.type.elab] makes `class` followed by a name that resolves to a template parameter ill-formed. That rule already rejected `friend class T;` before C++26. Write `friend Ts...;` instead.",
+      "refs": [
+        "[class.friend]",
+        "[dcl.type.elab]",
+        "[class.mem.general]"
+      ]
+    },
+    {
+      "id": "pack-indexing-and-cpp26-templates-non-deduced",
+      "kind": "tricky",
+      "prompt": "In C++26, what happens with this call?",
+      "code": "template<class... T> void first(T...[0] x) {}\n\nint main() { first(1); }",
+      "options": [
+        "`T` is deduced as `{int}` and `first<int>` is called",
+        "Ill-formed: no matching function, because `T` cannot be deduced from a pack-index-specifier",
+        "Undefined behavior: the index is out of range at run time",
+        "Ill-formed: a pack-index-specifier cannot be used as a parameter type"
+      ],
+      "answer": 1,
+      "explanation": "A pack-index-specifier is a non-deduced context, so the argument `1` contributes nothing to deducing `T`. The trailing pack `T` is therefore deduced as empty, and substituting it makes `T...[0]` an out-of-range index, so the only candidate fails and the call has no match. Indexing cannot be undefined behavior, because the index is a constant checked at compile time. `first<int>(1)` works.",
+      "refs": [
+        "[temp.deduct.type]",
+        "[dcl.type.pack.index]"
+      ]
+    },
+    {
+      "id": "pack-indexing-and-cpp26-templates-index-pack-expansion",
+      "kind": "tricky",
+      "prompt": "In C++26, what is the type of `pick<2, 0>(1, 'c', 3.0)`?",
+      "code": "#include <cstddef>\n#include <tuple>\n\ntemplate<std::size_t... I, class... T>\nauto pick(T... xs) { return std::tuple<T...[I]...>(xs...[I]...); }\n\nauto r = pick<2, 0>(1, 'c', 3.0);",
+      "options": [
+        "`std::tuple<double, int>`",
+        "`std::tuple<int, char, double>`",
+        "`std::tuple<char, int>`",
+        "Ill-formed: `I` and `T` are expanded by the same ellipsis but have different lengths"
+      ],
+      "answer": 0,
+      "explanation": "In `T...[I]...` the first ellipsis is part of the pack-index-specifier, and that construct's pattern only expands `T` in place. The outer ellipsis is an ordinary pack expansion whose only unexpanded pack is `I`, so it produces `T...[2], T...[0]`, which is `double, int`. The length-mismatch answer would be right if both packs were expanded by the outer ellipsis, but `T` is consumed by the indexing.",
+      "refs": [
+        "[temp.variadic]",
+        "[dcl.type.pack.index]",
+        "[expr.prim.pack.index]"
+      ]
+    },
+    {
+      "id": "pack-indexing-and-cpp26-templates-sb-pack-outside-template",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, is this function well-formed?",
+      "code": "struct C { int x, y, z; };\n\nint f() {\n  auto [a, ...rest] = C{1, 2, 3};\n  return (a + ... + rest);\n}",
+      "options": [
+        "Well-formed, and it returns 6",
+        "Well-formed only if `f` is declared `constexpr`",
+        "Ill-formed: a structured binding pack can only be introduced in a templated entity",
+        "Ill-formed: a structured binding pack cannot follow a named binding"
+      ],
+      "answer": 2,
+      "explanation": "[dcl.pre] requires a structured binding declaration that contains a pack to declare a templated entity, and `f` is an ordinary function. An earlier revision, P1061R9, allowed this by creating an implicit template region, but that design was rejected, and R10 restricted packs to templates. Wrapping the same code in a template or a generic lambda makes it valid and returns 6.",
+      "refs": [
+        "[dcl.pre]",
+        "[dcl.struct.bind]"
+      ]
+    },
+    {
+      "id": "pack-indexing-and-cpp26-templates-fold-operator-subsumption",
+      "kind": "standardese",
+      "prompt": "Under the C++26 draft, with P2963 applied, what does `k(1, 2)` do?",
+      "code": "#include <concepts>\n\ntemplate<class... T> requires (std::integral<T> || ...)\nint k(T...) { return 1; }  // #1\n\ntemplate<class... T> requires (std::integral<T> && ...)\nint k(T...) { return 2; }  // #2\n\nint x = k(1, 2);",
+      "options": [
+        "Calls `#2`, because \"all are integral\" implies \"some is integral\"",
+        "Calls `#1`, because a disjunction is satisfied first",
+        "Ill-formed: fold expressions are not allowed in a requires-clause",
+        "The call is ambiguous"
+      ],
+      "answer": 3,
+      "explanation": "Both folds normalize to fold expanded constraints, and [temp.constr.order] lets one subsume the other only if they have the same fold-operator. Here the operators differ, so neither declaration is more constrained and the call is ambiguous. The implication answer fails on empty packs: `(C<T> && ...)` is satisfied for an empty pack and `(C<T> || ...)` is not, which is exactly why P2963 requires matching operators. Clang 21 reports the ambiguity. GCC 16 also does, but only because it does not implement P2963 at all.",
+      "refs": [
+        "[temp.constr.fold]",
+        "[temp.constr.order]",
+        "[temp.constr.normal]"
+      ]
+    },
+    {
+      "id": "pack-indexing-and-cpp26-templates-variable-tt-argument",
+      "kind": "standardese",
+      "prompt": "Under the C++26 draft (P2841R7), which template argument is valid for `V`?",
+      "code": "template<class T> constexpr int zero = 0;\ntemplate<class T> concept Small = sizeof(T) <= 4;\ntemplate<class T> struct Box {};\n\ntemplate<template<class> auto V>\nconstexpr int at_int = V<int>;",
+      "options": [
+        "`zero`, as in `at_int<zero>`",
+        "`zero<int>`, as in `at_int<zero<int>>`",
+        "`Small`, because a concept is a kind of variable template of type `bool`",
+        "`Box`, because any template whose parameter list matches is accepted"
+      ],
+      "answer": 0,
+      "explanation": "`template<class> auto V` is a variable template template parameter, and [temp.arg.template] says its argument must name a variable template or another variable template template parameter. `zero` is a variable template. `zero<int>` is a value, not a template. A concept is not a variable template, and it needs a concept template parameter of the form `template<class> concept C`. A class template needs a type template template parameter. No compiler available here implements P2841 yet, so this answer rests on the draft text.",
+      "refs": [
+        "[temp.param]",
+        "[temp.arg.template]"
+      ]
+    }
+  ]
+}

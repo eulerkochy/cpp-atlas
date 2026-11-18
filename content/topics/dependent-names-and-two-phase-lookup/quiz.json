@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "dependent-names-and-two-phase-lookup-dependent-base",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "template<class T> struct Base { void hello() {} };\n\ntemplate<class T> struct Derived : Base<T> {\n  void run() { hello(); }\n};\n\nint main() { Derived<int>{}.run(); }",
+      "options": [
+        "Well-formed: `hello` is found in `Base<int>` when `Derived<int>` is instantiated",
+        "Ill-formed: `hello` is not found, because unqualified lookup does not search the dependent base `Base<T>`",
+        "Ill-formed, no diagnostic required",
+        "Well-formed only because `Base<int>` is not explicitly specialized"
+      ],
+      "answer": 1,
+      "explanation": "`hello()` has no arguments, so it is not a dependent call and is looked up in phase one. Unqualified lookup at the definition does not look into `Base<T>`, a dependent base, because a specialization of `Base` could have entirely different members. Nothing named `hello` is visible, so the program is ill-formed and GCC and Clang both reject it. Writing `this->hello()` or `Base<T>::hello()` makes the name dependent and fixes it.",
+      "refs": [
+        "[temp.dep]",
+        "[temp.res]"
+      ]
+    },
+    {
+      "id": "dependent-names-and-two-phase-lookup-template-keyword",
+      "kind": "warmup",
+      "prompt": "`use` fails to compile because `h.get<3>()` is parsed as comparisons. What is the correct spelling of the return expression?",
+      "code": "template<class T> struct H { template<int N> int get() const { return N; } };\n\ntemplate<class T> int use(const H<T>& h) {\n  return h.get<3>();\n}\n\nint x = use(H<int>{});",
+      "options": [
+        "`return typename h.get<3>();`",
+        "`return h.template get<3>();`",
+        "`return h.get template<3>();`",
+        "No change: since C++20 the compiler looks inside `H<T>` to see that `get` is a template"
+      ],
+      "answer": 1,
+      "explanation": "`h` has a dependent type, so in phase one the compiler cannot know that `get` is a member template, and without help the `<` is a less-than operator; the original code is ill-formed. The `template` keyword after `.` tells the parser that the next name is a template. `typename` marks types, not templates, and C++20 relaxed only `typename` in type-only contexts and the lookup of unqualified template-ids, neither of which helps a member access.",
+      "refs": [
+        "[temp.names]",
+        "[temp.res]"
+      ]
+    },
+    {
+      "id": "dependent-names-and-two-phase-lookup-nondependent-binding",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nvoid g(double) { std::puts(\"g(double)\"); }\n\ntemplate<class T> void call(T) { g(1); }\n\nvoid g(int) { std::puts(\"g(int)\"); }\n\nint main() { call(0); }",
+      "options": [
+        "`g(int)`",
+        "Ill-formed: the call `g(1)` is ambiguous",
+        "`g(double)`",
+        "It depends on the compiler"
+      ],
+      "answer": 2,
+      "explanation": "`g(1)` has no type-dependent arguments, so it is not a dependent call: it is looked up and bound at the template definition, where only `g(double)` is visible. The later `g(int)` would be a better match, which is why `g(int)` is tempting, but it is never considered for this call. If the call were `g(T{})`, it would be dependent, though ordinary lookup would still see only `g(double)`, and argument-dependent lookup finds nothing for `int`.",
+      "refs": [
+        "[temp.res]",
+        "[temp.dep]"
+      ]
+    },
+    {
+      "id": "dependent-names-and-two-phase-lookup-global-shadow",
+      "kind": "tricky",
+      "prompt": "What does this program return?",
+      "code": "template<class T> struct Base { int size() const { return 1; } };\n\nint size() { return 0; }\n\ntemplate<class T> struct Derived : Base<T> {\n  int n() const { return size(); }\n};\n\nint main() { return Derived<int>{}.n(); }",
+      "options": [
+        "0",
+        "1",
+        "Ill-formed: the call is ambiguous between `::size` and `Base<int>::size`",
+        "Ill-formed: `size` is not found in `Base<T>`"
+      ],
+      "answer": 0,
+      "explanation": "`size()` is not a dependent call, so it is looked up at the definition, and unqualified lookup skips the dependent base `Base<T>`. It finds the global `::size`, binds to it, and `n` returns 0. There is no ambiguity, because `Base<int>::size` is never a candidate. Without the global function, the program would be ill-formed as the last option says; with it, the bug is silent.",
+      "refs": [
+        "[temp.dep]",
+        "[temp.res]"
+      ]
+    },
+    {
+      "id": "dependent-names-and-two-phase-lookup-adl-poi",
+      "kind": "tricky",
+      "prompt": "Which of the two uses of `twice` are well-formed?",
+      "code": "template<class T> int twice(T t) { return helper(t) * 2; }\n\nnamespace lib {\n  struct X {};\n  int helper(X) { return 21; }\n}\nint helper(int) { return 1; }\n\nint a = twice(lib::X{});  // #1\nint b = twice(0);         // #2",
+      "options": [
+        "Both: `helper` is looked up at the point of instantiation, where both overloads are visible",
+        "Only #2",
+        "Neither: `helper` must be declared before the template",
+        "Only #1"
+      ],
+      "answer": 3,
+      "explanation": "`helper(t)` is a dependent call. Ordinary unqualified lookup is done only from the definition context, where no `helper` exists, and argument-dependent lookup is done from both the definition and instantiation contexts. For `lib::X`, ADL searches `lib` and finds `lib::helper`. For `int`, there are no associated namespaces, so the global `helper(int)` declared after the template is never found and #2 is ill-formed. The first option describes a single lookup at instantiation, which is not the rule.",
+      "refs": [
+        "[temp.dep.candidate]",
+        "[basic.lookup.argdep]"
+      ]
+    },
+    {
+      "id": "dependent-names-and-two-phase-lookup-multiplication",
+      "kind": "tricky",
+      "prompt": "How does a conforming compiler parse the statement in `q`?",
+      "code": "template<class T> void q() {\n  T::type * ptr;\n}",
+      "options": [
+        "As a declaration of `ptr`, a pointer to `T::type`",
+        "As a multiplication of `T::type` by `ptr`, which here is ill-formed because `ptr` is not declared",
+        "It is deferred until instantiation, when the compiler knows what `T::type` is",
+        "As a declaration in C++20 and later, because P0634 made `typename` optional"
+      ],
+      "answer": 1,
+      "explanation": "A qualified name that depends on a template parameter is assumed not to name a type unless it is preceded by `typename`, so the statement is an expression: `T::type` times `ptr`. `ptr` is a non-dependent name and is undeclared, so phase one rejects the template. P0634 removed the need for `typename` only in contexts where a type is the only possible parse, and a statement in a function body is not one of them.",
+      "refs": [
+        "[temp.res]",
+        "[temp.res.general]"
+      ]
+    },
+    {
+      "id": "dependent-names-and-two-phase-lookup-typename-contexts",
+      "kind": "standardese",
+      "prompt": "In C++23, in which of these positions inside `template<class T> struct S { ... };` is `typename` still required before `T::value_type`?",
+      "options": [
+        "`using V = T::value_type;`",
+        "`T::value_type member;` as a data member",
+        "`void set(T::value_type v);` as a member function parameter",
+        "`void f() { T::value_type local{}; }` inside a member function body",
+        "`auto g() -> T::value_type;` as a trailing return type"
+      ],
+      "answer": 3,
+      "explanation": "C++20's P0634 defines type-only contexts in which a dependent qualified name is assumed to be a type: alias declarations, the decl-specifiers of member declarations, parameters in member declarations, trailing return types, named cast targets and a few more. A statement in a function body is not such a context, because `T::value_type local{};` could equally be an expression, so `typename` is still required there. All the other positions compile without it in C++20 and later.",
+      "refs": [
+        "[temp.res.general]"
+      ]
+    },
+    {
+      "id": "dependent-names-and-two-phase-lookup-never-valid",
+      "kind": "standardese",
+      "prompt": "The function template `u` is never instantiated. What does the C++23 standard say about this translation unit?",
+      "code": "template<class T> void u() {\n  int i = \"text\";\n  (void)i;\n}\n\nint main() {}",
+      "options": [
+        "Well-formed: templates are only checked when instantiated",
+        "Ill-formed, and a diagnostic is required",
+        "Undefined behavior",
+        "Ill-formed, no diagnostic required"
+      ],
+      "answer": 3,
+      "explanation": "The initialization does not depend on `T`, and it would be ill-formed in a hypothetical instantiation right after the definition; no valid specialization of `u` can be generated either. [temp.res.general] makes such a program ill-formed with no diagnostic required. That permits early diagnosis without requiring it: Clang 21 rejects this translation unit, while GCC 16 accepts it, which is why the first option looks right on GCC.",
+      "refs": [
+        "[temp.res.general]"
+      ]
+    }
+  ]
+}

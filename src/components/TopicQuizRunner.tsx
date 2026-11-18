@@ -78,7 +78,7 @@ function QuizCodeBox({
       </div>
       <pre
         className={cn(
-          "m-0 overflow-x-auto font-mono text-[#262626]",
+          "m-0 overflow-x-auto font-mono text-[var(--code-ink)]",
           compact
             ? "px-4 py-3 text-[0.82rem] leading-[1.65]"
             : "px-5 py-4 text-[0.84rem] leading-[1.7]"
@@ -641,9 +641,9 @@ export function TopicQuizRunner({
                           state === "picked" &&
                             "border-ink bg-sun text-ink font-semibold",
                           state === "right" &&
-                            "border-[var(--right)] bg-[var(--right)] text-white",
+                            "border-[var(--right)] bg-[var(--right)] text-paper-raised",
                           state === "wrong" &&
-                            "border-wrong bg-wrong text-white"
+                            "border-wrong bg-wrong text-paper-raised"
                         )}
                       >
                         {state === "right" ? (

@@ -1,0 +1,143 @@
+{
+  "questions": [
+    {
+      "id": "range-adaptors-and-pipelines-compose-closures",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <ranges>\n#include <vector>\n\nint main() {\n  auto p = std::views::transform([](int x) { return x * 10; })\n         | std::views::filter([](int x) { return x > 15; });\n  std::vector<int> xs{1, 2, 3};\n  for (int x : xs | p) std::printf(\"%d \", x);\n}",
+      "options": [
+        "`10 20 30 `",
+        "`2 3 `",
+        "`20 30 `",
+        "Nothing: a closure cannot be composed before it is applied to a range"
+      ],
+      "answer": 2,
+      "explanation": "Piping two closures together yields a closure `p` such that `xs | p` is `xs | transform(...) | filter(...)`, so data flows left to right. The transform runs first, giving 10, 20 and 30, and the filter keeps the values above 15. The answer `2 3 ` would be right if the filter were applied before the transform, which is the order a reader of nested function calls might expect.",
+      "refs": [
+        "[range.adaptor.object]"
+      ]
+    },
+    {
+      "id": "range-adaptors-and-pipelines-zip-not-pipeable",
+      "kind": "warmup",
+      "prompt": "In C++23, what happens with the marked line?",
+      "code": "#include <ranges>\n#include <vector>\n\nint main() {\n  std::vector<int> xs{1, 2, 3};\n  std::vector<int> ys{4, 5, 6};\n  auto z = xs | std::views::zip(ys);  // this line\n  (void)z;\n}",
+      "options": [
+        "It produces a view of the tuples (1, 4), (2, 5) and (3, 6)",
+        "It is ill-formed: `views::zip(ys)` is already a one-range zip view, and a range cannot be piped into a view",
+        "It produces a view of the tuples (4, 1), (5, 2) and (6, 3)",
+        "It compiles, but iterating it is undefined behavior"
+      ],
+      "answer": 1,
+      "explanation": "`views::zip` is a customization point object that takes any number of ranges, not a range adaptor object with partial application. `views::zip(ys)` is a complete `zip_view` over one range, and there is no `operator|` taking a vector on the left and a view on the right, so the line does not compile. Write `views::zip(xs, ys)` instead.",
+      "refs": [
+        "[range.zip]",
+        "[range.adaptor.object]"
+      ]
+    },
+    {
+      "id": "range-adaptors-and-pipelines-transform-filter-calls",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <ranges>\n#include <vector>\n\nint main() {\n  int calls = 0;\n  std::vector<int> xs{1, 2, 3, 4};\n  auto r = xs | std::views::transform([&](int x) { ++calls; return x * x; })\n              | std::views::filter([](int x) { return x % 2 == 0; });\n  for (int x : r) (void)x;\n  std::printf(\"%d\\n\", calls);\n}",
+      "options": [
+        "`4`",
+        "`2`",
+        "`8`",
+        "`6`"
+      ],
+      "answer": 3,
+      "explanation": "The filter dereferences each of the four transformed elements to test it, which calls the function four times. The range-based for then dereferences the filter iterator at the two elements that passed, 4 and 16, and a transform iterator recomputes its value on every dereference, adding two more calls. `4` is the tempting answer if you assume the transform caches its result; it does not.",
+      "refs": [
+        "[range.transform]",
+        "[range.filter.iterator]"
+      ]
+    },
+    {
+      "id": "range-adaptors-and-pipelines-take-list-common",
+      "kind": "tricky",
+      "prompt": "Which of these static assertions fails?",
+      "code": "#include <list>\n#include <ranges>\n\nstd::list<int> l{1, 2, 3};\nusing T = decltype(l | std::views::take(2));\n\nstatic_assert(std::ranges::bidirectional_range<T>);  // A\nstatic_assert(std::ranges::sized_range<T>);          // B\nstatic_assert(std::ranges::common_range<T>);         // C\nstatic_assert(std::ranges::view<T>);                 // D",
+      "options": [
+        "A: `take` on a list is only a forward range",
+        "B: `take` never knows its size",
+        "C: the iterator and sentinel types differ",
+        "None of them fails"
+      ],
+      "answer": 2,
+      "explanation": "`take_view` is common only when its input is both sized and random access, because only then can it compute its end iterator as `begin() + n`. For a sized list it instead uses a `counted_iterator` as the iterator and `default_sentinel_t` as the sentinel, so the view is sized and bidirectional but not common. Assertion A holds because `take` preserves the input's category, and B holds because a list is sized. Assertion C therefore fails and the program does not compile.",
+      "refs": [
+        "[range.take.view]",
+        "[iterators.counted]"
+      ]
+    },
+    {
+      "id": "range-adaptors-and-pipelines-const-filter",
+      "kind": "tricky",
+      "prompt": "Which call to `print` is ill-formed?",
+      "code": "#include <cstdio>\n#include <ranges>\n#include <vector>\n\nvoid print(const auto& r) { for (int x : r) std::printf(\"%d \", x); }\n\nint main() {\n  std::vector<int> xs{1, 2, 3};\n  print(xs | std::views::transform([](int x) { return x + 1; }));  // 1\n  print(xs | std::views::filter([](int x) { return x > 1; }));     // 2\n  print(xs | std::views::take(2));                                 // 3\n}",
+      "options": [
+        "Only call 2",
+        "Calls 1 and 2, because both store a lambda",
+        "None of them; all three views are const-iterable",
+        "All three, because a view must not be passed by const reference"
+      ],
+      "answer": 0,
+      "explanation": "`filter_view::begin()` caches the first matching position to meet the amortized constant-time requirement of `range`, so it is a non-const member, a `const filter_view` is not a range, and call 2 is ill-formed. `transform_view` and `take_view` over a `ref_view` provide const `begin()` members, so calls 1 and 3 compile. Storing a lambda is not the problem; caching is.",
+      "refs": [
+        "[range.filter.view]",
+        "[range.range]"
+      ]
+    },
+    {
+      "id": "range-adaptors-and-pipelines-take-span-type",
+      "kind": "tricky",
+      "prompt": "What is the type of `t`?",
+      "code": "#include <ranges>\n#include <span>\n#include <vector>\n\nstd::vector<int> v{1, 2, 3, 4};\nstd::span<int> s(v);\nauto t = s | std::views::take(2);",
+      "options": [
+        "`std::ranges::take_view<std::span<int>>`",
+        "`std::ranges::take_view<std::ranges::ref_view<std::span<int>>>`",
+        "`std::ranges::subrange<int*>`",
+        "`std::span<int>`"
+      ],
+      "answer": 3,
+      "explanation": "`views::take` is specified to return a cheaper type when it can: for a `std::span` it returns a `span` of the first `n` elements, and it does the same for `basic_string_view`, sized random-access `iota_view` and suitable `subrange` specializations. The `take_view` answers describe what you get for a general view. A span is itself a view, so it would never be wrapped in a `ref_view` either.",
+      "refs": [
+        "[range.take.overview]"
+      ]
+    },
+    {
+      "id": "range-adaptors-and-pipelines-write-through-filter",
+      "kind": "standardese",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <ranges>\n#include <vector>\n\nint main() {\n  std::vector<int> v{2, 4, 6};\n  for (int& x : v | std::views::filter([](int x) { return x % 2 == 0; }))\n    ++x;\n}",
+      "options": [
+        "It is ill-formed: a `filter_view` yields const references",
+        "It is well-defined and leaves `v` as `{3, 5, 7}`",
+        "It has undefined behavior",
+        "The final contents of `v` are unspecified"
+      ],
+      "answer": 2,
+      "explanation": "[range.filter.iterator] permits modifying the element a `filter_view` iterator denotes, but the behavior is undefined if the new value does not satisfy the predicate. Each increment makes an even number odd. In practice you will likely observe `{3, 5, 7}`, which is why the second option is tempting, but the standard gives no such guarantee. The references are not const, so the code does compile.",
+      "refs": [
+        "[range.filter.iterator]"
+      ]
+    },
+    {
+      "id": "range-adaptors-and-pipelines-closure-order",
+      "kind": "standardese",
+      "prompt": "For range adaptor closure objects `C` and `D` and a viewable range `r`, what does [range.adaptor.object] make `r | (C | D)` equivalent to?",
+      "options": [
+        "`C(D(r))`",
+        "`D(C(r))`",
+        "Either order; it is unspecified",
+        "Nothing: closures only combine with ranges"
+      ],
+      "answer": 1,
+      "explanation": "The standard defines `C | D` as a closure whose application to `r` is `D(C(r))`, which is the same as `r | C | D`. That is what makes a stored pipeline behave exactly like writing the stages out inline. `C(D(r))` is how function composition is often written in mathematics, which makes it the tempting choice.",
+      "refs": [
+        "[range.adaptor.object]"
+      ]
+    }
+  ]
+}

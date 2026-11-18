@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "std::filesystem",
+    "note": "Path is text; the other functions ask an OS that others may change at any time.",
+    "children": [
+      {
+        "label": "Path as a value",
+        "note": "A path holds a string and splits it by lexical rules.",
+        "children": [
+          { "label": "Generic vs native", "note": "Generic uses forward slashes; native is the platform's own form, and on POSIX they match." },
+          { "label": "Decomposition", "note": "stem and extension split at the last dot; a leading dot is not an extension." },
+          { "label": "Trailing separator", "note": "a/b/ iterates as a, b and an empty element, and its filename() is empty." },
+          { "label": "Comparison", "note": "Elementwise: a//b equals a/b, but a trailing slash or a dot element differs." }
+        ]
+      },
+      {
+        "label": "Joining paths",
+        "note": "operator/ is append, not string concatenation.",
+        "children": [
+          { "label": "Absolute right side", "note": "An absolute right-hand path replaces the left side entirely." },
+          { "label": "Empty right side", "note": "path(\"a\") / \"\" gives a/ with a trailing separator." },
+          { "label": "operator+=", "note": "Plain concatenation with no separator inserted." }
+        ]
+      },
+      {
+        "label": "Lexical vs real",
+        "note": "Text functions never touch the disk; resolving functions do.",
+        "children": [
+          { "label": "lexically_normal", "note": "Cancels dot and name/.. as text and yields . when the result is empty." },
+          { "label": "canonical", "note": "Resolves symlinks and requires the path to exist." },
+          { "label": "weakly_canonical", "note": "Resolves the existing prefix and normalizes the rest textually." },
+          { "label": "link/.. trap", "note": "The OS follows link first, so link/.. differs from the lexical result." }
+        ]
+      },
+      {
+        "label": "Errors and status",
+        "note": "Two overload families and symlink-aware queries.",
+        "children": [
+          { "label": "Throwing overload", "note": "Throws filesystem_error carrying the code and the paths." },
+          { "label": "error_code overload", "note": "Reports through the argument, with a sentinel return such as uintmax_t(-1)." },
+          { "label": "status vs symlink_status", "note": "status follows links; exists is false for a dangling symlink." }
+        ]
+      },
+      {
+        "label": "Iteration and operations",
+        "note": "Directory walks and bulk operations depend on options.",
+        "children": [
+          { "label": "directory_iterator", "note": "Unspecified order; skips . and .." },
+          { "label": "recursive iterator", "note": "Does not follow directory symlinks unless follow_directory_symlink is set." },
+          { "label": "copy_options", "note": "copy_file fails on an existing target unless skip, overwrite or update is chosen." },
+          { "label": "space", "note": "Reports capacity, free and available; available can be less than free." }
+        ]
+      },
+      {
+        "label": "Races, time, encoding",
+        "note": "The disk is shared and the types have platform-specific parts.",
+        "children": [
+          { "label": "File system races", "note": "The standard makes calls that introduce a race undefined; avoid check-then-act." },
+          { "label": "file_time_type", "note": "Uses file_clock since C++20; convert with clock_cast to system_clock." },
+          { "label": "u8string in C++20", "note": "Returns std::u8string, which does not convert to std::string; u8path is deprecated." }
+        ]
+      }
+    ]
+  }
+}

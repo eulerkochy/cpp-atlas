@@ -1,0 +1,7 @@
+# C keywords: register
+
+Source: https://en.cppreference.com/w/c/keyword/register
+
+## Usage
+
+- automatic duration storage-class specifier with no linkage. Hints that the variable will be used heavily.

@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "new and delete",
+    "note": "A new-expression allocates then initializes; a delete-expression destroys then deallocates.",
+    "children": [
+      {
+        "label": "The new-expression",
+        "note": "Calls an allocation function for raw bytes, then initializes an object in them.",
+        "children": [
+          { "label": "Sequencing (C++17)", "note": "The allocation function is called before the initializer's arguments are evaluated." },
+          { "label": "Constructor throws", "note": "The matching deallocation function frees the storage; no destructor runs." },
+          { "label": "std::nothrow", "note": "Allocation failure yields null; a throwing constructor still throws." },
+          { "label": "new_handler", "note": "Standard operator new calls the installed handler in a loop before throwing bad_alloc." }
+        ]
+      },
+      {
+        "label": "Arrays",
+        "note": "new T[n] calls operator new[] and may request unspecified extra bytes.",
+        "children": [
+          { "label": "Array cookie", "note": "Itanium stores the count when T has a non-trivial destructor, so delete[] knows n." },
+          { "label": "bad_array_new_length", "note": "Thrown for a negative or overflowing size, before any allocation function is called." },
+          { "label": "new T[0]", "note": "Valid; returns a distinct non-null pointer that must not be dereferenced." }
+        ]
+      },
+      {
+        "label": "Placement forms",
+        "note": "Extra arguments in new (args) T are passed to operator new after the size.",
+        "children": [
+          { "label": "Non-allocating form", "note": "operator new(size_t, void*) returns its argument and cannot be replaced." },
+          { "label": "Placement delete", "note": "Called only when the constructor throws; it must match the extra parameter types." },
+          { "label": "Class operator new hides", "note": "A class-specific operator new hides global placement new; write ::new." }
+        ]
+      },
+      {
+        "label": "Deallocation functions",
+        "note": "The delete-expression picks one by a fixed preference procedure.",
+        "children": [
+          { "label": "Sized (C++14)", "note": "Global sized delete is chosen for complete types; for delete[] it needs a non-trivial destructor." },
+          { "label": "Aligned (C++17)", "note": "align_val_t overloads are preferred for over-aligned types." },
+          { "label": "Destroying delete (C++20)", "note": "Takes T* and destroying_delete_t; the expression skips the destructor." },
+          { "label": "Dynamic-type lookup", "note": "With a virtual destructor, operator delete is found in the dynamic type's scope." }
+        ]
+      },
+      {
+        "label": "Replacement",
+        "note": "Global definitions of the replaceable functions replace the library's for the whole program.",
+        "children": [
+          { "label": "Minimal set", "note": "Nothrow, array and sized forms default to calling operator new(size_t) or operator delete(void*)." },
+          { "label": "Aligned family", "note": "Aligned overloads do not call the unaligned ones and need their own replacement." },
+          { "label": "Elision (C++14)", "note": "Calls from new-expressions may be omitted or merged, even when replaced." },
+          { "label": "Direct calls", "note": "Calling ::operator new as a function is never elided." }
+        ]
+      },
+      {
+        "label": "Undefined mismatches",
+        "note": "Pairing errors the compiler usually cannot detect.",
+        "children": [
+          { "label": "delete vs delete[]", "note": "Crossing the forms, or with malloc and free, is undefined for every type." },
+          { "label": "Non-virtual base", "note": "delete through a base pointer needs a virtual destructor, even if Derived adds nothing." },
+          { "label": "delete[] through base", "note": "Undefined whenever the static element type differs from the dynamic one." }
+        ]
+      }
+    ]
+  }
+}

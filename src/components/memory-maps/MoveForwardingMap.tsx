@@ -171,7 +171,7 @@ export function MoveForwardingMap() {
                     : "owns 0x60000140a100"}
                 </span>
               </div>
-              <pre className="overflow-x-auto rounded-xl border border-line bg-paper-raised p-3 font-mono text-xs leading-relaxed text-[#262626]">
+              <pre className="overflow-x-auto rounded-xl border border-line bg-paper-raised p-3 font-mono text-xs leading-relaxed text-[var(--code-ink)]">
                 {`begin_: ${effectiveMove ? "nullptr (0x0)" : "0x60000140a100"}
 end_:   ${effectiveMove ? "nullptr (0x0)" : "0x60000140a10c"}
 cap_:   ${effectiveMove ? "nullptr (0x0)" : "0x60000140a110"}`}
@@ -194,7 +194,7 @@ cap_:   ${effectiveMove ? "nullptr (0x0)" : "0x60000140a110"}`}
                     : "allocated new 0x60000140f800 in O(N)"}
                 </span>
               </div>
-              <pre className="overflow-x-auto rounded-xl border border-line bg-paper-raised p-3 font-mono text-xs leading-relaxed text-[#262626]">
+              <pre className="overflow-x-auto rounded-xl border border-line bg-paper-raised p-3 font-mono text-xs leading-relaxed text-[var(--code-ink)]">
                 {`begin_: ${effectiveMove ? "0x60000140a100" : "0x60000140f800"}
 end_:   ${effectiveMove ? "0x60000140a10c" : "0x60000140f80c"}
 cap_:   ${effectiveMove ? "0x60000140a110" : "0x60000140f810"}`}

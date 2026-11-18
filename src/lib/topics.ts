@@ -19,6 +19,12 @@ import {
   type TrackDefinition,
   type TrackWithTopics,
 } from "@/types/topics";
+import {
+  getReferenceEntry,
+  getReferenceIndex,
+  referenceHref,
+  referenceLiveUrl,
+} from "@/lib/reference";
 
 export {
   createHeadingSlugger,
@@ -456,6 +462,28 @@ function normalizeCppPath(raw: string): string {
     .replace(/^\/+|\/+$/g, "");
 }
 
+let lowerCasePaths: Map<string, string[]> | undefined;
+
+/** The imported page a topic link points at, if the snapshot has it. */
+function resolveLocalReferencePath(cleanPath: string): string | undefined {
+  let entry = getReferenceEntry("cpp", cleanPath);
+  if (!entry) {
+    if (!lowerCasePaths) {
+      lowerCasePaths = new Map();
+      for (const e of getReferenceIndex("cpp")) {
+        const key = e.path.toLowerCase();
+        lowerCasePaths.set(key, [...(lowerCasePaths.get(key) ?? []), e.path]);
+      }
+    }
+    const candidates = lowerCasePaths.get(cleanPath.toLowerCase()) ?? [];
+    if (candidates.length === 1) entry = getReferenceEntry("cpp", candidates[0]);
+  }
+  if (entry?.kind === "redirect" && entry.redirectTo !== undefined) {
+    entry = getReferenceEntry("cpp", entry.redirectTo);
+  }
+  return entry && entry.kind !== "redirect" ? entry.path : undefined;
+}
+
 function normalizeCppRefList(val: YamlValue | undefined): CppRefLink[] {
   if (!Array.isArray(val)) return [];
   const out: CppRefLink[] = [];
@@ -479,11 +507,15 @@ function normalizeCppRefList(val: YamlValue | undefined): CppRefLink[] {
         ? obj.title.trim()
         : cleanPath;
 
+    // Link the offline copy when the snapshot has the page (following
+    // cppreference redirects and case differences), cppreference.com otherwise.
+    const local = resolveLocalReferencePath(cleanPath);
     out.push({
       title,
-      path: cleanPath,
-      href: `/w/cpp/${cleanPath}`,
-      externalUrl: `https://en.cppreference.com/w/cpp/${cleanPath}`,
+      path: local ?? cleanPath,
+      href: local !== undefined ? referenceHref("cpp", local) : referenceLiveUrl("cpp", cleanPath),
+      externalUrl: referenceLiveUrl("cpp", local ?? cleanPath),
+      local: local !== undefined,
     });
   }
 
@@ -590,12 +622,24 @@ function readTopicQuiz(
   }
 }
 
-function buildTrackLookup(): {
+type TrackLookup = {
   defs: TrackDefinition[];
   trackById: Map<string, TrackDefinition>;
   trackBySlug: Map<string, TrackDefinition>;
   slugOrder: string[];
-} {
+};
+
+let trackLookupCache: TrackLookup | undefined;
+
+function buildTrackLookup(): TrackLookup {
+  if (process.env.NODE_ENV === "production") {
+    trackLookupCache ??= readTrackLookup();
+    return trackLookupCache;
+  }
+  return readTrackLookup();
+}
+
+function readTrackLookup(): TrackLookup {
   const defs = readTrackDefinitions();
   const trackById = new Map<string, TrackDefinition>();
   const trackBySlug = new Map<string, TrackDefinition>();
@@ -636,7 +680,18 @@ function toTopicSummary(topic: Topic): TopicSummary {
 // Public Server API
 // ---------------------------------------------------------------------------
 
+// Topics are parsed once per production server/build process (every
+// reference page asks which topics cover it); development re-reads files.
+const topicCache = new Map<string, Topic | null>();
+const MEMOIZE_TOPICS = process.env.NODE_ENV === "production";
+
 export function getTopic(slug: string): Topic | null {
+  if (!MEMOIZE_TOPICS) return readTopic(slug);
+  if (!topicCache.has(slug)) topicCache.set(slug, readTopic(slug));
+  return topicCache.get(slug) ?? null;
+}
+
+function readTopic(slug: string): Topic | null {
   if (!isSafeSlug(slug)) return null;
   const articleFile = path.join(TOPICS_DIR, slug, "article.md");
   if (!fs.existsSync(articleFile)) return null;

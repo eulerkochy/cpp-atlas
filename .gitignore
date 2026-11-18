@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# cppreference offline archive (input of pnpm import:cppreference; see README)
+.archive/

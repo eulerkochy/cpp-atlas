@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "Operator overloading",
+    "note": "An operator expression on class or enum operands calls a function chosen by overload resolution.",
+    "children": [
+      {
+        "label": "What can be overloaded",
+        "note": "Nearly every operator, but never its precedence, associativity or arity.",
+        "children": [
+          { "label": "Not overloadable", "note": "::, ., .*, ?:, sizeof, alignof, typeid and noexcept." },
+          { "label": "Overloadable surprises", "note": "->*, the comma, co_await, new, delete and conversion functions can all be overloaded." },
+          { "label": "Class or enum operand", "note": "A non-member operator needs a parameter of class or enumeration type, so int + int stays built-in." }
+        ]
+      },
+      {
+        "label": "Member or non-member",
+        "note": "Some operators must be members; symmetric ones are better as non-members.",
+        "children": [
+          { "label": "Must be members", "note": "=, (), [] and -> can only be member functions." },
+          { "label": "Left operand", "note": "A member never converts its left operand, so 2 + v fails when only v + 2 is a member." },
+          { "label": "Hidden friends", "note": "Friends defined in the class get symmetric conversions and are found only by ADL." }
+        ]
+      },
+      {
+        "label": "Call, subscript, arrow",
+        "note": "The three object-bound forms with special rules.",
+        "children": [
+          { "label": "operator()", "note": "Any arity and default arguments; may be static since C++23." },
+          { "label": "Multidimensional []", "note": "Since C++23 operator[] takes any number of parameters, may be static, and may have defaults." },
+          { "label": "Comma in brackets", "note": "Built-in a[1, 2] is ill-formed in C++23; GCC still accepts it with a warning." },
+          { "label": "-> drill-down", "note": "x->m applies operator-> repeatedly until a raw pointer results." }
+        ]
+      },
+      {
+        "label": "Increment and decrement",
+        "note": "Prefix and postfix share a token and differ by a dummy parameter.",
+        "children": [
+          { "label": "Dummy int", "note": "operator++(int) is postfix; x++ calls it with the argument 0." },
+          { "label": "Return conventions", "note": "Prefix returns *this by reference, postfix returns the old value by copy." }
+        ]
+      },
+      {
+        "label": "Lost guarantees",
+        "note": "Overloads are function calls, so built-in evaluation rules do not all survive.",
+        "children": [
+          { "label": "No short-circuit", "note": "Overloaded &&, || and comma always evaluate both operands." },
+          { "label": "C++17 sequencing", "note": "Operands of an overloaded operator follow the built-in operator's sequencing order." },
+          { "label": "Unary &", "note": "Can be overloaded, so generic code uses std::addressof." },
+          { "label": "new and delete", "note": "Allocation functions that supply storage; the new expression still constructs the object." }
+        ]
+      },
+      {
+        "label": "User-defined literals",
+        "note": "operator\"\"_suffix gives a literal suffix a meaning.",
+        "children": [
+          { "label": "Underscore suffixes", "note": "Suffixes without a leading underscore are reserved for the standard library." },
+          { "label": "Fixed parameter lists", "note": "Integer literals want unsigned long long, floating ones long double, else raw const char* or a template." },
+          { "label": "No conversions", "note": "With only a long double operator, 12_km is ill-formed." },
+          { "label": "Spaced form deprecated", "note": "C++23 deprecates operator\"\" _x with a space before the suffix." }
+        ]
+      }
+    ]
+  }
+}

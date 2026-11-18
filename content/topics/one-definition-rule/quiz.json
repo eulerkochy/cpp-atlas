@@ -1,0 +1,144 @@
+{
+  "questions": [
+    {
+      "id": "one-definition-rule-header-function",
+      "kind": "warmup",
+      "prompt": "This header is included by `a.cpp` and `b.cpp`, which are linked into one program. What does the standard say?",
+      "code": "// util.h\nint twice(int x) { return 2 * x; }",
+      "options": [
+        "Well-formed: the two definitions are token-for-token identical",
+        "Ill-formed, and the compiler must issue a diagnostic",
+        "Well-formed: the linker is required to keep one copy",
+        "Ill-formed, no diagnostic required; linkers usually report a duplicate symbol"
+      ],
+      "answer": 3,
+      "explanation": "`twice` is a non-inline function with external linkage, so the program may contain only one definition of it. Two translation units each contain one, which [basic.def.odr] makes ill-formed, and because the definitions are not attached to a named module no diagnostic is required; no single compilation can see both. The identical-tokens answer is tempting, but that permission only applies to inline functions, classes, templates and the other entities [basic.def.odr] lists.",
+      "refs": [
+        "[basic.def.odr]"
+      ]
+    },
+    {
+      "id": "one-definition-rule-odr-use-min",
+      "kind": "warmup",
+      "prompt": "There is no definition of `S::n` outside the class. Which function odr-uses `S::n`, so that the program needs such a definition?",
+      "code": "#include <algorithm>\n\nstruct S { static const int n = 5; };\n\nint a()    { return S::n; }\nint b()    { return S::n + 1; }\nint c(int k) { return std::max(k, S::n); }\nint d()    { int arr[S::n]{}; return arr[0]; }",
+      "options": [
+        "`a`",
+        "`b`",
+        "`c`",
+        "`d`"
+      ],
+      "answer": 2,
+      "explanation": "`S::n` is usable in constant expressions, so an expression that immediately reads its value does not odr-use it; that covers `a`, `b` and the array bound in `d`. `std::max` takes its arguments by `const int&`, and binding a reference to `S::n` is an odr-use, so `c` requires a definition, and GCC and Clang fail to link it at `-O0`. Since C++17, `static constexpr int n = 5;` would be an inline variable and need no extra definition.",
+      "refs": [
+        "[basic.def.odr]",
+        "[class.static.data]"
+      ]
+    },
+    {
+      "id": "one-definition-rule-what-may-repeat",
+      "kind": "warmup",
+      "prompt": "Which of these may be defined, identically, in several translation units of one program?",
+      "options": [
+        "A non-inline function `int f() { return 1; }`",
+        "A class `struct Point { int x, y; };`",
+        "A namespace-scope variable `int counter = 0;`",
+        "A full explicit specialization `template<> int g<int>() { return 1; }` without `inline`"
+      ],
+      "answer": 1,
+      "explanation": "Classes are among the definable items that [basic.def.odr] allows once per translation unit, provided every definition is the same. The explicit specialization is the tempting wrong answer: it lives next to a template, but a full specialization of a function template is an ordinary function and is not implicitly inline, so repeating it is an ODR violation. The non-inline function and the non-inline variable may have only one definition in the program.",
+      "refs": [
+        "[basic.def.odr]",
+        "[temp.expl.spec]"
+      ]
+    },
+    {
+      "id": "one-definition-rule-different-inline-bodies",
+      "kind": "tricky",
+      "prompt": "`a.cpp` contains `inline int version() { return 1; }` and `b.cpp` contains `inline int version() { return 2; }`. Both call `version()`, and both are linked into one program. What does the standard say?",
+      "options": [
+        "It is unspecified which of the two definitions is used",
+        "Well-formed: each translation unit uses its own definition",
+        "The program is ill-formed, no diagnostic required",
+        "Ill-formed, and the linker must diagnose the mismatch"
+      ],
+      "answer": 2,
+      "explanation": "Inline functions may be defined in several translation units only if every definition consists of the same tokens with the same meaning. These do not, so [basic.def.odr] makes the program ill-formed with no diagnostic required, which places no requirement on its behaviour. \"Unspecified\" is tempting because it describes what you observe: GCC 16 at `-O0` uses one body for both calls, chosen by link order, and at `-O2` inlines each translation unit's own body. That observation is not a guarantee of anything.",
+      "refs": [
+        "[basic.def.odr]",
+        "[dcl.inline]"
+      ]
+    },
+    {
+      "id": "one-definition-rule-constexpr-ref",
+      "kind": "tricky",
+      "prompt": "This header is included by several translation units of one program. What is its status?",
+      "code": "// limits.h\nconstexpr int max_depth = 32;\n\ninline const int& depth_ref() { return max_depth; }",
+      "options": [
+        "Ill-formed, no diagnostic required: `depth_ref` refers to a different object in each translation unit",
+        "Well-formed: `max_depth` is constexpr, so every translation unit sees the same value",
+        "Well-formed, but `depth_ref()` returns a dangling reference",
+        "Ill-formed: a constexpr variable cannot be returned by reference"
+      ],
+      "answer": 0,
+      "explanation": "A namespace-scope `constexpr` variable is `const` and therefore has internal linkage, so each translation unit has its own `max_depth`. The inline function's definitions are token-identical but name different entities, and the exception for constants only applies when the constant is not odr-used; binding the returned reference odr-uses it. The \"same value\" answer is right for `return max_depth;` by value, which is why it tempts. Declaring the variable `inline constexpr` fixes it.",
+      "refs": [
+        "[basic.def.odr]",
+        "[basic.link]"
+      ]
+    },
+    {
+      "id": "one-definition-rule-inline-static-local",
+      "kind": "tricky",
+      "prompt": "The header defines `inline int next() { static int n = 0; return ++n; }`. `a.cpp` includes it and defines `int fa() { return next(); }`. `main.cpp` also includes it. What does this `main.cpp` print?",
+      "code": "#include <cstdio>\n\ninline int next() { static int n = 0; return ++n; }\nint fa();\n\nint main() {\n  int x = fa();\n  int y = next();\n  std::printf(\"%d %d\\n\", x, y);\n}",
+      "options": [
+        "`1 1`, because each translation unit has its own `n`",
+        "`1 2`",
+        "Either `1 1` or `1 2`, depending on inlining",
+        "Undefined behavior, because `n` is defined in two translation units"
+      ],
+      "answer": 1,
+      "explanation": "An inline function with external linkage is one entity across the program, and a static local variable in it is one object, whichever translation unit's copy runs. So `fa()` returns 1 and the later `next()` returns 2, regardless of optimization. `1 1` is what you would get from `static inline int next()`, which gives each translation unit a separate function and therefore a separate `n`.",
+      "refs": [
+        "[dcl.inline]",
+        "[basic.def.odr]"
+      ]
+    },
+    {
+      "id": "one-definition-rule-lambda-odr-use",
+      "kind": "standardese",
+      "prompt": "Which lambda makes `demo` ill-formed?",
+      "code": "void demo() {\n  const int n = 3;\n  auto a = [] { return n; };\n  auto b = [] { return n * 2; };\n  auto c = [] { return sizeof(n); };\n  auto d = [] { return &n; };\n}",
+      "options": [
+        "`a`, because `n` is not captured",
+        "`d`",
+        "`c`, because `sizeof` names `n`",
+        "None of them; `n` has automatic storage but is a constant"
+      ],
+      "answer": 1,
+      "explanation": "A lambda without a capture default may only name a local entity if doing so is not an odr-use. `n` is a `const int` initialized with a constant, so it is usable in constant expressions, and reading its value in `a` and `b` is not an odr-use; `sizeof(n)` is an unevaluated operand. Taking its address in `d` is an odr-use, which requires a capture, so `demo` is ill-formed and GCC and Clang reject it. Option `a` is the tempting answer for anyone who expects every outside variable to need a capture.",
+      "refs": [
+        "[basic.def.odr]",
+        "[expr.prim.lambda.capture]"
+      ]
+    },
+    {
+      "id": "one-definition-rule-inline-everywhere",
+      "kind": "standardese",
+      "prompt": "`a.cpp` defines `inline int helper() { return 42; }`. `b.cpp` declares `int helper();` without `inline` and calls it. What does the C++23 standard say?",
+      "options": [
+        "Well-formed: `a.cpp` provides the definition the linker needs",
+        "Well-formed only if `a.cpp` also calls `helper`",
+        "Ill-formed, and a diagnostic is required at link time",
+        "Ill-formed, no diagnostic required: an inline declaration must be reachable in every translation unit that declares the function"
+      ],
+      "answer": 3,
+      "explanation": "[dcl.inline] requires that if a function with external linkage is declared inline in one definition domain, an inline declaration of it is reachable from the end of every definition domain that declares it, with no diagnostic required, and `b.cpp` breaks that rule. [basic.def.odr] separately requires an inline function to be defined wherever it is odr-used, which `b.cpp` also fails. The second option describes what happens in practice with GCC at `-O0`, where `a.cpp` emits an out-of-line copy only if it uses the function, but that copy may vanish at `-O2` and the program then fails to link.",
+      "refs": [
+        "[dcl.inline]",
+        "[basic.def.odr]"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,141 @@
+{
+  "questions": [
+    {
+      "id": "fmt-default-align",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <format>\n#include <print>\n\nint main() {\n  std::println(\"[{:5}][{:5}]\", 42, \"ab\");\n}",
+      "options": [
+        "`[42   ][ab   ]`",
+        "`[   42][   ab]`",
+        "`[42   ][   ab]`",
+        "`[   42][ab   ]`"
+      ],
+      "answer": 3,
+      "explanation": "Without an explicit alignment, arithmetic types are right-aligned and strings are left-aligned. So the integer is padded on the left and the string on the right. The tempting `printf` habit of right-aligning everything does not apply.",
+      "refs": [
+        "[format.string.std]"
+      ]
+    },
+    {
+      "id": "fmt-mixed-indexing",
+      "kind": "warmup",
+      "prompt": "Is this well-formed in C++23?",
+      "code": "#include <format>\n#include <string>\n\nint main() {\n  std::string s = std::format(\"{} {0}\", 1);\n}",
+      "options": [
+        "Yes, it yields `\"1 1\"`",
+        "Yes, but it throws `std::format_error` at run time",
+        "No, ill-formed: manual and automatic indexing cannot be mixed",
+        "No, ill-formed only because the argument count is wrong"
+      ],
+      "answer": 2,
+      "explanation": "A format string must use either automatic indices (`{}`) or manual indices (`{0}`) throughout. The format string is checked by a `consteval` constructor, so the mistake is a compile error. It is not deferred to run time, which would only happen with `std::vformat`.",
+      "refs": [
+        "[format.string]",
+        "[format.functions]"
+      ]
+    },
+    {
+      "id": "fmt-bool-and-d",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <format>\n#include <print>\n\nint main() {\n  std::println(\"{} {:d} {}\", true, true, 'a');\n}",
+      "options": [
+        "`true 1 a`",
+        "`1 1 97`",
+        "`true true a`",
+        "`true 1 97`"
+      ],
+      "answer": 0,
+      "explanation": "`bool` formats as text by default and as an integer with the `d` type. A `char` formats as the character by default, unlike an integer promoted by `printf`, so it prints `a`. `true 1 97` would require `{:d}` for the char.",
+      "refs": [
+        "[format.string.std]"
+      ]
+    },
+    {
+      "id": "fmt-string-variable",
+      "kind": "tricky",
+      "prompt": "Is this well-formed in C++23?",
+      "code": "#include <format>\n#include <string>\n\nint main() {\n  std::string f = \"{}\";\n  std::string s = std::format(f, 1);\n}",
+      "options": [
+        "Yes, it yields `\"1\"`",
+        "No, ill-formed: the format string must be a constant expression",
+        "Yes, but a bad `f` would be undefined behavior",
+        "Yes, but a bad `f` would throw `std::format_error`"
+      ],
+      "answer": 1,
+      "explanation": "The first parameter is `std::format_string<int>`, whose constructor is `consteval` and accepts only a string known at compile time. A non-constant `std::string` does not qualify, so this fails to compile. Use `std::vformat` for runtime strings, which then reports bad strings by throwing `std::format_error`.",
+      "refs": [
+        "[format.functions]"
+      ]
+    },
+    {
+      "id": "fmt-format-to-n-size",
+      "kind": "tricky",
+      "prompt": "What is `r.size` after this call?",
+      "code": "#include <format>\n#include <iostream>\n\nint main() {\n  char buf[16];\n  auto r = std::format_to_n(buf, 5, \"{}\", \"abcdefgh\");\n  std::cout << r.size << '\\n';\n}",
+      "options": [
+        "`5`",
+        "`4`",
+        "`8`",
+        "Undefined behavior, since the output does not fit"
+      ],
+      "answer": 2,
+      "explanation": "`format_to_n` writes at most `n` characters but reports in `size` how long the complete output would have been, like the return value of `snprintf`. That is 8 here, and only five characters were stored. It is not undefined, because truncation is the point of the function.",
+      "refs": [
+        "[format.functions]"
+      ]
+    },
+    {
+      "id": "fmt-zero-inf",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <format>\n#include <iostream>\n#include <limits>\n\nint main() {\n  double inf = std::numeric_limits<double>::infinity();\n  std::cout << std::format(\"[{:06}][{:06}]\", 42, inf) << '\\n';\n}",
+      "options": [
+        "`[000042][000inf]`",
+        "`[000042][inf000]`",
+        "`[000042][   inf]`",
+        "`[   042][   inf]`"
+      ],
+      "answer": 2,
+      "explanation": "The `0` option pads with zeros for finite numbers, but the standard says it does not apply to infinity and NaN, which are padded with spaces. Zero padding would otherwise turn `inf` into text that reads like a different value. The default alignment for numbers is right, so the spaces go on the left.",
+      "refs": [
+        "[format.string.std]"
+      ]
+    },
+    {
+      "id": "fmt-vformat-bad-string",
+      "kind": "standardese",
+      "prompt": "What does this program print?",
+      "code": "#include <format>\n#include <iostream>\n#include <string>\n\nint main() {\n  std::string f = \"{} {}\";\n  int a = 1;\n  try {\n    std::string s = std::vformat(f, std::make_format_args(a));\n    std::cout << s << '\\n';\n  } catch (const std::format_error&) {\n    std::cout << \"format_error\\n\";\n  }\n}",
+      "options": [
+        "`format_error`",
+        "`1 ` with an empty second field",
+        "Nothing: the program is ill-formed",
+        "Nothing: undefined behavior, since an argument is missing"
+      ],
+      "answer": 0,
+      "explanation": "`std::vformat` is the unchecked entry point, and the standard requires it to report a format string that does not match the arguments by throwing `std::format_error`. The same mistake with `std::format` and a literal would be a compile error instead. The call itself is well-formed because `a` is an lvalue, which `make_format_args` requires.",
+      "refs": [
+        "[format.functions]"
+      ]
+    },
+    {
+      "id": "fmt-alt-prefix-width",
+      "kind": "standardese",
+      "prompt": "What does this program print?",
+      "code": "#include <format>\n#include <iostream>\n\nint main() {\n  std::cout << std::format(\"{:#010x}\", 255) << '\\n';\n}",
+      "options": [
+        "`0x000000ff`",
+        "`0x00000000ff`",
+        "`000000x0ff`",
+        "`0000000xff`"
+      ],
+      "answer": 0,
+      "explanation": "The width of 10 counts the `0x` prefix, and the `0` option inserts the zeros after the prefix, so the result has ten characters and the digits `ff` at the end. The second option treats the width as applying only to the digits. Zeros before the prefix, as in the last two, are never produced.",
+      "refs": [
+        "[format.string.std]"
+      ]
+    }
+  ]
+}

@@ -6,8 +6,13 @@
       "description": "How source text becomes an executable: translation units, linkage, name lookup and modules.",
       "topics": [
         "translation-units-and-linkage",
+        "one-definition-rule",
         "name-lookup-and-adl",
-        "modules"
+        "namespaces-and-scope",
+        "modules",
+        "preprocessor-and-translation-phases",
+        "attributes",
+        "program-startup-and-termination"
       ]
     },
     {
@@ -15,9 +20,15 @@
       "title": "Types and initialization",
       "description": "What a type promises, how values convert, and every spelling of initialization and deduction.",
       "topics": [
+        "fundamental-types-and-arithmetic-conversions",
+        "implicit-conversions",
+        "casts-and-qualifiers",
+        "casts",
+        "const-volatile-and-qualifiers",
         "initialization-forms",
+        "aggregates-and-designated-initializers",
         "type-deduction-auto-decltype",
-        "casts-and-qualifiers"
+        "enumerations-and-unions"
       ]
     },
     {
@@ -39,7 +50,11 @@
         "evaluation-order",
         "constant-expressions",
         "lambdas",
-        "overload-resolution"
+        "overload-resolution",
+        "operator-overloading",
+        "three-way-comparison",
+        "function-parameters-and-default-arguments",
+        "structured-bindings"
       ]
     },
     {
@@ -47,8 +62,13 @@
       "title": "Classes",
       "description": "Subobject construction order, dynamic dispatch machinery and deterministic RAII.",
       "topics": [
+        "member-functions-and-this",
         "constructors-and-initialization-order",
         "inheritance-and-virtual-functions",
+        "multiple-and-virtual-inheritance",
+        "access-control-and-friends",
+        "conversion-functions-and-explicit",
+        "pointers-to-members",
         "raii-and-resource-management"
       ]
     },
@@ -57,9 +77,19 @@
       "title": "Templates",
       "description": "Forwarding references, SFINAE, C++20 concept subsumption and C++23 explicit object parameters.",
       "topics": [
-        "forwarding-references-and-perfect-forwarding",
+        "template-instantiation-and-specialization",
+        "template-argument-deduction",
+        "dependent-names-and-two-phase-lookup",
+        "variadic-templates-and-fold-expressions",
         "sfinae-and-concepts",
-        "crtp-and-deducing-this"
+        "sfinae",
+        "concepts-and-constraints",
+        "forwarding-references-and-perfect-forwarding",
+        "class-template-argument-deduction",
+        "type-traits-and-metaprogramming",
+        "crtp-and-deducing-this",
+        "non-type-template-parameters",
+        "partial-ordering-of-templates"
       ]
     },
     {
@@ -67,6 +97,8 @@
       "title": "Exceptions and error handling",
       "description": "Stack unwinding, exception-safety guarantees and value-based error handling with expected.",
       "topics": [
+        "exceptions-and-stack-unwinding",
+        "noexcept",
         "exception-safety-guarantees",
         "optional-expected-and-error-codes"
       ]
@@ -77,9 +109,15 @@
       "description": "Storage duration, object lifetime, strict aliasing, multi-core atomics and smart-pointer control blocks.",
       "topics": [
         "object-lifetime-and-storage",
+        "object-layout-and-alignment",
         "strict-aliasing-and-ub",
+        "strict-aliasing-and-undefined-behavior",
         "atomics-and-memory-ordering",
-        "smart-pointers-and-allocators"
+        "dynamic-allocation-new-and-delete",
+        "smart-pointers-and-allocators",
+        "smart-pointers",
+        "allocators-and-pmr",
+        "pointers-arrays-and-pointer-arithmetic"
       ]
     },
     {
@@ -88,7 +126,14 @@
       "description": "Cooperative cancellation with jthread, synchronization primitives and C++20 coroutines.",
       "topics": [
         "threads-jthread-and-locks",
-        "coroutines"
+        "threads-and-jthread",
+        "mutexes-and-locks",
+        "condition-variables-and-waiting",
+        "futures-promises-and-async",
+        "coroutines",
+        "coroutine-library-and-generators",
+        "lock-free-programming-and-aba",
+        "parallel-algorithms-and-execution-policies"
       ]
     },
     {
@@ -97,7 +142,15 @@
       "description": "Memory layouts, iterator invalidation contracts, small-string optimization and non-owning views.",
       "topics": [
         "containers-and-iterator-invalidation",
-        "strings-views-and-spans"
+        "sequence-containers",
+        "associative-and-unordered-containers",
+        "iterator-invalidation",
+        "container-adaptors-and-flat-containers",
+        "strings-views-and-spans",
+        "strings-and-string-view",
+        "span-and-mdspan",
+        "node-handles-and-heterogeneous-lookup",
+        "array-bitset-and-vector-bool"
       ]
     },
     {
@@ -105,7 +158,15 @@
       "title": "Iterators, algorithms and ranges",
       "description": "Iterator concepts, lazy range adaptors, borrowed ranges and customization point objects.",
       "topics": [
-        "ranges-views-and-niebloids"
+        "iterator-categories-and-concepts",
+        "algorithms",
+        "ranges-views-and-niebloids",
+        "ranges-and-views",
+        "borrowed-ranges-and-dangling",
+        "range-adaptors-and-pipelines",
+        "strict-weak-ordering-and-comparators",
+        "customization-points-and-niebloids",
+        "iterator-adaptors-and-sentinels"
       ]
     },
     {
@@ -113,7 +174,19 @@
       "title": "Library utilities",
       "description": "Type-safe unions, callable wrappers and compile-time checked formatting.",
       "topics": [
-        "vocabulary-types-and-format"
+        "vocabulary-types-and-format",
+        "optional-variant-any",
+        "tuple-and-pair",
+        "callable-wrappers",
+        "chrono",
+        "format-and-print",
+        "iostreams",
+        "filesystem",
+        "random-numbers",
+        "floating-point-and-numerics",
+        "bit-manipulation",
+        "character-types-and-unicode",
+        "integer-arithmetic-and-overflow"
       ]
     },
     {
@@ -121,7 +194,16 @@
       "title": "C++26",
       "description": "Contracts, static reflection, structured concurrency with std::execution and erroneous behavior.",
       "topics": [
-        "cpp26-contracts-reflection-execution"
+        "cpp26-contracts-reflection-execution",
+        "contracts",
+        "reflection",
+        "senders-and-receivers",
+        "simd-data-parallel-types",
+        "erroneous-behaviour-and-cpp26-language-changes",
+        "pack-indexing-and-cpp26-templates",
+        "inplace-vector-and-new-containers",
+        "hazard-pointers-and-rcu",
+        "constexpr-in-cpp26"
       ]
     }
   ]

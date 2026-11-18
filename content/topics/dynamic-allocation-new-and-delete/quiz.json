@@ -1,0 +1,144 @@
+{
+  "questions": [
+    {
+      "id": "dynamic-allocation-new-and-delete-ctor-throws",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <cstddef>\n#include <new>\n\nstruct T {\n  T() { std::puts(\"ctor\"); throw 1; }\n  ~T() { std::puts(\"~T\"); }\n  static void* operator new(std::size_t n) { std::puts(\"new\"); return ::operator new(n); }\n  static void operator delete(void* p) { std::puts(\"delete\"); ::operator delete(p); }\n};\n\nint main() {\n  try { new T; } catch (int) { std::puts(\"caught\"); }\n}",
+      "options": [
+        "`new`, `ctor`, `caught`, and the memory leaks",
+        "`new`, `ctor`, `~T`, `delete`, `caught`",
+        "`new`, `ctor`, `delete`, `caught`",
+        "`ctor`, `caught`, because `new` is called only after construction succeeds"
+      ],
+      "answer": 2,
+      "explanation": "The new-expression calls `T::operator new`, then runs the constructor in that storage. When initialization exits through an exception, the expression calls the matching deallocation function, here `T::operator delete`, before the exception propagates. No destructor runs, because the object's lifetime never began. The leak only happens once the expression has returned a pointer that nobody owns.",
+      "refs": [
+        "[expr.new]"
+      ]
+    },
+    {
+      "id": "dynamic-allocation-new-and-delete-array-mismatch",
+      "kind": "warmup",
+      "prompt": "What does the standard say about this program?",
+      "code": "int main() {\n  int* p = new int[10];\n  delete p;\n}",
+      "options": [
+        "Well-defined: `int` is trivially destructible, so there is no difference",
+        "Well-defined, but nine `int` objects leak",
+        "Ill-formed: the compiler must reject `delete` on an array pointer",
+        "Undefined behavior"
+      ],
+      "answer": 3,
+      "explanation": "Memory obtained from the array form of a new-expression must be released with `delete[]`. [expr.delete] makes the single-object form undefined when its operand came from an array new, with no exception for trivial types. It often appears to work for `int` because there is no array cookie, which is exactly why the first option is tempting. The compiler cannot reject it in general, because a pointer does not record which form produced it.",
+      "refs": [
+        "[expr.delete]"
+      ]
+    },
+    {
+      "id": "dynamic-allocation-new-and-delete-nothrow-ctor",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <new>\n\nstruct Boom { Boom() { throw 42; } };\n\nint main() {\n  try {\n    Boom* p = new (std::nothrow) Boom;\n    std::puts(p ? \"non-null\" : \"null\");\n  } catch (int) {\n    std::puts(\"caught\");\n  }\n}",
+      "options": [
+        "`null`",
+        "`caught`",
+        "Nothing; `std::terminate` is called because the nothrow form must not throw",
+        "`non-null`"
+      ],
+      "answer": 1,
+      "explanation": "`std::nothrow` selects the `operator new(std::size_t, const std::nothrow_t&)` allocation function, which reports allocation failure by returning null. It says nothing about the constructor. Allocation succeeds, the constructor throws, the storage is released through the matching deallocation function, and the `int` propagates to the handler. A null result only occurs when the allocation itself fails.",
+      "refs": [
+        "[expr.new]",
+        "[new.delete.single]"
+      ]
+    },
+    {
+      "id": "dynamic-allocation-new-and-delete-placement-delete",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <cstddef>\n#include <new>\n\nstruct T {\n  T() { throw 1; }\n  static void* operator new(std::size_t n, int) { return ::operator new(n); }\n  static void operator delete(void* p, int) { std::puts(\"placement delete\"); ::operator delete(p); }\n  static void operator delete(void* p) { std::puts(\"usual delete\"); ::operator delete(p); }\n};\n\nint main() {\n  try { new (42) T; } catch (int) {}\n}",
+      "options": [
+        "`usual delete`",
+        "Nothing; placement forms never free memory automatically",
+        "`placement delete` then `usual delete`",
+        "`placement delete`"
+      ],
+      "answer": 3,
+      "explanation": "For a placement allocation function, the matching deallocation function is the one with the same number of parameters whose extra parameter types match, here `operator delete(void*, int)`. The new-expression calls it, with the same placement argument, when the constructor throws. The usual `operator delete(void*)` is what a later delete-expression would use, so it is the tempting answer, but it is not a match for a placement new. If no placement delete matched, nothing would be freed.",
+      "refs": [
+        "[expr.new]",
+        "[basic.stc.dynamic.deallocation]"
+      ]
+    },
+    {
+      "id": "dynamic-allocation-new-and-delete-nonvirtual-base",
+      "kind": "tricky",
+      "prompt": "Is the delete-expression in this program well-defined?",
+      "code": "struct Base { ~Base() {} };\nstruct Derived : Base {};\n\nint main() {\n  Base* b = new Derived;\n  delete b;\n}",
+      "options": [
+        "Yes: `Derived` adds no members, so the two objects have the same size",
+        "Undefined behavior: `Base` has no virtual destructor",
+        "Yes: `Derived`'s destructor is implicit and does nothing",
+        "Ill-formed: deleting through a base pointer requires a virtual destructor"
+      ],
+      "answer": 1,
+      "explanation": "[expr.delete] requires that, when the static type of the deleted object differs from its dynamic type, the static type is a base class with a virtual destructor; otherwise the behavior is undefined. There is no exception for derived classes that add nothing, which is the intuition behind the first and third options. The rule is not a compile-time constraint, because the compiler generally cannot know the dynamic type, so the program is not ill-formed.",
+      "refs": [
+        "[expr.delete]"
+      ]
+    },
+    {
+      "id": "dynamic-allocation-new-and-delete-destroying",
+      "kind": "tricky",
+      "prompt": "In C++20 and later, what does this program print?",
+      "code": "#include <cstdio>\n#include <new>\n\nstruct S {\n  ~S() { std::puts(\"~S\"); }\n  void operator delete(S* p, std::destroying_delete_t) {\n    std::puts(\"destroying delete\");\n    ::operator delete(p);\n  }\n};\n\nint main() { delete new S; }",
+      "options": [
+        "`destroying delete` only",
+        "`~S` then `destroying delete`",
+        "`destroying delete` then `~S`",
+        "Ill-formed: an `operator delete` must take `void*` as its first parameter"
+      ],
+      "answer": 0,
+      "explanation": "An `operator delete` whose second parameter is `std::destroying_delete_t` is a destroying operator delete, added in C++20. When a delete-expression selects one, it does not invoke the destructor; the function receives a pointer to a still-live object and is responsible for destroying it. This one never calls `p->~S()`, so `~S` is not printed. The usual order for an ordinary `operator delete` is the second option.",
+      "refs": [
+        "[expr.delete]",
+        "[basic.stc.dynamic.deallocation]"
+      ]
+    },
+    {
+      "id": "dynamic-allocation-new-and-delete-sequencing",
+      "kind": "standardese",
+      "prompt": "In C++17 and later, what does this program print?",
+      "code": "#include <cstdio>\n#include <cstddef>\n#include <new>\n\nstruct T {\n  T(int) { std::puts(\"ctor\"); }\n  static void* operator new(std::size_t n) { std::puts(\"new\"); return ::operator new(n); }\n  static void operator delete(void* p) { ::operator delete(p); }\n};\n\nint f() { std::puts(\"f\"); return 0; }\n\nint main() {\n  T* p = new T(f());\n  (void)p;\n}",
+      "options": [
+        "`f`, `new`, `ctor`",
+        "Either `f`, `new`, `ctor` or `new`, `f`, `ctor`; the order is unspecified",
+        "`new`, `f`, `ctor`",
+        "`new`, `ctor`, `f`"
+      ],
+      "answer": 2,
+      "explanation": "Since C++17, [expr.new] says the invocation of the allocation function is sequenced before the evaluations of expressions in the new-initializer. So `operator new` runs first, then `f()`, then the constructor. The second option describes C++14 and earlier, where the order was unspecified. The last option is impossible because the constructor needs the value of `f()`. The object is deliberately never deleted; the question is only about order.",
+      "refs": [
+        "[expr.new]"
+      ]
+    },
+    {
+      "id": "dynamic-allocation-new-and-delete-elision",
+      "kind": "standardese",
+      "prompt": "In C++23, which values may this program return?",
+      "code": "#include <cstdlib>\n#include <new>\n\nint calls = 0;\nvoid* operator new(std::size_t n) {\n  ++calls;\n  if (void* p = std::malloc(n ? n : 1)) return p;\n  throw std::bad_alloc{};\n}\nvoid operator delete(void* p) noexcept { std::free(p); }\nvoid operator delete(void* p, std::size_t) noexcept { std::free(p); }\n\nint main() {\n  int* p = new int(1);\n  delete p;\n  return calls;\n}",
+      "options": [
+        "Only 1, because a replaced `operator new` has observable side effects",
+        "Only 0, because unused allocations must be removed",
+        "Either 0 or 1",
+        "Any value; the replacement makes the program undefined"
+      ],
+      "answer": 2,
+      "explanation": "Since C++14, [expr.new] permits an implementation to omit a call to a replaceable global allocation function made by a new-expression and provide the storage itself. The permission does not depend on whether the function has been replaced, so the side effect of incrementing `calls` may disappear; GCC 16 and Clang 21 at `-O2` both return 0, and both return 1 without optimization. The replacement itself is valid. A direct call to `::operator new` would not be elidable.",
+      "refs": [
+        "[expr.new]",
+        "[replacement.functions]"
+      ]
+    }
+  ]
+}

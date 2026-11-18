@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "node-handles-and-heterogeneous-lookup-rename-key",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <map>\n#include <string>\n\nint main() {\n  std::map<int, std::string> m{{1, \"a\"}, {2, \"b\"}};\n  auto nh = m.extract(1);\n  nh.key() = 3;\n  m.insert(std::move(nh));\n  for (const auto& [k, v] : m) std::cout << k << v << ' ';\n  std::cout << '\\n';\n}",
+      "options": [
+        "`1a 2b `",
+        "`3a 2b `",
+        "`2b 3a `",
+        "Ill-formed: a map key is const and cannot be modified"
+      ],
+      "answer": 2,
+      "explanation": "A node handle exposes the key as a mutable `key_type&`, which is the only way to change a map key without copying. After the key becomes 3, `insert` links the node at the position for 3, so iteration visits 2 and then 3. The key being `const` inside the map is why the last option is tempting, but the handle sits outside the map.",
+      "refs": [
+        "[container.node]",
+        "[associative.reqmts]"
+      ]
+    },
+    {
+      "id": "node-handles-and-heterogeneous-lookup-plain-vs-transparent",
+      "kind": "warmup",
+      "prompt": "Which line is ill-formed in C++20?",
+      "code": "#include <map>\n#include <string>\n#include <string_view>\nusing namespace std::literals;\n\nvoid f() {\n  std::map<std::string, int> plain;\n  std::map<std::string, int, std::less<>> open;\n  plain.find(\"abc\");     // (1)\n  plain.find(\"abc\"sv);   // (2)\n  open.find(\"abc\"sv);    // (3)\n  open.find(\"abc\");      // (4)\n}",
+      "options": [
+        "(1)",
+        "(2)",
+        "(3)",
+        "(4)"
+      ],
+      "answer": 1,
+      "explanation": "With `std::less<std::string>`, `find` takes a `const std::string&`. A `const char*` converts implicitly to `std::string`, so (1) compiles, though it builds a temporary. A `string_view` does not convert implicitly to `std::string`, so (2) has no viable overload. Lines (3) and (4) use the transparent `std::less<>`, which enables the template overload of `find`.",
+      "refs": [
+        "[associative.reqmts]"
+      ]
+    },
+    {
+      "id": "node-handles-and-heterogeneous-lookup-merge-duplicates",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <map>\n#include <string>\n\nint main() {\n  std::map<int, std::string> m1{{1, \"a\"}, {2, \"b\"}};\n  std::map<int, std::string> m2{{2, \"X\"}, {3, \"c\"}};\n  m1.merge(m2);\n  for (const auto& [k, v] : m1) std::cout << k << v << ' ';\n  std::cout << \"| \";\n  for (const auto& [k, v] : m2) std::cout << k << v << ' ';\n  std::cout << '\\n';\n}",
+      "options": [
+        "`1a 2X 3c | `, because the source overwrites",
+        "`1a 2b | 2X 3c `, because merge stops at the first duplicate",
+        "`1a 2b 3c | `, because the duplicate is destroyed",
+        "`1a 2b 3c | 2X `"
+      ],
+      "answer": 3,
+      "explanation": "`merge` moves every node whose key is not already present and leaves the others in the source. Key 2 exists in `m1`, so that element stays in `m2` and `m1` keeps its own value `b`. Nothing is overwritten and nothing is destroyed, and merging continues past the duplicate.",
+      "refs": [
+        "[associative.reqmts]",
+        "[container.node]"
+      ]
+    },
+    {
+      "id": "node-handles-and-heterogeneous-lookup-failed-insert",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <set>\n\nint main() {\n  std::set<int> s{1, 2};\n  auto nh = s.extract(1);\n  s.insert(1);\n  auto r = s.insert(std::move(nh));\n  std::cout << r.inserted << r.node.empty() << *r.position << '\\n';\n}",
+      "options": [
+        "`111`",
+        "`012`",
+        "`011`",
+        "`001`"
+      ],
+      "answer": 3,
+      "explanation": "Key 1 was inserted again before the node came back, so the second insertion fails: `inserted` is false and `position` refers to the existing element, whose value is 1. The returned `node` still owns the element that was not inserted, so `empty()` is false. That is the point of `insert_return_type`: a failed insertion does not destroy the element you extracted.",
+      "refs": [
+        "[container.insert.return]",
+        "[associative.reqmts]"
+      ]
+    },
+    {
+      "id": "node-handles-and-heterogeneous-lookup-reference-after-reinsert",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <map>\n#include <string>\n\nint main() {\n  std::map<int, std::string> m{{1, \"a\"}};\n  std::string& r = m.at(1);\n  auto nh = m.extract(1);\n  m.insert(std::move(nh));\n  r += \"!\";\n  std::cout << m.at(1) << '\\n';\n}",
+      "options": [
+        "`a!`",
+        "`a`, because extraction copied the element",
+        "Undefined behavior, because `extract` invalidated `r`",
+        "Ill-formed"
+      ],
+      "answer": 0,
+      "explanation": "Extraction invalidates only iterators to the element; pointers and references to it stay valid, and they may not be used while a node handle owns the element. Once the element is inserted again, they are usable and refer to the same object, so `r += \"!\"` modifies it. The program would have undefined behavior only if `r` were used between the `extract` and the `insert`.",
+      "refs": [
+        "[container.node]",
+        "[associative.reqmts]"
+      ]
+    },
+    {
+      "id": "node-handles-and-heterogeneous-lookup-heterogeneous-erase",
+      "kind": "tricky",
+      "prompt": "In C++23, what is the status of this program?",
+      "code": "#include <iostream>\n#include <map>\n#include <string>\n#include <string_view>\nusing namespace std::literals;\n\nint main() {\n  std::map<std::string, int, std::less<>> m{{\"abc\", 1}};\n  std::cout << m.erase(\"abc\"sv) << '\\n';\n}",
+      "options": [
+        "Ill-formed: `erase` takes only a key or an iterator",
+        "Well-formed and prints `1`",
+        "Undefined behavior: the key types differ",
+        "Well-formed, but it prints `0` because `string_view` never equals `string`"
+      ],
+      "answer": 1,
+      "explanation": "C++23 (P2077) added a template `erase(K&&)` overload to the associative containers, enabled when the comparator is transparent. In C++20 the call would be ill-formed, which is why the first option is tempting. The view compares equal to the stored string by value, so one element is erased. Some library versions, such as libc++ 21, did not yet implement it.",
+      "refs": [
+        "[associative.reqmts]"
+      ]
+    },
+    {
+      "id": "node-handles-and-heterogeneous-lookup-empty-node-insert",
+      "kind": "standardese",
+      "prompt": "What does the standard say this program prints?",
+      "code": "#include <iostream>\n#include <set>\n\nint main() {\n  std::set<int> s{1, 2};\n  std::set<int>::node_type empty;\n  auto r = s.insert(std::move(empty));\n  std::cout << r.inserted << (r.position == s.end()) << r.node.empty() << '\\n';\n}",
+      "options": [
+        "Undefined behavior: an empty node handle has no key to compare",
+        "`111`",
+        "`011`",
+        "`000`"
+      ],
+      "answer": 2,
+      "explanation": "Inserting an empty node handle is specified: it has no effect and returns `inserted == false`, `position == end()` and an empty `node`. It is the accessors `key()`, `value()` and `get_allocator()` on an empty handle that are undefined. `111` is tempting for those who expect a successful no-op to report success.",
+      "refs": [
+        "[container.insert.return]",
+        "[associative.reqmts]"
+      ]
+    },
+    {
+      "id": "node-handles-and-heterogeneous-lookup-pmr-node-transfer",
+      "kind": "standardese",
+      "prompt": "What is the status of the transfer of a node between these two maps?",
+      "code": "#include <map>\n#include <memory_resource>\n\nint main() {\n  char b1[1024], b2[1024];\n  std::pmr::monotonic_buffer_resource r1(b1, sizeof b1), r2(b2, sizeof b2);\n  std::pmr::map<int, int> a(&r1), b(&r2);\n  b[1] = 1;\n  a.insert(b.extract(b.begin()));\n}",
+      "options": [
+        "Undefined behavior: the allocators do not compare equal",
+        "Well-formed: the node is reallocated from `a`'s resource",
+        "Ill-formed: `pmr::map` has no `extract`",
+        "Well-formed: allocators are never consulted when inserting a node"
+      ],
+      "answer": 0,
+      "explanation": "`insert(node_type&&)` requires the node handle's allocator to compare equal to the container's. A `polymorphic_allocator` compares equal only when both use the same memory resource, and these use different ones, so the precondition is violated. Nothing is reallocated: node transfer relinks the existing node, which is why the allocators must agree.",
+      "refs": [
+        "[associative.reqmts]",
+        "[container.node]"
+      ]
+    }
+  ]
+}

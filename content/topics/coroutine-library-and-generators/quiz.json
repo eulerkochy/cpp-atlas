@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "coroutine-library-generator-reference",
+      "kind": "warmup",
+      "prompt": "In C++23, what type is `R`?",
+      "code": "#include <generator>\n#include <ranges>\n\nusing R = std::ranges::range_reference_t<std::generator<int>>;",
+      "options": [
+        "`int`",
+        "`int&`",
+        "`const int&`",
+        "`int&&`"
+      ],
+      "answer": 3,
+      "explanation": "With the default second template argument, `std::generator<T>` uses `T&&` as its reference type, so dereferencing the iterator of a `generator<int>` gives an `int&&`. Its value type is `int`. That is why `for (int& x : g)` does not compile while `for (int x : g)` and `for (auto&& x : g)` do. Write `std::generator<const int&>` if you want lvalue references.",
+      "refs": [
+        "[coro.generator.class]"
+      ]
+    },
+    {
+      "id": "coroutine-library-noop-done",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <coroutine>\n#include <cstdio>\n\nint main() {\n  std::coroutine_handle<> h = std::noop_coroutine();\n  h.resume();\n  h.destroy();\n  std::printf(\"%d\\n\", h.done());\n}",
+      "options": [
+        "`0`",
+        "`1`, because a coroutine that does nothing is immediately finished",
+        "Nothing: calling `destroy()` and then `done()` is undefined behavior",
+        "It is implementation-defined"
+      ],
+      "answer": 0,
+      "explanation": "The no-op coroutine is never at its final suspend point: `done()` always returns false, and `resume()` and `destroy()` have no effect, even through a converted `coroutine_handle<>`. That is what makes it usable as the \"resume nothing\" result of a handle-returning `await_suspend`. Destroying an ordinary coroutine and then calling `done()` would be undefined behavior, but that rule does not apply here.",
+      "refs": [
+        "[coroutine.noop]",
+        "[coroutine.handle.observers]"
+      ]
+    },
+    {
+      "id": "coroutine-library-void-handle-promise",
+      "kind": "warmup",
+      "prompt": "Is this function well-formed?",
+      "code": "#include <coroutine>\n\nvoid inspect(std::coroutine_handle<> h) {\n  auto& p = h.promise();\n  (void)p;\n}",
+      "options": [
+        "Yes: it returns a reference to the promise as `void*`",
+        "Yes, but calling it with a null handle is undefined behavior",
+        "No: `coroutine_handle<void>` has no `promise()` member",
+        "No: `promise()` is a static member function"
+      ],
+      "answer": 2,
+      "explanation": "The call is ill-formed. The type-erased `std::coroutine_handle<>` does not know the promise type, so it provides only `resume`, `destroy`, `done`, `address` and the comparison operations. `promise()` and `from_promise()` exist only in `coroutine_handle<Promise>`. To reach the promise from a `void*` you would use `coroutine_handle<P>::from_address`, which is undefined behavior if `P` is not the coroutine's real promise type.",
+      "refs": [
+        "[coroutine.handle]"
+      ]
+    },
+    {
+      "id": "coroutine-library-elements-of-vector",
+      "kind": "tricky",
+      "prompt": "In C++23, is this function well-formed?",
+      "code": "#include <generator>\n#include <ranges>\n#include <vector>\n\nstd::generator<int> evens() {\n  std::vector<int> v{0, 2, 4};\n  co_yield std::ranges::elements_of(v);\n}",
+      "options": [
+        "Yes: `elements_of` yields each element of any input range",
+        "No: `v` is an lvalue, so `int&` must convert to the yielded type `int&&`, and it does not",
+        "No: `elements_of` only accepts another `std::generator`",
+        "Yes, but each element is moved out of `v`"
+      ],
+      "answer": 1,
+      "explanation": "The yielded type of `std::generator<int>` is `int&&`. The `yield_value` overload for a general range requires the range's reference type to be convertible to the yielded type, and `int&` is not convertible to `int&&`, so overload resolution fails, the program is ill-formed, and GCC 16 rejects it. `elements_of` does accept arbitrary ranges; the fix is `elements_of(v | std::views::as_rvalue)`, or yielding `const int&` from a `std::generator<const int&>`.",
+      "refs": [
+        "[coro.generator.promise]",
+        "[range.elementsof]"
+      ]
+    },
+    {
+      "id": "coroutine-library-range-for-temporaries",
+      "kind": "tricky",
+      "prompt": "Compiled as C++23, which of the two loops has undefined behavior?",
+      "code": "#include <cstdio>\n#include <generator>\n#include <string>\n\nstd::generator<char> chars(const std::string& s) {\n  for (char c : s) co_yield c;\n}\n\nint main() {\n  auto g = chars(std::string(20, 'x'));\n  for (char c : g) std::putchar(c);                       // loop 1\n\n  for (char c : chars(std::string(20, 'y'))) std::putchar(c);  // loop 2\n}",
+      "options": [
+        "Both",
+        "Neither: the coroutine frame keeps the string alive",
+        "Only loop 1",
+        "Only loop 2"
+      ],
+      "answer": 2,
+      "explanation": "In loop 1 the temporary string is destroyed at the end of the declaration of `g`, while the generator still holds a reference to it, so resuming the body reads a dead object. In loop 2, P2718 (C++23) extends every temporary in the range-for initializer to the end of the loop, so the string outlives the iteration. Before C++23 both loops were undefined. The frame stores the reference parameter as a reference, so it keeps nothing alive.",
+      "refs": [
+        "[stmt.ranged]",
+        "[class.temporary]",
+        "[dcl.fct.def.coroutine]"
+      ]
+    },
+    {
+      "id": "coroutine-library-generator-twice",
+      "kind": "tricky",
+      "prompt": "What is the behavior of this program?",
+      "code": "#include <cstdio>\n#include <generator>\n\nstd::generator<int> three() {\n  co_yield 1;\n  co_yield 2;\n  co_yield 3;\n}\n\nint main() {\n  auto g = three();\n  for (int x : g) std::printf(\"%d \", x);\n  for (int x : g) std::printf(\"%d \", x);\n}",
+      "options": [
+        "It prints `1 2 3 1 2 3`",
+        "It prints `1 2 3` and the second loop does nothing",
+        "It throws when the second loop starts",
+        "Undefined behavior"
+      ],
+      "answer": 3,
+      "explanation": "Each range-for calls `g.begin()`, and `std::generator::begin` has the precondition that the coroutine is still suspended at its initial suspend point. The first loop runs it to its final suspend point, so the second call to `begin()` violates the precondition. A generator is an input range: it cannot be restarted, and nothing in the standard makes a second pass an empty range.",
+      "refs": [
+        "[coro.generator.members]",
+        "[coro.generator]"
+      ]
+    },
+    {
+      "id": "coroutine-library-noop-equality",
+      "kind": "standardese",
+      "prompt": "What does the standard say about the value of `same`?",
+      "code": "#include <coroutine>\n\nbool same() {\n  std::coroutine_handle<> a = std::noop_coroutine();\n  std::coroutine_handle<> b = std::noop_coroutine();\n  return a == b;\n}",
+      "options": [
+        "It is always `true`: there is one no-op coroutine",
+        "It is always `false`",
+        "It is unspecified: different calls may or may not return handles that compare equal",
+        "Undefined behavior: comparing no-op handles is not allowed"
+      ],
+      "answer": 2,
+      "explanation": "[coroutine.noop] explicitly says that handles returned from different calls to `noop_coroutine` may or may not compare equal. Comparison itself is well-defined; only the result is left open, so code must not use equality with a fresh `noop_coroutine()` to detect the no-op handle. An implementation can return the same static frame every time, but it is not required to.",
+      "refs": [
+        "[coroutine.noop]",
+        "[coroutine.handle.compare]"
+      ]
+    },
+    {
+      "id": "coroutine-library-resume-final",
+      "kind": "standardese",
+      "prompt": "What is the behavior of the second `resume()`?",
+      "code": "#include <coroutine>\n\nstruct R {\n  struct promise_type {\n    R get_return_object() {\n      return {std::coroutine_handle<promise_type>::from_promise(*this)};\n    }\n    std::suspend_always initial_suspend() noexcept { return {}; }\n    std::suspend_always final_suspend() noexcept { return {}; }\n    void return_void() {}\n    void unhandled_exception() {}\n  };\n  std::coroutine_handle<promise_type> h;\n};\n\nR body() { co_return; }\n\nint main() {\n  R r = body();\n  r.h.resume();      // runs to the final suspend point\n  r.h.resume();\n  r.h.destroy();\n}",
+      "options": [
+        "It has no effect, because `done()` is true",
+        "Undefined behavior",
+        "It restarts the coroutine from the beginning",
+        "It calls `std::terminate`"
+      ],
+      "answer": 1,
+      "explanation": "[coroutine.handle.resumption] requires that `*this` refer to a suspended coroutine that is not suspended at its final suspend point. After the first `resume()` the coroutine sits at its final suspend point, so the second call violates the precondition. A generator or task must check `done()` before resuming; the only valid operations left are `done()`, `promise()` and `destroy()`.",
+      "refs": [
+        "[coroutine.handle.resumption]"
+      ]
+    }
+  ]
+}

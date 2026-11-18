@@ -1,0 +1,142 @@
+{
+  "questions": [
+    {
+      "id": "rng-int-closed",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <random>\n\nint main() {\n  std::uniform_int_distribution<int> d(1, 6);\n  std::cout << d.min() << ' ' << d.max() << '\\n';\n}",
+      "options": [
+        "`1 5`",
+        "`0 6`",
+        "`1 7`",
+        "`1 6`"
+      ],
+      "answer": 3,
+      "explanation": "`uniform_int_distribution` produces values on the closed interval `[a, b]`, so both bounds can occur and `max()` is 6. The half-open convention belongs to `uniform_real_distribution`, and carrying it over to integers is the usual off-by-one.",
+      "refs": [
+        "[rand.dist.uni.int]"
+      ]
+    },
+    {
+      "id": "rng-fresh-engine",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <random>\n\nint roll() {\n  std::mt19937 gen(42);\n  std::uniform_int_distribution<int> d(1, 6);\n  return d(gen);\n}\n\nint main() {\n  std::cout << (roll() == roll()) << '\\n';\n}",
+      "options": [
+        "`1`",
+        "`0`",
+        "Unspecified: it depends on the platform's clock",
+        "Undefined behavior"
+      ],
+      "answer": 0,
+      "explanation": "Each call builds a new engine from the same seed and a new distribution in the same initial state, so both calls compute exactly the same value. An engine is a deterministic function of its state. Creating the engine inside a frequently called function is a common cause of a random generator that always returns the same number.",
+      "refs": [
+        "[rand.eng.mers]"
+      ]
+    },
+    {
+      "id": "rng-modulo-bias",
+      "kind": "warmup",
+      "prompt": "Assume `RAND_MAX` is 32767 and `rand()` returns each value in `[0, 32767]` exactly once per 32768 draws. Which results of `rand() % 6` come up more often than the others?",
+      "options": [
+        "None: each result is equally likely",
+        "`0` and `1`",
+        "`4` and `5`",
+        "`0` only"
+      ],
+      "answer": 1,
+      "explanation": "There are 32768 inputs and 6 results, and 32768 = 6 * 5461 + 2. The inputs 0 to 32765 split evenly, and the two left-over inputs, 32766 and 32767, map to results 0 and 1. Those two results each occur 5462 times against 5461 for the rest. The bias is small here but grows as the modulus approaches the range, which is why `uniform_int_distribution` rejects or rescales instead of taking a remainder.",
+      "refs": [
+        "[c.math.rand]"
+      ]
+    },
+    {
+      "id": "rng-portable-lines",
+      "kind": "tricky",
+      "prompt": "The program below runs on two conforming implementations, each with a different standard library. Which of the lines are guaranteed to print the same values on both?",
+      "code": "#include <algorithm>\n#include <iostream>\n#include <numeric>\n#include <random>\n#include <vector>\n\nint main() {\n  std::mt19937 e1(42);\n  std::cout << e1() << '\\n';                       // line 1\n\n  std::mt19937 e2(42);\n  std::uniform_int_distribution<int> d(1, 6);\n  std::cout << d(e2) << '\\n';                      // line 2\n\n  std::mt19937 e3(42);\n  std::vector<int> v(10);\n  std::iota(v.begin(), v.end(), 0);\n  std::shuffle(v.begin(), v.end(), e3);\n  std::cout << v[0] << '\\n';                       // line 3\n}",
+      "options": [
+        "Only line 1",
+        "Lines 1 and 2",
+        "Lines 1 and 3",
+        "All three lines"
+      ],
+      "answer": 0,
+      "explanation": "The standard defines the algorithm of `mt19937`, including seeding from a single value, so its raw output is the same everywhere. It does not define how a distribution turns engine output into a value or how `shuffle` consumes it, so lines 2 and 3 can differ between libraries. They do differ between libstdc++ and libc++ for this seed.",
+      "refs": [
+        "[rand.eng.mers]",
+        "[rand.dist.uni.int]",
+        "[alg.random.shuffle]"
+      ]
+    },
+    {
+      "id": "rng-seed-modulo",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <random>\n\nint main() {\n  std::mt19937 a(1ULL << 32);\n  std::mt19937 b(0);\n  std::cout << (a() == b()) << '\\n';\n}",
+      "options": [
+        "`0`: the seeds are different, so the sequences differ",
+        "`1`",
+        "Unspecified",
+        "Ill-formed: the seed does not fit in `result_type`"
+      ],
+      "answer": 1,
+      "explanation": "The single-value seed is reduced modulo 2^32 for `mt19937`, so `1 << 32` and `0` give the same state. Where `result_type` is 32 bits wide, the conversion of the argument already truncates it, and where it is wider the engine's own reduction does the same. The call is not ill-formed, since an integer converts implicitly. A 32-bit seed can select at most 2^32 of the engine's possible states.",
+      "refs": [
+        "[rand.eng.mers]"
+      ]
+    },
+    {
+      "id": "rng-reversed-bounds",
+      "kind": "tricky",
+      "prompt": "What does the C++ standard say about this program?",
+      "code": "#include <iostream>\n#include <random>\n\nint main() {\n  std::mt19937 gen(1);\n  std::uniform_int_distribution<int> d(6, 1);\n  std::cout << d(gen) << '\\n';\n}",
+      "options": [
+        "It prints an integer in `[1, 6]`, because the bounds are swapped",
+        "It throws `std::invalid_argument`",
+        "The program is ill-formed",
+        "Undefined behavior: `a <= b` is a precondition"
+      ],
+      "answer": 3,
+      "explanation": "The distribution requires `a <= b`, and the constructor does not check or reorder its arguments. Violating a precondition is undefined behavior, so nothing in the standard promises the swapped range, an exception, or a diagnostic. Some implementations happen to produce numbers in the swapped range, which is exactly why the bug survives testing.",
+      "refs": [
+        "[rand.dist.uni.int]"
+      ]
+    },
+    {
+      "id": "rng-mt-10000th",
+      "kind": "standardese",
+      "prompt": "In C++23, what does this program print?",
+      "code": "#include <iostream>\n#include <random>\n\nint main() {\n  std::mt19937 g;\n  for (int i = 1; i < 10000; ++i) g();\n  std::cout << g() << '\\n';\n}",
+      "options": [
+        "`4123659995`",
+        "`3499211612`",
+        "Unspecified: the default seed is implementation-defined",
+        "`1043618065`"
+      ],
+      "answer": 0,
+      "explanation": "The standard fixes the default seed of `mt19937` at 5489 and requires the 10000th consecutive invocation of a default-constructed engine to produce 4123659995. The loop makes 9999 calls and the next one is the 10000th. The value 3499211612 is the first output of the default engine, and 1043618065 is the corresponding value for `minstd_rand0`.",
+      "refs": [
+        "[rand.predef]",
+        "[rand.eng.mers]"
+      ]
+    },
+    {
+      "id": "rng-char-distribution",
+      "kind": "standardese",
+      "prompt": "What does the C++23 standard say about instantiating `std::uniform_int_distribution<char>`?",
+      "code": "#include <random>\n\nint main() {\n  std::mt19937 g;\n  std::uniform_int_distribution<char> d('a', 'z');\n  (void)d(g);\n}",
+      "options": [
+        "It is well-formed and produces `char` values in `['a', 'z']`",
+        "The effect is undefined, because only the listed standard integer types other than the character types and `bool` are permitted",
+        "It is ill-formed, and every conforming compiler must reject it",
+        "It is implementation-defined, and each library must document its behavior"
+      ],
+      "answer": 1,
+      "explanation": "The distribution templates are defined only for the types `short`, `int`, `long`, `long long` and their unsigned counterparts; the effect of using any other type, including `char`, `bool` and the sized aliases for char types, is undefined. Libraries may reject it, as libc++ does with a `static_assert`, or accept it, as libstdc++ does, but neither is required. Use `int` and convert the result.",
+      "refs": [
+        "[rand.dist.uni.int]"
+      ]
+    }
+  ]
+}

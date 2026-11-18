@@ -1,0 +1,67 @@
+# std::basic_ios<CharT,Traits>::bad
+
+Source: https://en.cppreference.com/w/cpp/io/basic_ios/bad
+
+```cpp
+bool bad() const;
+```
+
+Returns `true` if non-recoverable error has occurred on the associated stream. Specifically, returns `true` if `badbit` is set in `rdstate()`.
+
+See `ios_base::iostate` for the list of conditions that set `badbit`.
+
+## Parameters
+
+(none)
+
+## Return value
+
+`true` if a non-recoverable error has occurred, `false` otherwise.
+
+## Example
+
+```cpp
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+
+int main()
+{
+    std::ifstream file("test.txt");
+    if (!file) // operator! is used here
+    {
+        std::cout << "File opening failed\n";
+        return EXIT_FAILURE;
+    }
+
+    // typical C++ I/O loop uses the return value of the I/O function
+    // as the loop controlling condition, operator bool() is used here
+    for (int n; file >> n;)
+       std::cout << n << ' ';
+    std::cout << '\n';
+
+    if (file.bad())
+        std::cout << "I/O error while reading\n";
+    else if (file.eof())
+        std::cout << "End of file reached successfully\n";
+    else if (file.fail())
+        std::cout << "Non-integer data encountered\n";
+}
+```
+
+## See also
+
+The following table shows the value of [`basic_ios`](https://en.cppreference.com/w/cpp/io/basic_ios) accessors ([`good()`](https://en.cppreference.com/w/cpp/io/basic_ios/good), [`fail()`](https://en.cppreference.com/w/cpp/io/basic_ios/fail), etc.) for all possible combinations of [`ios_base::iostate`](https://en.cppreference.com/w/cpp/io/ios_base/iostate) flags:
+
+|   |   |   |   |   |   |   |   |   |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [`ios_base::iostate`](https://en.cppreference.com/w/cpp/io/ios_base/iostate) flags |   |   | `basic_ios` accessors |   |   |   |   |   |
+| `eofbit` | `failbit` | `badbit` | [`good()`](https://en.cppreference.com/w/cpp/io/basic_ios/good) | [`fail()`](https://en.cppreference.com/w/cpp/io/basic_ios/fail) | `bad()` | [`eof()`](https://en.cppreference.com/w/cpp/io/basic_ios/eof) | [`operator bool`](https://en.cppreference.com/w/cpp/io/basic_ios/operator_bool) | [`operator!`](https://en.cppreference.com/w/cpp/io/basic_ios/operator!) |
+| false | false | false | true | false | false | false | true | false |
+| false | false | true | false | true | true | false | false | true |
+| false | true | false | false | true | false | false | false | true |
+| false | true | true | false | true | true | false | false | true |
+| true | false | false | false | false | false | true | true | false |
+| true | false | true | false | true | true | true | false | true |
+| true | true | false | false | true | false | true | false | true |
+| true | true | true | false | true | true | true | false | true |

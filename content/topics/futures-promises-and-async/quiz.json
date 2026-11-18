@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "futures-promises-and-async-broken-promise",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <future>\n#include <iostream>\n\nint main() {\n  std::future<int> f;\n  {\n    std::promise<int> p;\n    f = p.get_future();\n  }\n  try {\n    std::cout << f.get() << '\\n';\n  } catch (const std::future_error& e) {\n    std::cout << (e.code() == std::future_errc::broken_promise) << '\\n';\n  }\n}",
+      "options": [
+        "`0`, the value-initialized `int`",
+        "Nothing: `f.get()` blocks forever because no value is ever set",
+        "`1`",
+        "Undefined behavior: the future outlives its promise"
+      ],
+      "answer": 2,
+      "explanation": "Destroying a promise whose shared state is not ready abandons the state: it stores a `future_error` with `broken_promise` and makes the state ready. So `get()` does not block; it throws, and the comparison prints `1`. The future keeps the shared state alive by itself, so outliving the promise is normal, not undefined.",
+      "refs": [
+        "[futures.promise]",
+        "[futures.state]",
+        "[futures.errors]"
+      ]
+    },
+    {
+      "id": "futures-promises-and-async-exception-through-get",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <future>\n#include <iostream>\n#include <stdexcept>\n\nint main() {\n  auto f = std::async(std::launch::async, []() -> int {\n    throw std::runtime_error(\"boom\");\n  });\n  try {\n    std::cout << f.get() << '\\n';\n  } catch (const std::runtime_error& e) {\n    std::cout << \"caught \" << e.what() << '\\n';\n  }\n}",
+      "options": [
+        "Nothing: `std::terminate` is called because the exception escapes a thread",
+        "`caught boom`",
+        "`0`, because the task produced no value",
+        "Nothing: `get` throws `std::future_error` with `broken_promise`, which is not caught"
+      ],
+      "answer": 1,
+      "explanation": "`std::async` runs the function so that an exception it throws is stored in the shared state rather than escaping the thread. `get()` then rethrows that exception in the calling thread, where the handler catches it. Termination is what happens with a raw `std::thread`, which is the tempting confusion; `broken_promise` only arises when a provider is destroyed without storing anything.",
+      "refs": [
+        "[futures.async]",
+        "[futures.unique.future]"
+      ]
+    },
+    {
+      "id": "futures-promises-and-async-get-future-twice",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <future>\n#include <iostream>\n\nint main() {\n  std::promise<int> p;\n  auto f1 = p.get_future();\n  try {\n    auto f2 = p.get_future();\n  } catch (const std::future_error& e) {\n    std::cout << (e.code() == std::future_errc::future_already_retrieved) << '\\n';\n  }\n  p.set_value(5);\n  std::cout << f1.get() << '\\n';\n}",
+      "options": [
+        "`5` only: the second call returns another future to the same state",
+        "`1` and then an exception from `f1.get()`, because the failed call broke the state",
+        "`0` then `5`",
+        "`1` then `5`"
+      ],
+      "answer": 3,
+      "explanation": "A promise hands out exactly one future. The second `get_future` throws `future_error` with `future_already_retrieved`, and the comparison prints `1`. The failed call leaves the shared state untouched, so `set_value(5)` and `f1.get()` work normally. Sharing a result between several consumers is the job of `shared_future`, not of repeated `get_future` calls.",
+      "refs": [
+        "[futures.promise]",
+        "[futures.errors]"
+      ]
+    },
+    {
+      "id": "futures-promises-and-async-discarded-async",
+      "kind": "tricky",
+      "prompt": "What is guaranteed about the output?",
+      "code": "#include <chrono>\n#include <cstdio>\n#include <future>\n#include <thread>\n\nint main() {\n  std::async(std::launch::async, [] {\n    std::this_thread::sleep_for(std::chrono::milliseconds(100));\n    std::puts(\"a\");\n  });\n  std::async(std::launch::async, [] { std::puts(\"b\"); });\n}",
+      "options": [
+        "`a` then `b`",
+        "`b` then `a`, because the second task does not sleep",
+        "`a` and `b` in an unspecified order",
+        "Possibly nothing, because `main` may return before either task runs"
+      ],
+      "answer": 0,
+      "explanation": "Each call returns a temporary future that is destroyed at the end of its full-expression. Because that future is the last reference to a shared state created by `std::async` with a launched thread, the thread's completion synchronizes with the return from that release, so the destructor waits for the first task before the second call starts. The two tasks therefore run one after the other. The tempting `b` then `a` assumes the futures can be dropped without waiting, which is true only of futures from promises and packaged tasks. Compilers warn here because `std::async` is `[[nodiscard]]` since C++20, but the code is valid.",
+      "refs": [
+        "[futures.async]",
+        "[futures.state]",
+        "[class.temporary]"
+      ]
+    },
+    {
+      "id": "futures-promises-and-async-default-policy-poll",
+      "kind": "tricky",
+      "prompt": "Which statement about this loop is correct?",
+      "code": "#include <chrono>\n#include <future>\n\nint main() {\n  using namespace std::chrono_literals;\n  auto f = std::async([] { return 42; });\n  while (f.wait_for(10ms) != std::future_status::ready) {\n    // do other work\n  }\n  return f.get();\n}",
+      "options": [
+        "It always ends, because the default policy is `std::launch::async`",
+        "It may never end: if the implementation chose deferred execution, `wait_for` returns `deferred` and never runs the function",
+        "It always ends, because `wait_for` runs a deferred function when it is called",
+        "It is undefined behavior to call `wait_for` on a future from `std::async`"
+      ],
+      "answer": 1,
+      "explanation": "With no policy argument, `std::async` uses `launch::async | launch::deferred` and the implementation may pick either. A deferred function only runs on a call to `get` or a non-timed `wait`; the timed waits just return `future_status::deferred`. So if deferred is chosen, the loop condition never becomes false. Mainstream implementations usually launch a thread here, which is why the first option is tempting, but the standard does not require it.",
+      "refs": [
+        "[futures.async]",
+        "[futures.unique.future]"
+      ]
+    },
+    {
+      "id": "futures-promises-and-async-packaged-task-twice",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <future>\n#include <iostream>\n\nint main() {\n  std::packaged_task<int()> task([] { return 7; });\n  auto f = task.get_future();\n  task();\n  try {\n    task();\n  } catch (const std::future_error& e) {\n    std::cout << (e.code() == std::future_errc::promise_already_satisfied);\n  }\n  std::cout << f.get() << '\\n';\n}",
+      "options": [
+        "`7`: the second call just recomputes into the same state",
+        "`07`",
+        "`17`",
+        "`1` and then `get()` throws, because the second call broke the state"
+      ],
+      "answer": 2,
+      "explanation": "The first call stores 7 and makes the shared state ready. A second call would have to store into a state that is already satisfied, so it throws `future_error` with `promise_already_satisfied` and prints `1`. The stored 7 is unaffected, so `f.get()` returns it. To run a task again you must call `reset()`, which creates a new shared state and requires a new future.",
+      "refs": [
+        "[futures.task.members]",
+        "[futures.errors]"
+      ]
+    },
+    {
+      "id": "futures-promises-and-async-get-twice",
+      "kind": "standardese",
+      "prompt": "What does the C++23 standard say about the second `f.get()`?",
+      "code": "#include <future>\n#include <iostream>\n\nint main() {\n  std::future<int> f = std::async(std::launch::async, [] { return 1; });\n  std::cout << f.get() << '\\n';\n  std::cout << f.get() << '\\n';\n}",
+      "options": [
+        "It returns 1 again, because the value stays in the shared state",
+        "It is required to throw `future_error` with `no_state`",
+        "Undefined behavior",
+        "It is ill-formed, because `get` may be called only once"
+      ],
+      "answer": 2,
+      "explanation": "`future::get` releases the shared state, so afterwards `valid()` is false. [futures.unique.future] says that calling any member other than the destructor, move assignment, `share` or `valid` on such a future is undefined. Throwing `future_error` with `no_state` is only recommended practice, which libstdc++ follows, so it is not a guarantee. Returning the value again is what `shared_future::get` does.",
+      "refs": [
+        "[futures.unique.future]"
+      ]
+    },
+    {
+      "id": "futures-promises-and-async-which-dtor-blocks",
+      "kind": "standardese",
+      "prompt": "Under the C++23 standard, which future's destructor may block waiting for unfinished work?",
+      "options": [
+        "Any `std::future` whose shared state is not yet ready",
+        "The last future referring to a state from `std::async` called with `std::launch::deferred`",
+        "A future obtained from a `std::packaged_task` that is running on another thread",
+        "The last future or shared_future referring to a not-yet-ready state created by `std::async` that launched a thread"
+      ],
+      "answer": 3,
+      "explanation": "[futures.async] requires the completion of a thread launched by `std::async` to synchronize with the return of the last function that releases the shared state, if no one has observed readiness first, which forces that release to wait. No such rule exists for promises or packaged tasks, whose futures release their state immediately. A deferred function never runs if nobody calls `get` or `wait`, so its future has nothing to wait for.",
+      "refs": [
+        "[futures.async]",
+        "[futures.state]"
+      ]
+    }
+  ]
+}

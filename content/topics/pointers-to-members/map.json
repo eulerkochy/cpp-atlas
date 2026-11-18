@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Pointers to members",
+    "note": "A path to a member of some class, applied to an object later with .* or ->*.",
+    "children": [
+      {
+        "label": "Forming and applying",
+        "note": "&S::m with a qualified name, used as obj.*pm or ptr->*pm.",
+        "children": [
+          { "label": "Qualified name only", "note": "&(S::m) or &m inside a member gives an ordinary pointer to this object's member." },
+          { "label": "Call parentheses", "note": "Write (obj.*pmf)(args); obj.*pmf(args) parses as obj.*(pmf(args))." },
+          { "label": "Value category", "note": "obj.*pm is an lvalue for an lvalue object and an xvalue for an rvalue object." },
+          { "label": "Not pointable", "note": "Static members give plain pointers; reference members and bit-fields cannot be pointed to." }
+        ]
+      },
+      {
+        "label": "Conversions",
+        "note": "They run from base to derived, the reverse of object pointers.",
+        "children": [
+          { "label": "Base to derived", "note": "T B::* converts implicitly to T D::* because D contains every member of B." },
+          { "label": "Derived to base", "note": "Needs static_cast; using it on an object lacking the member is undefined behavior." },
+          { "label": "Forbidden bases", "note": "No conversion through an inaccessible, ambiguous or virtual base." },
+          { "label": "Declaring class type", "note": "&D::x for a member of B has type int B::*." }
+        ]
+      },
+      {
+        "label": "Virtual functions",
+        "note": "A pointer to a virtual function dispatches on the dynamic type when called.",
+        "children": [
+          { "label": "No non-virtual form", "note": "Only a qualified call like b.B::f() suppresses dispatch; member pointers cannot." }
+        ]
+      },
+      {
+        "label": "Representation",
+        "note": "Implementation practice only; the standard fixes no size or layout.",
+        "children": [
+          { "label": "Itanium data pointer", "note": "One ptrdiff_t holding the member offset, with -1 as the null value." },
+          { "label": "Itanium function pointer", "note": "Two words: function address or vtable offset, plus a this adjustment." },
+          { "label": "Virtual flag", "note": "Low bit of ptr on x86-64, low bit of adj on AArch64 including arm64 macOS." },
+          { "label": "MSVC", "note": "Size depends on the inheritance model of the class." }
+        ]
+      },
+      {
+        "label": "invoke and projections",
+        "note": "Library wrappers make member pointers ordinary callables.",
+        "children": [
+          { "label": "std::invoke", "note": "Accepts objects, pointers, smart pointers and reference_wrapper; data members return references." },
+          { "label": "std::mem_fn", "note": "Wraps a member pointer in a reusable function object." },
+          { "label": "Projections", "note": "ranges::sort(v, {}, &P::age) compares by a field through std::invoke." }
+        ]
+      },
+      {
+        "label": "Overloaded members",
+        "note": "An overload set has no type, so the target type selects the member.",
+        "children": [
+          { "label": "Target type", "note": "A typed variable, parameter or static_cast picks the overload; auto cannot." },
+          { "label": "Library members", "note": "Forming &std::string::size is unspecified and possibly ill-formed; use a lambda." },
+          { "label": "Explicit object (C++23)", "note": "&S::f for f(this const S&) is an ordinary function pointer." }
+        ]
+      }
+    ]
+  }
+}

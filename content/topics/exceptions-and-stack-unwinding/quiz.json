@@ -1,0 +1,145 @@
+{
+  "questions": [
+    {
+      "id": "exceptions-and-stack-unwinding-no-promotion",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nint main() {\n  try { throw 42; }\n  catch (long)   { std::puts(\"long\"); }\n  catch (double) { std::puts(\"double\"); }\n  catch (...)    { std::puts(\"other\"); }\n}",
+      "options": [
+        "`long`",
+        "`double`",
+        "`other`",
+        "Ill-formed: `42` is ambiguous between the `long` and `double` handlers"
+      ],
+      "answer": 2,
+      "explanation": "Handler matching does not use integral or floating conversions. An `int` exception object only matches a handler for `int`, a base class (not applicable here), or a pointer type through pointer conversions. Neither `long` nor `double` matches, so `catch (...)` is taken. The tempting `long` answer applies function-call conversion rules, which handlers do not use.",
+      "refs": [
+        "[except.handle]"
+      ]
+    },
+    {
+      "id": "exceptions-and-stack-unwinding-throw-e-slices",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <stdexcept>\n\nint main() {\n  try {\n    try { throw std::out_of_range(\"index\"); }\n    catch (const std::exception& e) { throw e; }\n  }\n  catch (const std::out_of_range&) { std::puts(\"out_of_range\"); }\n  catch (const std::exception&)    { std::puts(\"exception\"); }\n}",
+      "options": [
+        "`exception`",
+        "`out_of_range`",
+        "Both lines",
+        "Nothing; `std::terminate` is called"
+      ],
+      "answer": 0,
+      "explanation": "`throw e;` creates a new exception object copy-initialized from `e`, and the type of that object is the static type of `e`, which is `std::exception`. The `out_of_range` part is sliced away, so only the second handler matches. A bare `throw;` would have rethrown the original `out_of_range` object and printed `out_of_range`.",
+      "refs": [
+        "[except.throw]"
+      ]
+    },
+    {
+      "id": "exceptions-and-stack-unwinding-catch-by-value",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct Base { virtual const char* name() const { return \"Base\"; } virtual ~Base() = default; };\nstruct Derived : Base { const char* name() const override { return \"Derived\"; } };\n\nint main() {\n  try { throw Derived{}; }\n  catch (Base b) { std::puts(b.name()); }\n}",
+      "options": [
+        "`Derived`, because the exception object is a `Derived`",
+        "`Base`",
+        "Nothing: a `Base` handler does not match a `Derived` exception",
+        "Undefined behavior"
+      ],
+      "answer": 1,
+      "explanation": "The handler matches because `Base` is an unambiguous public base of `Derived`. But a by-value handler parameter is copy-initialized from the exception object, so `b` is a separate `Base` object, sliced, and the virtual call sees its dynamic type `Base`. Catching by `const Base&` would bind to the `Derived` exception object and print `Derived`.",
+      "refs": [
+        "[except.handle]",
+        "[dcl.init.general]"
+      ]
+    },
+    {
+      "id": "exceptions-and-stack-unwinding-string-literal",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <string>\n\nint main() {\n  try { throw \"disk full\"; }\n  catch (const std::string& s) { std::puts(\"string\"); }\n  catch (const char* p)        { std::puts(\"pointer\"); }\n}",
+      "options": [
+        "`string`, because the first handler that can accept the value wins",
+        "Nothing; `std::terminate` is called because no handler has array type",
+        "Ill-formed: an array cannot be thrown",
+        "`pointer`"
+      ],
+      "answer": 3,
+      "explanation": "The exception object's type is the operand's type with arrays decayed to pointers, so it is `const char*`. Handlers are tried in order, but a handler only matches through the narrow rules of [except.handle], which exclude user-defined conversions such as `std::string`'s converting constructor. The first handler is skipped and the pointer handler is taken.",
+      "refs": [
+        "[except.throw]",
+        "[except.handle]"
+      ]
+    },
+    {
+      "id": "exceptions-and-stack-unwinding-ctor-function-try",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <stdexcept>\n\nstruct Member { Member() { throw std::runtime_error(\"m\"); } };\n\nstruct Holder {\n  Member m;\n  Holder() try : m() {\n  } catch (const std::exception&) {\n    std::puts(\"handler\");\n  }\n};\n\nint main() {\n  try { Holder h; std::puts(\"built\"); }\n  catch (const std::exception&) { std::puts(\"outer\"); }\n}",
+      "options": [
+        "`handler` then `outer`",
+        "`handler` then `built`",
+        "`outer` only; a function-try-block cannot catch initializer exceptions",
+        "`handler`, then `std::terminate` is called"
+      ],
+      "answer": 0,
+      "explanation": "A constructor's function-try-block does see exceptions from member initializers, so `handler` is printed. When control reaches the end of such a handler, the exception is implicitly rethrown, because the object cannot exist with a member that was never constructed. The outer handler catches it and prints `outer`; `built` is never reached. Swallowing the exception, as the first option assumes, is impossible here.",
+      "refs": [
+        "[except.handle]",
+        "[except.ctor]"
+      ]
+    },
+    {
+      "id": "exceptions-and-stack-unwinding-dtor-during-unwind",
+      "kind": "tricky",
+      "prompt": "What happens when this program runs?",
+      "code": "#include <cstdio>\n\nstruct Bad {\n  ~Bad() noexcept(false) { throw 2; }\n};\n\nint main() {\n  try {\n    Bad b;\n    throw 1;\n  } catch (int i) {\n    std::printf(\"caught %d\\n\", i);\n  }\n}",
+      "options": [
+        "Prints `caught 1`",
+        "Prints `caught 2`; the newer exception replaces the older one",
+        "`std::terminate` is called",
+        "Undefined behavior"
+      ],
+      "answer": 2,
+      "explanation": "Throwing `1` finds the handler and starts unwinding, which destroys `b`. The destructor is called directly by the unwinding mechanism and exits via an exception, which is one of the listed cases where `std::terminate` is called. `noexcept(false)` only allows the destructor to throw when no unwinding is in progress; there is no rule that lets one exception replace another.",
+      "refs": [
+        "[except.ctor]",
+        "[except.terminate]"
+      ]
+    },
+    {
+      "id": "exceptions-and-stack-unwinding-uncaught-unwind",
+      "kind": "standardese",
+      "prompt": "What does the standard say about whether `flushed` is printed?",
+      "code": "#include <cstdio>\n\nstruct Flush { ~Flush() { std::puts(\"flushed\"); } };\n\nint main() {\n  Flush f;\n  throw 1;\n}",
+      "options": [
+        "It is always printed: unwinding precedes `std::terminate`",
+        "It is never printed: `std::terminate` is called before any destructor",
+        "It is implementation-defined whether the stack is unwound, so it may or may not be printed",
+        "The program has undefined behavior"
+      ],
+      "answer": 2,
+      "explanation": "No handler matches, so `std::terminate` is called, and [except.terminate] makes it implementation-defined whether the stack is unwound first. GCC and Clang search for a handler before unwinding and do not run `~Flush`, which makes \"never printed\" tempting, but that is a property of those implementations, not a guarantee. The behavior is defined: the program terminates.",
+      "refs": [
+        "[except.terminate]",
+        "[except.handle]"
+      ]
+    },
+    {
+      "id": "exceptions-and-stack-unwinding-object-storage",
+      "kind": "standardese",
+      "prompt": "Which statement about the storage of an exception object does the C++23 standard guarantee?",
+      "options": [
+        "It is obtained from `operator new`, so replacing `operator new` intercepts it",
+        "It lives in the stack frame of the function that executed the `throw`",
+        "It has static storage duration, so only one exception can exist at a time",
+        "It is allocated in an unspecified way, but never by the global allocation functions"
+      ],
+      "answer": 3,
+      "explanation": "[except.throw] says the memory is allocated in an unspecified way, and [basic.stc.dynamic.allocation] adds that the global allocation functions are not used for it. Implementations typically use a runtime function with an emergency pool so `std::bad_alloc` can still be thrown. The stack-frame answer cannot be right, because the thrower's frame is destroyed during unwinding while the object must survive into the handler, and several exceptions can be alive at once.",
+      "refs": [
+        "[except.throw]",
+        "[basic.stc.dynamic.allocation]"
+      ]
+    }
+  ]
+}

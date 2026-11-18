@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "Implicit conversions",
+    "note": "A fixed pipeline of standard conversions, optionally around exactly one user-defined conversion.",
+    "children": [
+      {
+        "label": "Standard sequence slots",
+        "note": "At most one conversion from each of four ordered slots.",
+        "children": [
+          { "label": "Value transformation", "note": "Lvalue-to-rvalue, array-to-pointer or function-to-pointer, at most one." },
+          { "label": "Type change", "note": "One promotion, arithmetic, pointer, pointer-to-member or boolean conversion." },
+          { "label": "Function pointer (C++17)", "note": "A pointer to a noexcept function converts to a pointer to a throwing one, not back." },
+          { "label": "Qualification", "note": "Adds const or volatile below the top level, last in the sequence." }
+        ]
+      },
+      {
+        "label": "Promotion vs conversion",
+        "note": "Both change the type, but promotions rank better in overload resolution.",
+        "children": [
+          { "label": "Promotions", "note": "Only narrow integers to int or unsigned int, and float to double." },
+          { "label": "short to long", "note": "A conversion, so f(long) and f(double) are ambiguous for a short." },
+          { "label": "Floating to integer", "note": "Truncates toward zero; undefined if the result does not fit." },
+          { "label": "Boolean conversion", "note": "Zero and null become false; it beats any user-defined conversion." }
+        ]
+      },
+      {
+        "label": "Pointer conversions",
+        "note": "Null pointer constants, void pointers and derived-to-base.",
+        "children": [
+          { "label": "Null pointer constant", "note": "Integer literal zero or a std::nullptr_t prvalue; false and const int zero are not (C++11)." },
+          { "label": "To void*", "note": "Any object pointer converts to cv void*; void* never converts back implicitly." },
+          { "label": "Derived to base", "note": "Needs an accessible, unambiguous base; the address may change; null stays null." }
+        ]
+      },
+      {
+        "label": "Narrowing",
+        "note": "A lossy implicit conversion that is banned only in certain contexts.",
+        "children": [
+          { "label": "What narrows", "note": "Float to int, wide to narrow, int to float, and pointer to bool since C++20." },
+          { "label": "Constant exception", "note": "A constant expression whose value fits is not narrowing, except float to int." },
+          { "label": "Banned in braces", "note": "Every form of list-initialization rejects narrowing; C++20 parenthesized aggregates allow it." },
+          { "label": "Converted constants", "note": "Template arguments, case labels, array bounds and noexcept(...) reject narrowing." }
+        ]
+      },
+      {
+        "label": "Contextual bool",
+        "note": "Conditions and logical operators convert as if direct-initializing a bool.",
+        "children": [
+          { "label": "Explicit is allowed", "note": "explicit operator bool works in if, !, && and ?: but not in bool b = x." },
+          { "label": "P1401 (C++23)", "note": "static_assert and if constexpr accept narrowing to bool; noexcept(...) does not." },
+          { "label": "Requires-clauses", "note": "Atomic constraints are not converted and must have type bool exactly." }
+        ]
+      },
+      {
+        "label": "User-defined step",
+        "note": "A constructor or conversion function, applied at most once implicitly.",
+        "children": [
+          { "label": "Shape", "note": "Standard sequence, then one user-defined conversion, then another standard sequence." },
+          { "label": "No chaining", "note": "const char* to std::string to Name is two steps, so Name n = \"Ada\" fails." },
+          { "label": "Direct init escapes", "note": "Name n(\"Ada\") calls the constructor, leaving only one conversion for its argument." }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "questions": [
+    {
+      "id": "iterator-adaptors-and-sentinels-reverse-base",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <algorithm>\n#include <cstdio>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3, 4, 5};\n  auto r = std::find(v.rbegin(), v.rend(), 3);\n  std::printf(\"%d %d\\n\", *r, *r.base());\n}",
+      "options": [
+        "`3 3`",
+        "`3 2`",
+        "`3 4`",
+        "Undefined behavior: `base()` of a reverse iterator must not be dereferenced"
+      ],
+      "answer": 2,
+      "explanation": "A reverse iterator stores a base iterator one position after the element it denotes, and dereferencing it yields `*std::prev(base())`. The reverse iterator that finds 3 therefore has a base pointing at 4. Dereferencing `base()` is fine here because it points at a real element; it would only be undefined for the reverse iterator equal to `rbegin()`, whose base is `end()`.",
+      "refs": [
+        "[reverse.iterators]"
+      ]
+    },
+    {
+      "id": "iterator-adaptors-and-sentinels-front-inserter",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <algorithm>\n#include <cstdio>\n#include <deque>\n#include <iterator>\n#include <vector>\n\nint main() {\n  std::deque<int> d{0};\n  std::vector<int> src{1, 2, 3};\n  std::copy(src.begin(), src.end(), std::front_inserter(d));\n  for (int x : d) std::printf(\"%d \", x);\n}",
+      "options": [
+        "`1 2 3 0 `",
+        "`3 2 1 0 `",
+        "`0 1 2 3 `",
+        "`0 3 2 1 `"
+      ],
+      "answer": 1,
+      "explanation": "Each assignment through a `front_insert_iterator` calls `push_front`, so 1 goes in front of 0, then 2 in front of 1, then 3 in front of 2. The copied sequence ends up reversed, ahead of the existing element. `1 2 3 0 ` is what `std::inserter(d, d.begin())` would give, because an insert iterator advances its position past each element it inserts.",
+      "refs": [
+        "[front.insert.iterator]",
+        "[insert.iterators]"
+      ]
+    },
+    {
+      "id": "iterator-adaptors-and-sentinels-ostream-delimiter",
+      "kind": "warmup",
+      "prompt": "What does this program print, between the brackets?",
+      "code": "#include <algorithm>\n#include <cstdio>\n#include <iterator>\n#include <sstream>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3};\n  std::ostringstream os;\n  std::copy(v.begin(), v.end(), std::ostream_iterator<int>(os, \", \"));\n  std::printf(\"[%s]\\n\", os.str().c_str());\n}",
+      "options": [
+        "`[1, 2, 3]`",
+        "`[, 1, 2, 3]`",
+        "`[123]`",
+        "`[1, 2, 3, ]`"
+      ],
+      "answer": 3,
+      "explanation": "`ostream_iterator` writes the delimiter after every value it is assigned, including the last, so the output has a trailing `, `. It is not a joiner and has no idea which value is the last one. To avoid the trailing separator, write the first element separately, or in C++23 print the whole range with `std::print(\"{:n}\", v)`, which separates elements with `, ` and adds no brackets.",
+      "refs": [
+        "[ostream.iterator.ops]"
+      ]
+    },
+    {
+      "id": "iterator-adaptors-and-sentinels-vector-from-take",
+      "kind": "tricky",
+      "prompt": "Which of the marked lines fails to compile in C++23?",
+      "code": "#include <ranges>\n#include <vector>\n\nint main() {\n  auto r = std::views::iota(0) | std::views::take(5);\n  std::vector<int> a(r.begin(), r.end());                   // 1\n  auto c = r | std::views::common;\n  std::vector<int> b(c.begin(), c.end());                   // 2\n  auto d = std::ranges::to<std::vector>(r);                 // 3\n}",
+      "options": [
+        "Line 1",
+        "Lines 1 and 3",
+        "Line 2",
+        "None of them"
+      ],
+      "answer": 0,
+      "explanation": "`views::iota(0)` is unbounded and not sized, so `take(5)` iterates with a `counted_iterator` and ends with a sentinel of a different type. The vector's iterator-pair constructor needs both arguments to have the same iterator type, so line 1 does not compile. `views::common` wraps both ends in `common_iterator`, which fixes line 2, and `ranges::to` accepts any range, so line 3 is fine too.",
+      "refs": [
+        "[range.take.view]",
+        "[iterators.common]",
+        "[range.utility.conv.to]"
+      ]
+    },
+    {
+      "id": "iterator-adaptors-and-sentinels-reverse-from-iterator",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <iterator>\n#include <vector>\n\nint main() {\n  std::vector<int> v{10, 20, 30, 40};\n  std::reverse_iterator<std::vector<int>::iterator> r(v.begin() + 2);\n  std::printf(\"%d\\n\", *r);\n}",
+      "options": [
+        "`30`",
+        "`20`",
+        "`40`",
+        "Undefined behavior"
+      ],
+      "answer": 1,
+      "explanation": "Constructing a reverse iterator from `it` makes `it` its base, and a reverse iterator denotes the element before its base. `v.begin() + 2` points at 30, so the reverse iterator dereferences to 20. Expecting 30 is the classic off-by-one: the conversion keeps the position between elements, not the element.",
+      "refs": [
+        "[reverse.iter.cons]",
+        "[reverse.iter.elem]"
+      ]
+    },
+    {
+      "id": "iterator-adaptors-and-sentinels-cbegin-span",
+      "kind": "tricky",
+      "prompt": "In C++23, which of the marked lines is ill-formed?",
+      "code": "#include <iterator>\n#include <ranges>\n#include <span>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3};\n  std::span<int> sp(v);\n  *std::cbegin(sp) = 10;          // 1\n  *std::ranges::cbegin(sp) = 20;  // 2\n}",
+      "options": [
+        "Both lines",
+        "Neither line; a span of non-const `int` is always writable",
+        "Only line 2",
+        "Only line 1"
+      ],
+      "answer": 2,
+      "explanation": "C++23 changed `std::ranges::cbegin` to wrap a mutable iterator in `basic_const_iterator`, whose dereference yields `const int&`, so line 2 is ill-formed. The non-member `std::cbegin` was left alone: it calls `begin` on the span as const, and a span's const `begin()` returns its ordinary mutable iterator, so line 1 compiles and writes to `v[0]`. In C++20 both lines compiled.",
+      "refs": [
+        "[range.access.cbegin]",
+        "[const.iterators]",
+        "[iterator.range]"
+      ]
+    },
+    {
+      "id": "iterator-adaptors-and-sentinels-istream-ctor-reads",
+      "kind": "standardese",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <iterator>\n#include <sstream>\n\nint main() {\n  std::istringstream is(\"1 2 3\");\n  std::istream_iterator<int> it(is);\n  int x = 0;\n  is >> x;\n  std::printf(\"%d %d\\n\", *it, x);\n}",
+      "options": [
+        "`1 1`",
+        "`2 1`",
+        "`1 2`",
+        "Unspecified: it depends on when the iterator first reads"
+      ],
+      "answer": 2,
+      "explanation": "[istream.iterator.cons] specifies that the stream constructor stores the stream and then performs the increment, which extracts the first value. By the time `is >> x` runs, 1 has already been consumed and cached in the iterator, so `x` receives 2 and `*it` returns the cached 1. The timing is specified, not left to the implementation, which is why constructing an `istream_iterator` consumes input even if it is never dereferenced.",
+      "refs": [
+        "[istream.iterator.cons]",
+        "[istream.iterator.ops]"
+      ]
+    },
+    {
+      "id": "iterator-adaptors-and-sentinels-counted-list",
+      "kind": "standardese",
+      "prompt": "What is the type of `c`?",
+      "code": "#include <list>\n#include <ranges>\n\nstd::list<int> l{1, 2, 3, 4};\nauto c = std::views::counted(l.begin(), 2);",
+      "options": [
+        "`std::ranges::subrange<std::list<int>::iterator>`",
+        "`std::ranges::take_view<std::ranges::ref_view<std::list<int>>>`",
+        "`std::span<int>`",
+        "`std::ranges::subrange<std::counted_iterator<std::list<int>::iterator>, std::default_sentinel_t>`"
+      ],
+      "answer": 3,
+      "explanation": "[range.counted] makes `views::counted(it, n)` a `span` for contiguous iterators, `subrange(it, it + n)` for other random-access iterators, and otherwise a `subrange` of a `counted_iterator` and `default_sentinel`. A list iterator is only bidirectional, so the last form is used, which is still a sized range because the count is stored. The first option would require computing `it + 2` up front, which a list iterator cannot do in constant time.",
+      "refs": [
+        "[range.counted]",
+        "[iterators.counted]",
+        "[default.sentinel]"
+      ]
+    }
+  ]
+}

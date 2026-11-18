@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "CTAD",
+    "note": "Overload resolution over fictional functions built from constructors and guides picks the class's template arguments.",
+    "children": [
+      {
+        "label": "Implicit guides",
+        "note": "Each constructor of the primary template becomes a function template returning C<T...>.",
+        "children": [
+          { "label": "Primary template only", "note": "Constructors of partial or explicit specializations are never used." },
+          { "label": "No constructors", "note": "A hypothetical C() is used, so default template arguments can deduce." },
+          { "label": "T&& is not forwarding", "note": "A class parameter's T&& in a constructor does not forward during CTAD." },
+          { "label": "Type, not constructor", "note": "The winner chooses the type; real constructors then initialize it." }
+        ]
+      },
+      {
+        "label": "User-defined guides",
+        "note": "Declarations like Bag(It, It) -> Bag<value_type>, with no body.",
+        "children": [
+          { "label": "Same scope", "note": "A guide must be declared in the scope of its class template." },
+          { "label": "Non-template guides", "note": "Name(const char*) -> Name<std::string> needs no template head." },
+          { "label": "By-value decay", "note": "pair(T1, T2) decays arrays, so pair{1, \"hi\"} holds const char*." },
+          { "label": "Guides win ties", "note": "After partial ordering, a user guide beats a constructor-generated candidate." }
+        ]
+      },
+      {
+        "label": "Copy deduction",
+        "note": "A candidate from a hypothetical C(C) is always added to the set.",
+        "children": [
+          { "label": "Single element copies", "note": "A one-element braced list of a C specialization skips the initializer-list phase." },
+          { "label": "Two elements nest", "note": "std::vector v{other, other} is a vector of vectors." },
+          { "label": "Generic code trap", "note": "std::vector{x} copies when x is a vector and wraps otherwise." }
+        ]
+      },
+      {
+        "label": "Braces and explicit",
+        "note": "CTAD follows ordinary initialization rules once the candidates are formed.",
+        "children": [
+          { "label": "Iterator pairs", "note": "std::vector{b, e} holds two iterators; std::vector(b, e) holds the elements." },
+          { "label": "Explicit guides", "note": "Ignored in T x = init; selecting one in T x = {init} is ill-formed." }
+        ]
+      },
+      {
+        "label": "Later extensions",
+        "note": "C++20 and C++23 widened where guides come from.",
+        "children": [
+          { "label": "Aggregates (C++20)", "note": "An aggregate deduction candidate works with braces and parentheses." },
+          { "label": "Alias templates (C++20)", "note": "The aliased template's guides are adapted to the alias's parameters." },
+          { "label": "Inherited ctors (C++23)", "note": "P2582: using Base<T>::Base contributes guides; GCC 14+, not Clang 21." }
+        ]
+      },
+      {
+        "label": "Limits",
+        "note": "Where and how much CTAD can deduce.",
+        "children": [
+          { "label": "All or nothing", "note": "pair<int> p{1, 2.0} is an invalid template-id, not partial deduction." },
+          { "label": "Allowed places", "note": "Variables with initializers, functional casts, new, and C++20 NTTP types." },
+          { "label": "Not allowed", "note": "Non-static data members, function parameters and return types." }
+        ]
+      }
+    ]
+  }
+}

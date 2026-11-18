@@ -1,0 +1,116 @@
+{
+  "root": {
+    "label": "Strings and string_view",
+    "note": "An owning buffer versus a borrowed window onto characters.",
+    "children": [
+      {
+        "label": "std::string guarantees",
+        "note": "Contiguous, null-terminated storage with vector-like growth and invalidation.",
+        "children": [
+          {
+            "label": "Contiguous storage",
+            "note": "data() works with any pointer-and-length API."
+          },
+          {
+            "label": "Null terminator (C++11)",
+            "note": "data()[size()] is readable and equals the null character; writing another value is undefined."
+          },
+          {
+            "label": "Invalidation",
+            "note": "Non-const members other than operator[], at, data, front, back and begin/end may invalidate."
+          }
+        ]
+      },
+      {
+        "label": "Small string optimization",
+        "note": "An implementation habit, not a standard promise.",
+        "children": [
+          {
+            "label": "Inline short strings",
+            "note": "libstdc++ holds 15 chars, libc++ 22 on 64-bit; the standard names neither."
+          },
+          {
+            "label": "Pointers move with object",
+            "note": "Pointers into a short string point into the string object itself."
+          }
+        ]
+      },
+      {
+        "label": "Modern string API",
+        "note": "Newer members that say what you mean.",
+        "children": [
+          {
+            "label": "resize_and_overwrite (C++23)",
+            "note": "Skips zero-fill; every character you report must be written, and the callable must not throw."
+          },
+          {
+            "label": "npos idioms",
+            "note": "npos is the unsigned maximum, so npos + 1 wraps to zero."
+          },
+          {
+            "label": "starts_with, contains",
+            "note": "C++20 starts_with and ends_with, C++23 contains, avoid npos comparisons."
+          }
+        ]
+      },
+      {
+        "label": "std::string_view",
+        "note": "A non-owning pointer and length.",
+        "children": [
+          {
+            "label": "Not null-terminated",
+            "note": "data()[size()] is not guaranteed; slices continue into the original text."
+          },
+          {
+            "label": "Cheap slicing",
+            "note": "substr, remove_prefix and remove_suffix are O(1) and copy nothing."
+          },
+          {
+            "label": "Dangling from temporaries",
+            "note": "A view built from s + \"x\" outlives the temporary and is undefined to read."
+          },
+          {
+            "label": "Borrowed range",
+            "note": "A string_view is both a view and a borrowed range."
+          }
+        ]
+      },
+      {
+        "label": "Conversions and parameters",
+        "note": "Implicit one way, explicit the other.",
+        "children": [
+          {
+            "label": "string to view implicit",
+            "note": "A conversion operator on string; free and cannot fail."
+          },
+          {
+            "label": "view to string explicit",
+            "note": "A constructor that allocates; assignment and += from a view still work."
+          },
+          {
+            "label": "Choosing parameter types",
+            "note": "string_view for read-only text, string to store it, const char* if terminator needed."
+          }
+        ]
+      },
+      {
+        "label": "Literals and traits",
+        "note": "Suffixes and the template behind the names.",
+        "children": [
+          {
+            "label": "\"x\"s and \"x\"sv",
+            "note": "The s suffix makes a string, sv a view with known length, in std::literals."
+          },
+          {
+            "label": "char_traits",
+            "note": "Supplies comparison and copy; different traits give different types."
+          },
+          {
+            "label": "No view + view",
+            "note": "There is no operator+ for two views; C++26 adds string and view mixes."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "questions": [
+    {
+      "id": "hprcu-empty-protect",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft N5050, what happens when `read()` is called?",
+      "code": "#include <atomic>\n#include <hazard_pointer>\n\nstruct Node : std::hazard_pointer_obj_base<Node> { int value = 0; };\nstd::atomic<Node*> head{new Node()};\n\nint read() {\n  std::hazard_pointer h;\n  Node* p = h.protect(head);\n  return p->value;\n}",
+      "options": [
+        "It returns 0, and `*p` is protected until `h` is destroyed",
+        "`h.protect` allocates a hazard pointer on first use, then returns 0",
+        "Undefined behavior",
+        "Ill-formed: `hazard_pointer` has no default constructor"
+      ],
+      "answer": 2,
+      "explanation": "A default-constructed `hazard_pointer` is *empty*: it owns no hazard pointer at all. `try_protect`, and therefore `protect`, has the precondition that `*this` is not empty, and violating a library precondition is undefined behavior. The default constructor does exist and is `noexcept`. You need `std::make_hazard_pointer()`, which constructs a hazard pointer and may throw `bad_alloc`; nothing allocates lazily.",
+      "refs": [
+        "[saferecl.hp.holder.ctor]",
+        "[saferecl.hp.holder.mem]",
+        "[structure.specifications]"
+      ]
+    },
+    {
+      "id": "hprcu-try-lock",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft N5050, what can `std::rcu_default_domain().try_lock()` return?",
+      "options": [
+        "`false` while an updater is inside `rcu_synchronize`",
+        "Always `true`; it is equivalent to `lock()` and opens a region of RCU protection",
+        "`false` if the calling thread is already inside a region, because regions do not nest",
+        "Either value; it is unspecified"
+      ],
+      "answer": 1,
+      "explanation": "`rcu_domain::try_lock` is specified as equivalent to `lock()` and returns `true`. RCU readers never wait for writers, so there is nothing for it to fail on; it exists only so that `rcu_domain` meets *Cpp17Lockable* and works with `std::scoped_lock`. Regions are explicitly allowed to nest, and `unlock` closes the most recently opened one. Because it always succeeds, the caller must eventually call `unlock`.",
+      "refs": [
+        "[saferecl.rcu.domain.general]",
+        "[saferecl.rcu.domain.members]"
+      ]
+    },
+    {
+      "id": "hprcu-not-protectable",
+      "kind": "warmup",
+      "prompt": "Assuming a conforming C++26 library, is this function well-formed?",
+      "code": "#include <atomic>\n#include <hazard_pointer>\n\nstd::atomic<int*> counter{nullptr};\n\nint peek() {\n  std::hazard_pointer h = std::make_hazard_pointer();\n  int* p = h.protect(counter);\n  return p ? *p : 0;\n}",
+      "options": [
+        "Well-formed: any `atomic<T*>` can be protected",
+        "Well-formed, but `*p` is not protected, so reading it is a data race",
+        "Undefined behavior when `counter` is non-null",
+        "Ill-formed: `int` is not a hazard-protectable type"
+      ],
+      "answer": 3,
+      "explanation": "`protect` is defined in terms of `try_protect`, which *Mandates* that `T` is hazard-protectable: a class with exactly one public, non-virtual base `hazard_pointer_obj_base<T, D>`. A failed *Mandates* condition makes the program ill-formed, so this does not compile. The protection needs that base because the retired object must carry its own deleter, and only hazard-protectable objects can be retired.",
+      "refs": [
+        "[saferecl.hp.general]",
+        "[saferecl.hp.holder.mem]",
+        "[structure.specifications]"
+      ]
+    },
+    {
+      "id": "hprcu-sync-in-region",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft N5050, what happens when one thread calls `reader()`?",
+      "code": "#include <mutex>\n#include <rcu>\n\nvoid reader() {\n  std::scoped_lock region(std::rcu_default_domain());\n  // ... read RCU-protected data ...\n  std::rcu_synchronize();\n}",
+      "options": [
+        "`rcu_synchronize` returns at once, because a thread never waits for its own region",
+        "`rcu_synchronize` waits for other threads' regions and then returns",
+        "`rcu_synchronize` never returns",
+        "Ill-formed: `rcu_synchronize` cannot be called while an `rcu_domain` is locked"
+      ],
+      "answer": 2,
+      "explanation": "`rcu_synchronize` blocks until the unlock closing every region R whose opening lock the call does not strongly happen before. The lock that opened this thread's region is sequenced before the call, so the call does not strongly happen before it, and the call waits for that region to close. The closing unlock is in `region`'s destructor, which runs only after the call returns, so the thread blocks forever. There is no exemption for the calling thread's own region, and nothing makes the code ill-formed.",
+      "refs": [
+        "[saferecl.rcu.domain.func]",
+        "[saferecl.rcu.general]"
+      ]
+    },
+    {
+      "id": "hprcu-sync-vs-barrier",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft N5050, which statement is guaranteed to be true when `rcu_synchronize()` returns in `retire_and_wait`?",
+      "code": "#include <rcu>\n\nstruct Item : std::rcu_obj_base<Item> { int v = 0; };\n\nvoid retire_and_wait(Item* old) {\n  old->retire();\n  std::rcu_synchronize();\n  // here\n}",
+      "options": [
+        "Every region of RCU protection that was open on the default domain when the call began has ended",
+        "`*old` has been deleted",
+        "`*old` has been deleted, unless a reader still holds a pointer to it",
+        "Every deleter scheduled before the call has run"
+      ],
+      "answer": 0,
+      "explanation": "`rcu_synchronize` only waits for pre-existing regions of RCU protection to close. It is not required to run or wait for any scheduled deleter, so `*old` may still exist. Waiting for scheduled evaluations is the job of `rcu_barrier`, and the draft notes explicitly that neither call implies the other. The deleter is now *allowed* to run, because no region that could have seen `old` remains, but the draft only says each scheduled evaluation runs at most once.",
+      "refs": [
+        "[saferecl.rcu.domain.func]",
+        "[saferecl.rcu.general]"
+      ]
+    },
+    {
+      "id": "hprcu-swap-keeps-epoch",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft N5050, is `*p` still protected against reclamation on the line marked `// here`, assuming another thread may retire it at any time?",
+      "code": "#include <atomic>\n#include <hazard_pointer>\n\nstruct Node : std::hazard_pointer_obj_base<Node> { int value = 0; };\nstd::atomic<Node*> head{new Node()};\n\nint read() {\n  std::hazard_pointer keep;\n  Node* p;\n  {\n    std::hazard_pointer h = std::make_hazard_pointer();\n    p = h.protect(head);\n    keep.swap(h);\n  }\n  return p->value; // here\n}",
+      "options": [
+        "No: the protection ended when `h` was destroyed",
+        "Yes: `keep` now owns the hazard pointer, which is still associated with `*p`",
+        "No: `swap` ends the current protection epoch of both objects",
+        "Undefined behavior: `keep` was empty, so it cannot take part in `swap`"
+      ],
+      "answer": 1,
+      "explanation": "`swap` exchanges which `hazard_pointer` object owns which hazard pointer. The draft's note says the hazard pointers themselves are unchanged and keep their associations, and no protection epoch ends or begins. After the swap, `h` is empty, so destroying it destroys nothing, while `keep` owns the hazard pointer still associated with `*p`. `swap` has no non-empty precondition, unlike `protect` and `reset_protection`.",
+      "refs": [
+        "[saferecl.hp.holder.mem]",
+        "[saferecl.hp.holder.ctor]",
+        "[saferecl.hp.general]"
+      ]
+    },
+    {
+      "id": "hprcu-try-protect-fails",
+      "kind": "standardese",
+      "prompt": "Under N5050, `h` is non-empty and `ptr` holds a value previously loaded from `src`. Between that load and this call, another thread stores a different pointer into `src`, and nothing else changes it. After `h.try_protect(ptr, src)` returns `false`, what is the state?",
+      "options": [
+        "`ptr` still holds the old value, and the hazard pointer is associated with it",
+        "`ptr` holds the new value of `src`, and the hazard pointer is associated with it",
+        "`ptr` holds the new value of `src`, and the hazard pointer owned by `h` is unassociated",
+        "`h` is empty, because a failed `try_protect` releases its hazard pointer"
+      ],
+      "answer": 2,
+      "explanation": "`try_protect` saves `old = ptr`, associates the hazard pointer with `*old`, assigns `src.load(memory_order::acquire)` to `ptr`, and, if `old != ptr`, calls `reset_protection()`. So on failure `ptr` is updated to the fresh value but is not yet protected, and the hazard pointer is unassociated. The fresh value is exactly what the next call needs, which is why `protect` is just a loop over `try_protect`. The object stays non-empty; only destruction or being moved from makes it empty.",
+      "refs": [
+        "[saferecl.hp.holder.mem]"
+      ]
+    },
+    {
+      "id": "hprcu-which-throws",
+      "kind": "standardese",
+      "prompt": "In the C++26 draft N5050, which of these functions may exit via an exception?",
+      "options": [
+        "`rcu_obj_base<T, D>::retire`",
+        "`hazard_pointer_obj_base<T, D>::retire`",
+        "`rcu_synchronize`",
+        "`rcu_domain::lock`",
+        "`rcu_retire`"
+      ],
+      "answer": 4,
+      "explanation": "`rcu_retire` is the non-intrusive form: it may allocate memory to remember the pointer and a moved copy of the deleter, and it may throw `bad_alloc` or any exception from initializing that copy. If it throws, nothing is scheduled. The intrusive `retire` members are `noexcept` because the deleter is stored in the object's base class, and `rcu_synchronize`, `rcu_barrier`, `lock` and `unlock` are all `noexcept`.",
+      "refs": [
+        "[saferecl.rcu.domain.func]",
+        "[saferecl.rcu.base]",
+        "[saferecl.hp.base]"
+      ]
+    }
+  ]
+}

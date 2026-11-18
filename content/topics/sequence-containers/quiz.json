@@ -1,0 +1,145 @@
+{
+  "questions": [
+    {
+      "id": "sc-erase-if",
+      "kind": "warmup",
+      "prompt": "In C++23, what does this program print?",
+      "code": "#include <iostream>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3, 4, 5, 6};\n  auto n = std::erase_if(v, [](int x) { return x % 2 == 0; });\n  std::cout << n << ' ' << v.size() << '\\n';\n}",
+      "options": [
+        "3 3",
+        "3 6",
+        "6 3",
+        "Undefined behavior"
+      ],
+      "answer": 0,
+      "explanation": "Since C++20, `std::erase_if` on a `vector` performs the erase-remove idiom for you and returns the number of elements it removed. Three even numbers go, so `n` is 3 and the size drops from 6 to 3. The tempting `3 6` imagines `std::remove_if` alone, which shuffles elements but leaves the size unchanged.",
+      "refs": [
+        "[vector.erasure]",
+        "[alg.remove]"
+      ]
+    },
+    {
+      "id": "sc-explicit-ctor",
+      "kind": "warmup",
+      "prompt": "Which of the three calls is ill-formed?",
+      "code": "#include <vector>\n\nstruct P {\n  explicit P(int);\n};\n\nvoid f(std::vector<P>& v) {\n  v.emplace_back(1);  // (1)\n  v.push_back(P(2));  // (2)\n  v.push_back(3);     // (3)\n}",
+      "options": [
+        "None of them",
+        "Only (2)",
+        "Only (3)",
+        "(2) and (3)"
+      ],
+      "answer": 2,
+      "explanation": "`emplace_back` forwards its arguments to a constructor call, so an explicit constructor is fine. `push_back(P(2))` passes an actual `P`. `push_back(3)` needs an implicit conversion from `int` to `P` to bind the `value_type` parameter, and an explicit constructor forbids that, so only (3) is rejected.",
+      "refs": [
+        "[vector.modifiers]",
+        "[class.conv.ctor]"
+      ]
+    },
+    {
+      "id": "sc-reserve-is-not-resize",
+      "kind": "warmup",
+      "prompt": "What is the behavior of this program?",
+      "code": "#include <vector>\n\nint main() {\n  std::vector<int> v;\n  v.reserve(10);\n  v[0] = 1;\n}",
+      "options": [
+        "Well-formed; `v` now holds one element",
+        "Undefined behavior",
+        "Throws `std::out_of_range`",
+        "Well-formed; element 0 is written but `size()` stays 0"
+      ],
+      "answer": 1,
+      "explanation": "`reserve` only allocates capacity; it creates no elements and leaves `size()` at 0. `operator[]` does no bounds check, and indexing at or past `size()` is undefined behavior, even though the storage exists. `at` would throw `std::out_of_range`, which is the tempting but wrong description of `operator[]`.",
+      "refs": [
+        "[vector.capacity]",
+        "[sequence.reqmts]"
+      ]
+    },
+    {
+      "id": "sc-deque-reference",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <deque>\n#include <iostream>\n\nint main() {\n  std::deque<int> d{1, 2, 3};\n  int& r = d[1];\n  for (int i = 0; i < 1000; ++i) {\n    d.push_back(i);\n    d.push_front(-i);\n  }\n  r = 99;\n  std::cout << d[1001] << '\\n';\n}",
+      "options": [
+        "2",
+        "Undefined behavior: the reference was invalidated",
+        "99",
+        "Implementation-defined"
+      ],
+      "answer": 2,
+      "explanation": "Insertion at either end of a `deque` invalidates iterators but never references or pointers to existing elements. The original element 2 sits at index 1001 after 1000 `push_front` calls, and `r` still names it, so the write is well-defined and the program prints 99. The same program using an iterator instead of `r` would be undefined behavior, which is what makes the first option tempting.",
+      "refs": [
+        "[deque.modifiers]"
+      ]
+    },
+    {
+      "id": "sc-list-splice",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <iterator>\n#include <list>\n\nint main() {\n  std::list<int> a{1, 2, 3}, b{4, 5};\n  auto it = a.begin();\n  b.splice(b.end(), a, it);\n  std::cout << *it << ' ' << std::boolalpha\n            << (std::next(it) == b.end()) << ' ' << a.size() << '\\n';\n}",
+      "options": [
+        "Undefined behavior: `it` is invalidated by the splice",
+        "1 true 2",
+        "1 false 2",
+        "4 true 2"
+      ],
+      "answer": 1,
+      "explanation": "`splice` relinks nodes without copying or destroying anything. Iterators to the moved element stay valid, keep referring to the same element, and now behave as iterators into `b`. The element 1 is the new last element of `b`, so `std::next(it)` equals `b.end()`, and `a` is left with two elements. The third option imagines `it` still belonging to `a`.",
+      "refs": [
+        "[list.ops]"
+      ]
+    },
+    {
+      "id": "sc-vector-growth-copies",
+      "kind": "tricky",
+      "prompt": "With libstdc++ or libc++, what does this program print after `grow`? (The standard only demands the strong exception guarantee; this is what both implementations do for a copyable type.)",
+      "code": "#include <cstdio>\n#include <vector>\n\nstruct S {\n  S() = default;\n  S(const S&) { std::puts(\"copy\"); }\n  S(S&&) { std::puts(\"move\"); }  // not noexcept\n};\n\nint main() {\n  std::vector<S> v;\n  v.reserve(4);\n  while (v.size() < v.capacity()) v.emplace_back();\n  std::puts(\"grow\");\n  v.emplace_back();\n}",
+      "options": [
+        "One `move` line for each old element",
+        "One `copy` line for each old element",
+        "Nothing; growth never touches the old elements",
+        "One `move` line, then the old elements are copied"
+      ],
+      "answer": 1,
+      "explanation": "To keep the strong guarantee, `vector` relocates with `std::move_if_noexcept`: elements are moved only if the move constructor is `noexcept` or the type cannot be copied. Here the move constructor may throw and a copy constructor exists, so every old element is copied, and the originals stay intact if a copy throws. Marking the move constructor `noexcept` would flip the output to `move`.",
+      "refs": [
+        "[vector.modifiers]"
+      ]
+    },
+    {
+      "id": "sc-forward-list-size",
+      "kind": "standardese",
+      "prompt": "Is this program well-formed in C++23?",
+      "code": "#include <forward_list>\n\nint main() {\n  std::forward_list<int> f{1, 2, 3};\n  return static_cast<int>(f.size());\n}",
+      "options": [
+        "Well-formed; `size()` is linear time",
+        "Well-formed; `size()` is constant time",
+        "Ill-formed: `forward_list` has no `size()` member",
+        "Unspecified"
+      ],
+      "answer": 2,
+      "explanation": "`forward_list` is specified as a container that omits `size()`, so that it can keep the same space overhead as a hand-written singly linked list. Use `std::distance(f.begin(), f.end())` and accept the linear cost. `list`, by contrast, has a constant-time `size()` since C++11.",
+      "refs": [
+        "[forward.list]",
+        "[container.reqmts]"
+      ]
+    },
+    {
+      "id": "sc-insert-range",
+      "kind": "standardese",
+      "prompt": "In C++23, what does this program print?",
+      "code": "#include <array>\n#include <iostream>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2};\n  std::array<int, 2> a{8, 9};\n  auto it = v.insert_range(v.begin(), a);\n  std::cout << *it << ' ';\n  v.append_range(a);\n  std::cout << v.size() << '\\n';\n}",
+      "options": [
+        "1 6",
+        "Ill-formed: `insert_range` returns `void`",
+        "9 6",
+        "8 6"
+      ],
+      "answer": 3,
+      "explanation": "C++23 added range-aware members. `insert_range` returns an iterator to the first inserted element (the 8), and `append_range` returns `void`. The vector goes from 2 to 4 to 6 elements. Dereferencing `it` before the append matters, because a reallocation in `append_range` would invalidate it.",
+      "refs": [
+        "[vector.modifiers]",
+        "[sequence.reqmts]"
+      ]
+    }
+  ]
+}

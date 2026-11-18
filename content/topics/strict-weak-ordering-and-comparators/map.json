@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Strict weak ordering",
+    "note": "The shape every library comparator must have: a ranking with ties.",
+    "children": [
+      {
+        "label": "The four laws",
+        "note": "Required by [alg.sorting.general] for sorting and ordered containers.",
+        "children": [
+          { "label": "Irreflexive", "note": "comp(a, a) is false: nothing comes before itself." },
+          { "label": "Asymmetric", "note": "If comp(a, b) then not comp(b, a)." },
+          { "label": "Transitive", "note": "comp(a, b) and comp(b, c) imply comp(a, c)." },
+          { "label": "Incomparability transitive", "note": "Ties chain: equiv(a, b) and equiv(b, c) imply equiv(a, c); this makes it weak, not partial." }
+        ]
+      },
+      {
+        "label": "Equivalence",
+        "note": "equiv(a, b) is !comp(a, b) && !comp(b, a); operator== is never consulted.",
+        "children": [
+          { "label": "Set lookup", "note": "find, count and contains locate equivalent keys; a case-insensitive set rejects \"APPLE\" after \"Apple\"." },
+          { "label": "ranges::find differs", "note": "Generic searches use ==, so they can disagree with the container's own lookup." },
+          { "label": "min, max, merge", "note": "On equivalent arguments min and max return the first; merge takes from the first range first." }
+        ]
+      },
+      {
+        "label": "Broken comparators",
+        "note": "Violating the laws is undefined behavior, not an odd but valid order.",
+        "children": [
+          { "label": "<= or >=", "note": "Breaks irreflexivity; libstdc++ sort can read out of bounds on long runs of equal values." },
+          { "label": "NaN with <", "note": "NaN ties with everything, so incomparability is not transitive." },
+          { "label": "OR of two keys", "note": "Breaks asymmetry: (1,2) and (2,1) each come before the other." },
+          { "label": "Debug checking", "note": "-D_GLIBCXX_DEBUG checks irreflexivity in std::sort; release builds check nothing." }
+        ]
+      },
+      {
+        "label": "Writing them right",
+        "note": "Compare the next key only when the previous keys tie.",
+        "children": [
+          { "label": "std::tie", "note": "tie(a.x, a.y) < tie(b.x, b.y) compares lexicographically; needs lvalues." },
+          { "label": "<=> chains", "note": "if (auto c = a.k <=> b.k; c != 0) return c < 0; then the next key." },
+          { "label": "strong_order for doubles", "note": "std::strong_order(a, b) < 0 is a total order that also orders NaN and signed zeros." }
+        ]
+      },
+      {
+        "label": "sort vs stable_sort",
+        "note": "They differ only in what happens to equivalent elements.",
+        "children": [
+          { "label": "sort", "note": "O(N log N) comparisons in the worst case since C++11; equivalent order unspecified." },
+          { "label": "stable_sort", "note": "Keeps equivalent elements in input order; O(N log^2 N) if no buffer is available." }
+        ]
+      },
+      {
+        "label": "Ranges tools",
+        "note": "Constrained algorithms add concepts and projections.",
+        "children": [
+          { "label": "ranges::less", "note": "Default comparator, constrained by totally_ordered_with; total order over pointers." },
+          { "label": "strict_weak_order concept", "note": "Purely syntactic: ranges::less_equal satisfies it." },
+          { "label": "Projections", "note": "Applied to elements, not to the searched value; ranges::sort(v, {}, &P::age)." }
+        ]
+      }
+    ]
+  }
+}

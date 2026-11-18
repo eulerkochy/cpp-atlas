@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "strict-weak-ordering-and-comparators-case-insensitive-set",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <algorithm>\n#include <cctype>\n#include <cstdio>\n#include <set>\n#include <string>\n\nstruct CaseLess {\n  bool operator()(const std::string& a, const std::string& b) const {\n    auto lower = [](unsigned char c) { return std::tolower(c); };\n    return std::ranges::lexicographical_compare(a, b, {}, lower, lower);\n  }\n};\n\nint main() {\n  std::set<std::string, CaseLess> s{\"Apple\"};\n  auto [it, inserted] = s.insert(\"APPLE\");\n  std::printf(\"%zu %d %s\\n\", s.size(), inserted, it->c_str());\n}",
+      "options": [
+        "`2 1 APPLE`",
+        "`1 0 Apple`",
+        "`1 1 APPLE`",
+        "`1 0` followed by either spelling; which one is kept is unspecified"
+      ],
+      "answer": 1,
+      "explanation": "`std::set` decides whether a key is already present by equivalence under its comparator, `!comp(a, b) && !comp(b, a)`, and the two strings are equivalent when compared case-insensitively. The insertion is rejected, `inserted` is false, and the returned iterator points at the existing element, which keeps its original spelling. `2 1 APPLE` is what you would expect if the set used `operator==`, which it never does. Which element survives is not unspecified: the existing element is never replaced by a rejected insertion.",
+      "refs": [
+        "[associative.reqmts.general]",
+        "[alg.sorting.general]"
+      ]
+    },
+    {
+      "id": "strict-weak-ordering-and-comparators-or-of-keys",
+      "kind": "warmup",
+      "prompt": "Which strict weak ordering law does this comparator break?",
+      "code": "struct Pt { int x, y; };\n\nbool comp(const Pt& a, const Pt& b) {\n  return a.x < b.x || a.y < b.y;\n}",
+      "options": [
+        "Irreflexivity: `comp(p, p)` can be true",
+        "None; it is a valid lexicographic comparison",
+        "Only transitivity of incomparability",
+        "Asymmetry: `comp({1, 2}, {2, 1})` and `comp({2, 1}, {1, 2})` are both true"
+      ],
+      "answer": 3,
+      "explanation": "With `a = {1, 2}` and `b = {2, 1}`, the first call is true because `1 < 2` on `x`, and the second is true because `1 < 2` on `y`, so each point claims to come before the other. Irreflexivity holds, since neither `p.x < p.x` nor `p.y < p.y` can be true. A real lexicographic comparison only looks at `y` when the `x` values tie, which is what `std::tie(a.x, a.y) < std::tie(b.x, b.y)` does.",
+      "refs": [
+        "[alg.sorting.general]",
+        "[concept.strictweakorder]"
+      ]
+    },
+    {
+      "id": "strict-weak-ordering-and-comparators-stable-projection",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <algorithm>\n#include <cstdio>\n#include <string>\n#include <vector>\n\nstruct P { std::string name; int age; };\n\nint main() {\n  std::vector<P> ps{{\"bo\", 30}, {\"al\", 25}, {\"cy\", 30}, {\"di\", 25}};\n  std::ranges::stable_sort(ps, {}, &P::age);\n  for (auto& p : ps) std::printf(\"%s \", p.name.c_str());\n}",
+      "options": [
+        "`al di bo cy `",
+        "`al bo cy di `",
+        "`di al cy bo `",
+        "Any order with the 25s before the 30s"
+      ],
+      "answer": 0,
+      "explanation": "The projection makes the algorithm compare ages only, so `al` and `di` are equivalent, as are `bo` and `cy`. `stable_sort` keeps equivalent elements in their original relative order: `al` came before `di` and `bo` before `cy`. The last option describes `std::ranges::sort`, which makes no promise about the order within a group of equivalent elements.",
+      "refs": [
+        "[stable.sort]",
+        "[alg.sorting.general]"
+      ]
+    },
+    {
+      "id": "strict-weak-ordering-and-comparators-find-vs-contains",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <algorithm>\n#include <cctype>\n#include <cstdio>\n#include <set>\n#include <string>\n\nstruct CaseLess {\n  bool operator()(const std::string& a, const std::string& b) const {\n    auto lower = [](unsigned char c) { return std::tolower(c); };\n    return std::ranges::lexicographical_compare(a, b, {}, lower, lower);\n  }\n};\n\nint main() {\n  std::set<std::string, CaseLess> s{\"Apple\"};\n  std::string key = \"APPLE\";\n  bool a = s.contains(key);\n  bool b = std::ranges::find(s, key) != s.end();\n  std::printf(\"%d %d\\n\", a, b);\n}",
+      "options": [
+        "`1 1`",
+        "`0 0`",
+        "`1 0`",
+        "`0 1`"
+      ],
+      "answer": 2,
+      "explanation": "`contains` searches the tree with the container's comparator, so it finds the element equivalent to `\"APPLE\"`. `std::ranges::find` knows nothing about the set's ordering and compares each element with `==`, and `\"Apple\" == \"APPLE\"` is false. The two answers disagree because one uses equivalence and the other equality.",
+      "refs": [
+        "[associative.reqmts.general]",
+        "[alg.find]"
+      ]
+    },
+    {
+      "id": "strict-weak-ordering-and-comparators-nan-fix",
+      "kind": "tricky",
+      "prompt": "`v` is a `std::vector<double>` that may contain NaN. Which comparator makes `std::sort(v.begin(), v.end(), comp)` well-defined for every possible content of `v`?",
+      "options": [
+        "`[](double a, double b) { return a < b; }`",
+        "`[](double a, double b) { return !(a >= b); }`",
+        "`[](double a, double b) { return std::partial_order(a, b) < 0; }`",
+        "`[](double a, double b) { return std::strong_order(a, b) < 0; }`"
+      ],
+      "answer": 3,
+      "explanation": "`std::strong_order` on IEEE floating-point types implements a total order over all values, including NaNs and signed zeros, so it is a strict weak ordering on any input. `a < b` and `std::partial_order(a, b) < 0` are the same relation, under which NaN is incomparable with everything, which breaks transitivity of incomparability. `!(a >= b)` is true in both directions when either operand is NaN, which breaks asymmetry, and for NaN against itself it breaks irreflexivity too.",
+      "refs": [
+        "[cmp.alg]",
+        "[alg.sorting.general]"
+      ]
+    },
+    {
+      "id": "strict-weak-ordering-and-comparators-concept-syntactic",
+      "kind": "tricky",
+      "prompt": "What happens when this translation unit is compiled?",
+      "code": "#include <concepts>\n#include <functional>\n\nstatic_assert(std::strict_weak_order<std::ranges::less, int, int>);        // 1\nstatic_assert(std::strict_weak_order<std::ranges::less_equal, int, int>);  // 2",
+      "options": [
+        "Both assertions pass",
+        "Assertion 2 fails because `<=` is reflexive",
+        "Assertion 2 fails because `less_equal` is not a `relation`",
+        "It is ill-formed, no diagnostic required, and the compiler rejects it"
+      ],
+      "answer": 0,
+      "explanation": "`strict_weak_order<R, T, U>` is defined as `relation<R, T, U>`: the irreflexivity and transitivity laws are semantic requirements that the compiler cannot check. `ranges::less_equal` is a predicate callable with two `int`s, so it satisfies the concept and the assertion passes. Passing it to `std::ranges::sort` would compile too, while still breaking the requirement the concept documents.",
+      "refs": [
+        "[concept.strictweakorder]",
+        "[concepts.equality]"
+      ]
+    },
+    {
+      "id": "strict-weak-ordering-and-comparators-equivalence-def",
+      "kind": "standardese",
+      "prompt": "Given a set `s` with comparator `comp`, which element does `s.find(k)` locate according to the standard?",
+      "options": [
+        "An element `e` with `e == k`",
+        "An element `e` with `!comp(e, k) && !comp(k, e)`",
+        "An element `e` with `!comp(k, e)`",
+        "The first element `e` with `!comp(e, k)`"
+      ],
+      "answer": 1,
+      "explanation": "Associative containers look up keys by equivalence, which [alg.sorting.general] defines as `!comp(a, b) && !comp(b, a)`; `operator==` is never used, so a set with a case-insensitive comparator finds keys that are not equal. `!comp(k, e)` alone accepts any element that is not greater than `k`, and the first `e` with `!comp(e, k)` is what `lower_bound` returns, which may be greater than `k`. Only the two-sided test identifies an equivalent key.",
+      "refs": [
+        "[associative.reqmts.general]",
+        "[alg.sorting.general]"
+      ]
+    },
+    {
+      "id": "strict-weak-ordering-and-comparators-less-equal-set",
+      "kind": "standardese",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <functional>\n#include <set>\n\nint main() {\n  std::set<int, std::less_equal<int>> s;\n  s.insert(1);\n  s.insert(1);\n  return static_cast<int>(s.size());\n}",
+      "options": [
+        "It is ill-formed: `std::less_equal` does not meet the requirements of `Compare`, so the declaration is rejected",
+        "It is well-defined and returns 2, because the keys are never equivalent",
+        "It is well-defined and returns 1",
+        "It has undefined behavior"
+      ],
+      "answer": 3,
+      "explanation": "[associative.reqmts.general] requires the comparator of an associative container to induce a strict weak ordering on the keys, and `<=` is not irreflexive. Breaking a requirement on a user-supplied template argument is undefined behavior by [res.on.functions], so no outcome is guaranteed. Mainstream implementations will happily store two 1s, which makes the second option tempting, but that is an observation about implementations, not a guarantee. Nothing in the type system checks the semantics, so the program does compile.",
+      "refs": [
+        "[associative.reqmts.general]",
+        "[res.on.functions]"
+      ]
+    }
+  ]
+}

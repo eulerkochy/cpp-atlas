@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "Variadic templates and folds",
+    "note": "A pack stands for zero or more arguments and can only be expanded.",
+    "children": [
+      {
+        "label": "Kinds of pack",
+        "note": "Packs exist at every level a template can be parameterized.",
+        "children": [
+          { "label": "Template packs", "note": "Type, non-type and template template packs: class... Ts, int... Ns." },
+          { "label": "Function parameter packs", "note": "Ts... xs; C++20 lambdas add init-capture packs [...ys = xs]." },
+          { "label": "sizeof...", "note": "Counts elements as a std::size_t constant; unrelated to object sizes." }
+        ]
+      },
+      {
+        "label": "Pack expansion",
+        "note": "pattern... repeats the whole pattern once per element.",
+        "children": [
+          { "label": "Pattern placement", "note": "f(g(xs)...) calls g per element; g(f(xs...)) calls g once." },
+          { "label": "Lockstep packs", "note": "Several packs in one pattern must have the same length." },
+          { "label": "List contexts only", "note": "Arguments, initializers, bases, captures, using-declarations and folds." },
+          { "label": "xs + 1...", "note": "1... lexes as one pp-number; write (xs + 1)... instead." }
+        ]
+      },
+      {
+        "label": "Fold forms",
+        "note": "C++17 reduces a pack with one of 32 binary operators.",
+        "children": [
+          { "label": "Unary right", "note": "(E op ...) groups as E1 op (E2 op E3)." },
+          { "label": "Unary left", "note": "(... op E) groups as (E1 op E2) op E3." },
+          { "label": "Binary folds", "note": "(E op ... op I) and (I op ... op E) add an initial value." },
+          { "label": "Operand restriction", "note": "The operand is a cast-expression: parenthesize xs * 2 inside a fold." }
+        ]
+      },
+      {
+        "label": "Empty packs",
+        "note": "Only three unary folds have a value for zero elements.",
+        "children": [
+          { "label": "&& and ||", "note": "An empty && fold is true and an empty || fold is false." },
+          { "label": "Comma", "note": "An empty comma fold is void()." },
+          { "label": "Everything else", "note": "Empty unary + or * is ill-formed; use a binary fold with an identity." }
+        ]
+      },
+      {
+        "label": "Evaluation order",
+        "note": "Which expansions run their elements first to last.",
+        "children": [
+          { "label": "Comma fold", "note": "(f(xs), ...) is sequenced left to right, in either fold direction." },
+          { "label": "Call arguments", "note": "sink(f(xs)...) evaluates the elements in unspecified order." },
+          { "label": "Overloaded comma", "note": "Cast to void, (void(f(xs)), ...), to bypass a user operator comma." }
+        ]
+      },
+      {
+        "label": "Packs and deduction",
+        "note": "How a pack gets its length.",
+        "children": [
+          { "label": "Trailing pack", "note": "A last function parameter pack deduces one element per remaining argument." },
+          { "label": "Non-trailing pack", "note": "Never deduced from the call; supply it explicitly." },
+          { "label": "Forwarding packs", "note": "Args&&... args with std::forward<Args>(args)... keeps each category." }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "Fundamental types",
+    "note": "Minimum widths and an ordering, then promotion and the usual arithmetic conversions before every operator.",
+    "children": [
+      {
+        "label": "Integer guarantees",
+        "note": "The standard fixes minimum widths and a range ordering, not exact sizes.",
+        "children": [
+          { "label": "Minimum widths", "note": "signed char, short, int, long, long long: at least 8, 16, 16, 32 and 64 bits." },
+          { "label": "LP64 vs LLP64", "note": "long is 64 bits on Linux and macOS but 32 bits on 64-bit Windows." },
+          { "label": "Two's complement (C++20)", "note": "Signed range is exactly -2^(N-1) to 2^(N-1)-1; integer conversions wrap modulo 2^N." },
+          { "label": "Overflow still UB", "note": "Signed arithmetic that leaves the type's range is undefined even in C++20." }
+        ]
+      },
+      {
+        "label": "char",
+        "note": "char, signed char and unsigned char are three distinct types.",
+        "children": [
+          { "label": "Signedness", "note": "Implementation-defined: signed on x86-64 Linux and Apple arm64, unsigned on arm64 Linux." },
+          { "label": "Character types", "note": "char8_t, char16_t, char32_t and wchar_t are distinct types with underlying integer types." }
+        ]
+      },
+      {
+        "label": "Integral promotion",
+        "note": "Operands narrower than int are widened before arithmetic.",
+        "children": [
+          { "label": "Small to int", "note": "char, short and their variants become int if int holds all values, else unsigned int." },
+          { "label": "bool to int", "note": "false becomes 0 and true becomes 1, so true + true is the int 2." },
+          { "label": "Wide characters", "note": "Promote to the first of int, unsigned, long and so on that fits; char32_t usually becomes unsigned." },
+          { "label": "unsigned short trap", "note": "Two large unsigned shorts multiply as signed int and can overflow: undefined behavior." }
+        ]
+      },
+      {
+        "label": "Usual conversions",
+        "note": "[expr.arith.conv] brings both operands of a binary operator to one common type.",
+        "children": [
+          { "label": "Conversion rank", "note": "long long > long > int > short > signed char; unsigned matches signed; bool is lowest." },
+          { "label": "Floating wins", "note": "An integer operand converts to the floating type; between floats, the lower rank converts." },
+          { "label": "Unsigned wins ties", "note": "If the unsigned type's rank is at least the signed one's, the signed operand becomes unsigned." },
+          { "label": "Platform-dependent case", "note": "A wider signed type absorbs the unsigned one only if it can represent all of its values." },
+          { "label": "Enum mixing", "note": "Enum with float, or two enum types, was deprecated in C++20 and is ill-formed in C++26." }
+        ]
+      },
+      {
+        "label": "Comparison traps",
+        "note": "Mixed-sign comparisons convert negatives into huge unsigned values.",
+        "children": [
+          { "label": "-1 < 0u is false", "note": "Same rank, so -1 converts to UINT_MAX before comparing." },
+          { "label": "size() - 1", "note": "On an empty container the subtraction wraps to the maximum size_t value." },
+          { "label": "std::cmp_less (C++20)", "note": "Compares the mathematical values of any two standard integer types." }
+        ]
+      },
+      {
+        "label": "Other types",
+        "note": "bool, fixed-width integers and the floating types.",
+        "children": [
+          { "label": "bool conversion", "note": "Zero, null pointer and null member pointer become false; everything else true." },
+          { "label": "Fixed-width integers", "note": "std::intN_t is optional; std::int_leastN_t and std::int_fastN_t always exist." },
+          { "label": "Extended floats (C++23)", "note": "std::float16_t and friends in <stdfloat>; implicit conversion to a lower rank is not allowed." }
+        ]
+      }
+    ]
+  }
+}

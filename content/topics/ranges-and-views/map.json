@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Ranges and views",
+    "note": "A range has begin and end; a view is a range cheap to move and destroy, composed lazily.",
+    "children": [
+      {
+        "label": "Range concepts",
+        "note": "range needs ranges::begin and ranges::end in amortized constant time.",
+        "children": [
+          { "label": "Sentinels", "note": "The end may have a different type from the iterator; common_range means they match." },
+          { "label": "sized_range", "note": "ranges::size in amortized O(1); filter_view is not sized." },
+          { "label": "viewable_range", "note": "A range that views::all can safely turn into a view." },
+          { "label": "constant_range", "note": "C++23: elements cannot be modified through the range's iterators." }
+        ]
+      },
+      {
+        "label": "What makes a view",
+        "note": "range, movable and enable_view, plus semantic complexity rules.",
+        "children": [
+          { "label": "Cheap operations", "note": "O(1) move, O(1) copy if copyable, destruction O(N+M) over N copies." },
+          { "label": "Opting in", "note": "Derive from view_interface or view_base, or specialize enable_view." },
+          { "label": "C++20 defect reports", "note": "P2325 dropped default construction; P2415 allowed move-only owning views." },
+          { "label": "Not a view", "note": "std::vector is a range but copying it is O(n), so enable_view is false." }
+        ]
+      },
+      {
+        "label": "views::all",
+        "note": "Every adaptor converts its input with views::all first.",
+        "children": [
+          { "label": "Views pass through", "note": "An argument that is already a view is copied or moved." },
+          { "label": "ref_view", "note": "Lvalue ranges are wrapped by pointer; the container must outlive the view." },
+          { "label": "owning_view", "note": "Rvalue containers are moved in; the result is move-only." }
+        ]
+      },
+      {
+        "label": "Lazy evaluation",
+        "note": "Building a pipeline computes nothing; work happens on iteration.",
+        "children": [
+          { "label": "Recomputed each pass", "note": "transform calls its function on every dereference, every time." },
+          { "label": "transform then filter", "note": "Kept elements are transformed twice: once by the predicate, once by the loop." }
+        ]
+      },
+      {
+        "label": "Caching and const",
+        "note": "Views that cannot find begin in O(1) compute it once and store it.",
+        "children": [
+          { "label": "Not const-iterable", "note": "filter, drop_while and some drop views lack a const begin()." },
+          { "label": "Take by value", "note": "Generic code should accept views by value or auto&&, not const&." },
+          { "label": "Stale caches", "note": "Container operations that invalidate iterators also invalidate cached ones." },
+          { "label": "filter invariant", "note": "Writing a value that fails the predicate through filter_view is UB." }
+        ]
+      },
+      {
+        "label": "Materializing and looping",
+        "note": "Views store no elements; containers and loops consume them.",
+        "children": [
+          { "label": "ranges::to", "note": "C++23: builds a container, deducing the element type from a template." },
+          { "label": "Range-based for", "note": "Uses member or ADL begin and end, not ranges::begin; types may differ since C++17." }
+        ]
+      }
+    ]
+  }
+}

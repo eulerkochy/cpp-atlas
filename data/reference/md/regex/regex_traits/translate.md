@@ -1,0 +1,25 @@
+# std::regex_traits<CharT>::translate
+
+Source: https://en.cppreference.com/w/cpp/regex/regex_traits/translate
+
+```cpp
+CharT translate( CharT c ) const;
+```
+
+Obtains the comparison key for the character `c`, such that all characters that are equivalent to this character in the imbued locale produce the same key.
+
+When the regex library needs to match two characters `c1` and `c2` and the flag `std::regex_constants::collate` is `true`, it executes `regex_traits<>::translate(c1) == regex_traits<>::translate(c2)`.
+
+Standard library specializations of `std::regex_traits` return `c` unmodified.
+
+## Parameters
+
+- `c` - character that needs to be examined for equivalence
+
+## Return value
+
+The comparison key for `c` in the currently imbued locale.
+
+## Example
+
+> Note: This section is incomplete Reason: no example

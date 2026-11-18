@@ -1,0 +1,152 @@
+{
+  "questions": [
+    {
+      "id": "reflection-runtime-info",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, what happens with this program?",
+      "code": "#include <meta>\n\nint main() {\n  std::meta::info r = ^^int;\n  (void)r;\n}",
+      "options": [
+        "It is ill-formed: `std::meta::info` is a consteval-only type, so `r` must be a `constexpr` variable",
+        "It compiles and `r` holds a reflection of `int` at run time",
+        "It compiles, but `r` holds the null reflection at run time",
+        "Undefined behavior: reflections are only valid during compilation"
+      ],
+      "answer": 0,
+      "explanation": "[basic.types.general] makes `std::meta::info` a consteval-only type. Every object of such a type must belong to a `constexpr` variable, be a template parameter object, or live entirely within one constant evaluation. `r` is an ordinary automatic variable in `main`, so the program is ill-formed, and GCC 16 rejects it. Writing `constexpr std::meta::info r = ^^int;` fixes it. There is no run-time representation of a reflection at all, which is why the \"holds a reflection at run time\" answer is wrong.",
+      "refs": [
+        "[basic.types.general]",
+        "[expr.const.imm]"
+      ]
+    },
+    {
+      "id": "reflection-template-for-tuple",
+      "kind": "warmup",
+      "prompt": "What does this C++26 program print?",
+      "code": "#include <cstdio>\n#include <tuple>\n#include <type_traits>\n\nint main() {\n  template for (auto x : std::tuple{1, 2.5, 'c'}) {\n    if constexpr (std::is_same_v<decltype(x), double>) continue;\n    std::printf(\"%d \", static_cast<int>(x));\n  }\n  std::puts(\"\");\n}",
+      "options": [
+        "`1 2 99`",
+        "`1 99`",
+        "Nothing; it is ill-formed because `continue` cannot appear in an expansion statement",
+        "Nothing; it is ill-formed because `x` would need a single type for all elements"
+      ],
+      "answer": 1,
+      "explanation": "`std::tuple` has no `begin` or `end`, so this is a destructuring expansion statement. The body is instantiated once per element, with `x` of type `int`, then `double`, then `char`. In the `double` copy the `if constexpr` branch is taken, and `continue` skips to the next instantiation, which [stmt.cont] allows inside an expansion statement. The output is `1 99 `, with 99 the value of `'c'`. The \"single type\" answer describes an ordinary range-for, which is exactly what `template for` exists to avoid.",
+      "refs": [
+        "[stmt.expand]",
+        "[stmt.cont]"
+      ]
+    },
+    {
+      "id": "reflection-access-context",
+      "kind": "warmup",
+      "prompt": "What does this program print? Compile it with `-std=c++26 -freflection` on GCC 16.",
+      "code": "#include <meta>\n#include <cstdio>\n\nstruct S {\n  int a;\nprivate:\n  int b;\npublic:\n  int c;\n};\n\nint main() {\n  constexpr auto n = std::meta::nonstatic_data_members_of(\n      ^^S, std::meta::access_context::current()).size();\n  constexpr auto m = std::meta::nonstatic_data_members_of(\n      ^^S, std::meta::access_context::unchecked()).size();\n  std::printf(\"%zu %zu\\n\", n, m);\n}",
+      "options": [
+        "`3 3`",
+        "`2 2`",
+        "`2 3`",
+        "Nothing; reading private members through reflection is ill-formed"
+      ],
+      "answer": 2,
+      "explanation": "Member queries return only the members that are accessible from the given `access_context`. `current()` checks access from `main`, which cannot see the private `b`, so only `a` and `c` are returned. `unchecked()` skips access checking entirely, so all three members are returned. Reflection does not forbid seeing private members, but it makes the caller ask for that explicitly, which is why `3 3` is wrong.",
+      "refs": [
+        "[meta.reflection.access.context]",
+        "[meta.reflection.member.queries]",
+        "[meta.reflection.access.queries]"
+      ]
+    },
+    {
+      "id": "reflection-identifier-of-int",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, what is the result of this declaration?",
+      "code": "#include <meta>\n\nconstexpr auto s = std::meta::identifier_of(^^int);",
+      "options": [
+        "`s` is a `std::string_view` equal to `\"int\"`",
+        "`s` is an empty `std::string_view`",
+        "The text of `s` is implementation-defined",
+        "It is ill-formed: `identifier_of` throws `std::meta::exception`, so the initializer is not a constant expression"
+      ],
+      "answer": 3,
+      "explanation": "`identifier_of(r)` throws `std::meta::exception` unless `has_identifier(r)` is true. For a type, `has_identifier` is true only for an unqualified class or enumeration type without template arguments, or a type with a typedef name for linkage purposes. `int` is a keyword, not an identifier, so the call throws, the exception escapes the constant evaluation, and the `constexpr` initializer is ill-formed. The implementation-defined answer describes `display_string_of`, which is the function to use for printable names.",
+      "refs": [
+        "[meta.reflection.names]",
+        "[meta.reflection.exception]",
+        "[expr.const]"
+      ]
+    },
+    {
+      "id": "reflection-longest-type-id",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, what happens with this code?",
+      "code": "#include <meta>\n\nusing Int = int;\nconstexpr std::meta::info r = ^^Int;\nstatic_assert(r != ^^int && std::meta::is_type_alias(r));",
+      "options": [
+        "It is ill-formed: `^^int &&` is parsed as a reflection of the type `int&&`",
+        "It compiles: `^^Int` reflects the alias, which is a different reflection from `^^int`",
+        "The `static_assert` fails, because `^^Int` and `^^int` are equal",
+        "It is ill-formed: a type alias cannot be the operand of `^^`"
+      ],
+      "answer": 0,
+      "explanation": "[expr.reflect] parses a reflect-expression as the longest token sequence that could form one. `^^int &&` is a valid reflect-expression of the type-id `int&&`, so the condition becomes `r != ^^int&& std::meta::is_type_alias(r)`, which is a syntax error. Parenthesizing as `(r != ^^int) && ...` makes it compile. The tempting \"It compiles\" answer has the right semantics: `^^Int` does represent the alias and compares unequal to `^^int`, and `dealias(^^Int) == ^^int`.",
+      "refs": [
+        "[expr.reflect]",
+        "[meta.reflection.queries]"
+      ]
+    },
+    {
+      "id": "reflection-define-aggregate-context",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, is this translation unit well-formed?",
+      "code": "#include <meta>\n\nstruct S;\nconstexpr auto r = std::meta::define_aggregate(^^S, {\n    std::meta::data_member_spec(^^int, {.name = \"x\"})});",
+      "options": [
+        "Yes: `S` becomes an aggregate with one `int` member `x`",
+        "Yes, but `S` remains incomplete until the end of the translation unit",
+        "No: `data_member_spec` requires the name as a `std::u8string`",
+        "No: `define_aggregate` may produce its injected declaration only while evaluating a `consteval` block"
+      ],
+      "answer": 3,
+      "explanation": "An expression that would produce an injected declaration is not a core constant expression unless it is the expression of a `consteval` block. So the initializer of `r` is not constant, and the declaration is ill-formed. Writing `consteval { std::meta::define_aggregate(^^S, {...}); }` at namespace scope works. The name may be any ordinary or UTF-8 string, so the `u8string` option is wrong. GCC 16 reports \"define_aggregate not evaluated from consteval block\".",
+      "refs": [
+        "[expr.const]",
+        "[expr.const.reflect]",
+        "[meta.reflection.define.aggregate]",
+        "[dcl.pre]"
+      ]
+    },
+    {
+      "id": "reflection-constexpr-function-info",
+      "kind": "standardese",
+      "prompt": "Under the C++26 draft, which of these declarations is ill-formed?",
+      "code": "#include <meta>\n\nconsteval bool a(std::meta::info r) { return r == ^^int; }\n\nconstexpr bool b(std::meta::info r) { return r == ^^int; }\n\ntemplate <class T>\nconstexpr bool c(T r) { return r == ^^int; }\n\nconstexpr auto d = [](std::meta::info r) { return r == ^^int; };",
+      "options": [
+        "`a`",
+        "`b`",
+        "`c`",
+        "`d`"
+      ],
+      "answer": 1,
+      "explanation": "A function whose type mentions a consteval-only type must be an immediate function. `a` is declared `consteval`. A specialization of the `constexpr` template `c` and the lambda's call operator in `d` are immediate-escalating, so they become immediate functions automatically. `b` is a plain non-template `constexpr` function, which is never immediate-escalating, so it is ill-formed. GCC 16 says \"function of consteval-only type must be declared consteval\".",
+      "refs": [
+        "[basic.types.general]",
+        "[expr.const.imm]"
+      ]
+    },
+    {
+      "id": "reflection-annotation-count",
+      "kind": "standardese",
+      "prompt": "Under the C++26 draft, what does this program print?",
+      "code": "#include <meta>\n#include <cstdio>\n\n[[=1, =2, =1]] void g();\nvoid g [[=3]] ();\n\nint main() {\n  constexpr auto n = std::meta::annotations_of(^^g).size();\n  std::printf(\"%zu\\n\", n);\n}",
+      "options": [
+        "`2`",
+        "`3`",
+        "`4`",
+        "Nothing; it is ill-formed because `g` is declared twice with different annotations"
+      ],
+      "answer": 2,
+      "explanation": "Each annotation, and each instantiation of one, produces a unique annotation, so the repeated `=1` counts twice. For a function, `annotations_of` collects the annotations from every reachable declaration, so the redeclaration adds `=3`. That makes four. The answer `2` assumes annotations deduplicate by value like a set, and `3` forgets one of the two sources. The draft's own example in [dcl.attr.annotation] makes the same point with five annotations.",
+      "refs": [
+        "[dcl.attr.annotation]",
+        "[meta.reflection.annotation]"
+      ]
+    }
+  ]
+}

@@ -28,8 +28,11 @@ export type TopicQuizKind = "warmup" | "tricky" | "standardese";
 export interface CppRefLink {
   title: string;
   path: string;
+  /** /w/cpp/<path> when the offline snapshot has the page, else the cppreference.com URL. */
   href: string;
   externalUrl: string;
+  /** Whether href points at the offline copy. */
+  local: boolean;
 }
 
 export interface TopicMapNode {

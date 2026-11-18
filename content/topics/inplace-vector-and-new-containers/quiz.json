@@ -1,0 +1,151 @@
+{
+  "questions": [
+    {
+      "id": "inplace-vector-and-new-containers-overflow",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, what does this program print?",
+      "code": "#include <cstdio>\n#include <inplace_vector>\n#include <new>\n\nint main() {\n  std::inplace_vector<int, 2> v{1, 2};\n  if (auto r = v.try_push_back(3))\n    std::puts(\"appended\");\n  else\n    std::puts(\"full\");\n  try {\n    v.push_back(3);\n  } catch (const std::bad_alloc&) {\n    std::puts(\"bad_alloc\");\n  }\n  std::printf(\"%zu\\n\", v.size());\n}",
+      "options": [
+        "`appended`, `bad_alloc`, `3`",
+        "`full`, `bad_alloc`, `2`",
+        "`full`, then `std::length_error` escapes `main` and `std::terminate` is called",
+        "`full`, then undefined behavior, because `push_back` on a full `inplace_vector` has a precondition"
+      ],
+      "answer": 1,
+      "explanation": "`try_push_back` on a full vector has no effects and returns `nullopt`, so `full` is printed. `push_back` on a full `inplace_vector` throws `std::bad_alloc`, even though nothing was allocated, and it has no effects on the container, so the size is still 2. The precondition answer describes `unchecked_push_back`, which is the member whose overflow is undefined behavior. `length_error` is what `vector` throws when a request exceeds `max_size()`, but it is not what `inplace_vector` uses for exceeding its capacity.",
+      "refs": [
+        "[inplace.vector.overview]",
+        "[inplace.vector.modifiers]"
+      ]
+    },
+    {
+      "id": "inplace-vector-and-new-containers-optional-range",
+      "kind": "warmup",
+      "prompt": "In C++26, what does this program print?",
+      "code": "#include <cstdio>\n#include <optional>\n#include <ranges>\n\nint main() {\n  std::optional<int> o = 4;\n  int sum = 0;\n  for (int x : o | std::views::transform([](int x) { return x * 10; }))\n    sum += x;\n  o.reset();\n  for (int x : o)\n    sum += x;\n  std::printf(\"%d\\n\", sum);\n}",
+      "options": [
+        "`40`",
+        "`44`",
+        "Nothing: it is ill-formed, because `optional` is not a range",
+        "Undefined behavior, because the second loop iterates an empty optional"
+      ],
+      "answer": 0,
+      "explanation": "Since P3168R2, `optional<T>` has `begin()` and `end()`, and `ranges::enable_view` is true for it, so it is a view of zero or one elements that composes with range adaptors. The first loop sees one element, 4, transformed to 40. After `reset()`, `begin() == end()`, so the second loop runs zero times, which is well-defined. The ill-formed answer was correct in C++23.",
+      "refs": [
+        "[optional.iterators]",
+        "[optional.syn]"
+      ]
+    },
+    {
+      "id": "inplace-vector-and-new-containers-indirect-copy",
+      "kind": "warmup",
+      "prompt": "In C++26, what does this program print?",
+      "code": "#include <cstdio>\n#include <memory>\n#include <string>\n\nint main() {\n  std::indirect<std::string> a(std::string(\"hi\"));\n  std::indirect<std::string> b = a;\n  b->append(\"!\");\n  std::printf(\"%s %s %d\\n\", a->c_str(), b->c_str(), a == b);\n}",
+      "options": [
+        "`hi! hi! 1`",
+        "`hi hi! 1`",
+        "`hi hi! 0`",
+        "Nothing: `indirect` is move-only, so the copy is ill-formed"
+      ],
+      "answer": 2,
+      "explanation": "Copying an `indirect` allocates a new owned object and copy-constructs it from `*a`, so `b` owns a separate string, and appending to it leaves `a` alone. `==` between two `indirect` objects compares the owned values, not the pointers, and \"hi\" differs from \"hi!\", so it yields false. The first option describes `shared_ptr`-like shallow sharing. The move-only answer describes `unique_ptr`, which is exactly what `indirect` was designed to replace for value-like members.",
+      "refs": [
+        "[indirect.ctor]",
+        "[indirect.relops]"
+      ]
+    },
+    {
+      "id": "inplace-vector-and-new-containers-optional-ref-rebind",
+      "kind": "tricky",
+      "prompt": "In C++26, what does this program print?",
+      "code": "#include <cstdio>\n#include <optional>\n\nint main() {\n  int a = 1, b = 2;\n  std::optional<int&> r = a;\n  r = b;\n  *r = 3;\n  std::printf(\"%d %d\\n\", a, b);\n}",
+      "options": [
+        "`2 3`: the assignment writes `b` through to `a`, and `*r` still refers to `a`",
+        "`1 3`",
+        "`3 2`",
+        "Nothing: `optional<int&>` is ill-formed"
+      ],
+      "answer": 1,
+      "explanation": "`optional<T&>` (P2988R12) holds a pointer, and its assignment rebinds rather than assigning through. `r = b` converts `b` to an `optional<int&>` and copy-assigns that pointer, so afterwards `r` refers to `b`, so `*r = 3` changes `b` and leaves `a` as 1. The first option is the assign-through semantic that was debated for years and rejected, because it would make an engaged and a disengaged optional behave differently on assignment. `optional<int&>` was ill-formed before C++26, but it is valid now.",
+      "refs": [
+        "[optional.optional.ref]",
+        "[optional.ref.ctor]",
+        "[optional.ref.assign]"
+      ]
+    },
+    {
+      "id": "inplace-vector-and-new-containers-indirect-const",
+      "kind": "tricky",
+      "prompt": "In C++26, is this program well-formed?",
+      "code": "#include <memory>\n\nstruct Counter {\n  std::indirect<int> n{0};\n  void bump() const { ++*n; }\n};\n\nint main() {\n  Counter c;\n  c.bump();\n}",
+      "options": [
+        "Well-formed: `const` applies to the wrapper, not to the owned `int`, as with `unique_ptr`",
+        "Ill-formed: `std::indirect<int>` cannot be initialized with `{0}`",
+        "Well-formed, but undefined behavior, because it modifies an object through a const path",
+        "Ill-formed: in a `const` member, `*n` is a `const int&`"
+      ],
+      "answer": 3,
+      "explanation": "`indirect` propagates const. Its `operator*() const` returns `const T&`, so inside a `const` member function `*n` is a `const int` lvalue, and incrementing it is ill-formed. That is the key difference from `unique_ptr<int>`, where `const` stops at the pointer and the first option would be correct. The `{0}` initializer is fine, because the `explicit` converting constructor is allowed in direct-list-initialization.",
+      "refs": [
+        "[indirect.obs]",
+        "[indirect.ctor]"
+      ]
+    },
+    {
+      "id": "inplace-vector-and-new-containers-optional-ref-temporary",
+      "kind": "tricky",
+      "prompt": "In C++26, is this program well-formed?",
+      "code": "#include <optional>\n\nint main() {\n  std::optional<const int&> r = 42;\n  (void)r;\n}",
+      "options": [
+        "Well-formed: the temporary's lifetime is extended to match `r`, as with `const int& r = 42;`",
+        "Well-formed, but `r` dangles at the end of the statement, so any later use is undefined behavior",
+        "Ill-formed: the converting constructor is defined as deleted, because it would bind to a temporary",
+        "Ill-formed: `optional` cannot hold a reference to `const`"
+      ],
+      "answer": 2,
+      "explanation": "The constructor `optional<T&>(U&&)` is defined as deleted when `reference_constructs_from_temporary_v<T&, U>` is true, and binding `const int&` to the prvalue 42 creates a temporary. Lifetime extension applies only to a reference bound directly in a declaration. A reference bound inside a constructor call would dangle, which is the bug the second option describes and the deleted constructor prevents. References to `const` are allowed; `optional<const int&> r = x;` for an `int x` is fine.",
+      "refs": [
+        "[optional.ref.ctor]",
+        "[class.temporary]"
+      ]
+    },
+    {
+      "id": "inplace-vector-and-new-containers-polymorphic-move",
+      "kind": "standardese",
+      "prompt": "`Shape` is a polymorphic base class and `Circle` derives from it. What does the C++26 draft guarantee about `p.valueless_after_move()` after the last line?",
+      "code": "#include <memory>\n\nstruct Shape { virtual ~Shape() = default; };\nstruct Circle : Shape { double r = 1; };\n\nint main() {\n  std::polymorphic<Shape> p(Circle{});\n  std::polymorphic<Shape> q = std::move(p);\n  (void)q;\n}",
+      "options": [
+        "It is `true`, as it is for `indirect`",
+        "It is `false`: `p` still owns a moved-from `Circle`",
+        "Nothing: it may be `true` or `false`",
+        "The question is moot, because calling any member on a moved-from `polymorphic` is undefined behavior"
+      ],
+      "answer": 2,
+      "explanation": "The move constructor of `polymorphic` says that `*this` either takes ownership of the owned object of `other`, or owns an object of the same type constructed from it as an rvalue. It has no postcondition about `other`, unlike `indirect`'s move constructor, which promises that `other` is valueless. The latitude allows an implementation to store small objects inline. Calling `valueless_after_move()` is always allowed, so the last option is wrong. GCC 16 happens to take ownership, which gives `true`, but that is not guaranteed.",
+      "refs": [
+        "[polymorphic.ctor]",
+        "[indirect.ctor]",
+        "[polymorphic.general]"
+      ]
+    },
+    {
+      "id": "inplace-vector-and-new-containers-hive-stability",
+      "kind": "standardese",
+      "prompt": "`h` is a `std::hive<int>` with many elements, and `p` points to one of them. According to the C++26 draft, which call may invalidate `p` even though that element is not erased?",
+      "options": [
+        "`h.insert(7)`",
+        "`h.erase(it)`, where `it` refers to a different element",
+        "`h.reserve(h.capacity() * 2)`",
+        "`h.shrink_to_fit()`",
+        "`h.trim_capacity()`"
+      ],
+      "answer": 3,
+      "explanation": "`shrink_to_fit` may reallocate elements, and if it does, all references, pointers and iterators into the hive are invalidated and the element order may change. Insertion invalidates only the past-the-end iterator, and erasure invalidates only what refers to the erased elements, which is the whole point of `hive`. `reserve` and `trim_capacity` only add or free reserved blocks, and the draft says they leave every reference, pointer and iterator valid. `sort` and `reshape` can also invalidate, but they are not offered here.",
+      "refs": [
+        "[hive.capacity]",
+        "[hive.modifiers]",
+        "[hive.overview]"
+      ]
+    }
+  ]
+}

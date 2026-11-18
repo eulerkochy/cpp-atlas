@@ -1,0 +1,62 @@
+{
+  "root": {
+    "label": "Type traits",
+    "note": "Class templates the compiler evaluates to map types to constants or to other types.",
+    "children": [
+      {
+        "label": "How traits are built",
+        "note": "A primary template gives the default answer and specializations add the exceptions.",
+        "children": [
+          { "label": "integral_constant", "note": "Holds a static constexpr value; true_type and false_type are its bool instances." },
+          { "label": "_t and _v helpers", "note": "Alias templates arrived in C++14 and variable templates in C++17; both are conveniences." },
+          { "label": "References are never const", "note": "is_const_v<const int&> is false, and remove_const leaves a reference unchanged." }
+        ]
+      },
+      {
+        "label": "Surprising properties",
+        "note": "Several trait names promise more or less than the question they actually ask.",
+        "children": [
+          { "label": "Trivially copyable", "note": "Asks whether memcpy is valid; a user-provided default constructor does not matter." },
+          { "label": "is_trivial", "note": "Also requires trivial default construction; deprecated in C++26." },
+          { "label": "is_constructible", "note": "Tests direct-initialization T t(args...), so explicit constructors and narrowing count." },
+          { "label": "is_convertible", "note": "Tests copy-initialization through a return statement, so explicit constructors do not count." }
+        ]
+      },
+      {
+        "label": "Transformations",
+        "note": "Traits whose result is a type, read through the _t alias.",
+        "children": [
+          { "label": "decay", "note": "Models pass-by-value: drops references and cv, turns arrays and functions into pointers." },
+          { "label": "remove_cvref", "note": "C++20; strips only references and cv, so arrays stay arrays." },
+          { "label": "common_type", "note": "Decayed type of the conditional operator; int and unsigned give unsigned." }
+        ]
+      },
+      {
+        "label": "Compiler-backed traits",
+        "note": "Questions no specialization can answer are implemented with built-ins.",
+        "children": [
+          { "label": "Built-in intrinsics", "note": "is_union, is_aggregate, is_final and underlying_type need compiler support." },
+          { "label": "Specializing is UB", "note": "Adding specializations of standard traits is undefined behavior unless explicitly permitted." },
+          { "label": "Permitted exceptions", "note": "common_type and, since C++20, basic_common_reference may be specialized for program-defined types." }
+        ]
+      },
+      {
+        "label": "Unevaluated contexts",
+        "note": "Operands that are type-checked but never executed or odr-used.",
+        "children": [
+          { "label": "The operators", "note": "sizeof, decltype, noexcept, non-polymorphic typeid and requires expressions." },
+          { "label": "std::declval", "note": "Returns add_rvalue_reference_t<T>; odr-using it is ill-formed." }
+        ]
+      },
+      {
+        "label": "Control at compile time",
+        "note": "Choosing code paths and combining predicates without unwanted instantiation.",
+        "children": [
+          { "label": "if constexpr", "note": "C++17; a discarded branch is not instantiated, but only inside a template." },
+          { "label": "static_assert(false)", "note": "Fine in a discarded template branch since C++23 (P2593); still fires in non-templates." },
+          { "label": "conjunction", "note": "Stops at the first false argument and never instantiates the rest; a fold over ::value does." }
+        ]
+      }
+    ]
+  }
+}

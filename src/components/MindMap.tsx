@@ -274,7 +274,7 @@ export function MindMap({
               : isRoot
                 ? "var(--ink)"
                 : isBranch
-                  ? "rgb(0 0 0 / 0.28)"
+                  ? "var(--line-strong)"
                   : "var(--line-strong)";
 
             const strokeWidth = isSelected ? 2.2 : 1.25;

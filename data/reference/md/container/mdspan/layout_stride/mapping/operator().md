@@ -1,0 +1,38 @@
+# std::layout_stride::mapping<Extents>::operator()
+
+Source: https://en.cppreference.com/w/cpp/container/mdspan/layout_stride/mapping/operator()
+
+```cpp
+template< class... Indices >
+constexpr index_type operator()( Indices... indices ) const noexcept; // (since C++23)
+```
+
+Maps the multidimensional index `indices` into an offset value.
+
+Equivalent to `return ((static_cast<index_type>(indices) * stride(P)) +... + 0);` where `P` is a pack such that `std::is_same_v<std::index_sequence_for<Indices...>, std::index_sequence<P...>>` is `true`.
+
+This overload participates in overload resolution only if:
+
+- `sizeof...(Indices) == extents_type​::​rank()` is `true`,
+- `(std::is_convertible_v<Indices, index_type> &&...)` is `true`, and
+- `(std::is_nothrow_constructible_v<index_type, Indices> &&...)` is `true`.
+
+If `extents_type​::index-cast(i)` is not a multidimensional index in `extents()`, the behavior is undefined.
+
+## Parameters
+
+- `indices` - the multidimensional index in the underlying extents object
+
+## Return value
+
+The offset value.
+
+## Example
+
+> Note: This section is incomplete Reason: no example
+
+## See also
+
+- [`operator()`](https://en.cppreference.com/w/cpp/container/mdspan/layout_left/mapping/operator()): maps a multidimensional index into an offset value (public member function of `std::layout_left::mapping<Extents>`)
+- [`operator()`](https://en.cppreference.com/w/cpp/container/mdspan/layout_right/mapping/operator()): maps a multidimensional index into an offset value (public member function of `std::layout_right::mapping<Extents>`)
+- [`operator[]`](https://en.cppreference.com/w/cpp/container/mdspan/operator_at): accesses an element at the specified multidimensional index (public member function of `std::mdspan<T,Extents,LayoutPolicy,AccessorPolicy>`)

@@ -1,0 +1,144 @@
+{
+  "questions": [
+    {
+      "id": "chr-u8-to-char-pointer",
+      "kind": "warmup",
+      "prompt": "In C++20, what is the status of this program?",
+      "code": "const char* p = u8\"abc\";\n\nint main() { return 0; }",
+      "options": [
+        "Well-formed: a UTF-8 literal is an array of `const char`",
+        "Ill-formed: `const char8_t*` does not convert to `const char*`",
+        "Well-formed, but the literal is converted to the ordinary literal encoding",
+        "Undefined behavior at the conversion"
+      ],
+      "answer": 1,
+      "explanation": "Since C++20 a `u8` string literal is an array of `const char8_t`, and `char8_t` is a distinct type, so there is no implicit conversion to `const char*`. In C++17 the literal was an array of `const char`, which is why this code used to compile and why the first option feels right. The diagnosis is a compile-time error, not a run-time problem.",
+      "refs": [
+        "[lex.string]",
+        "[basic.fundamental]"
+      ]
+    },
+    {
+      "id": "chr-literal-lengths",
+      "kind": "warmup",
+      "prompt": "In C++17 or later, what is printed? The arrays include the terminating null, which the code subtracts.",
+      "code": "#include <cstdio>\n#include <iterator>\n\nint main() {\n  std::printf(\"%zu %zu %zu\\n\", std::size(u8\"\\u00e9\") - 1,\n              std::size(u\"\\U0001F600\") - 1, std::size(U\"\\U0001F600\") - 1);\n}",
+      "options": [
+        "2 2 1",
+        "2 1 1",
+        "1 1 1",
+        "2 2 2"
+      ],
+      "answer": 0,
+      "explanation": "`u8\"\\u00e9\"` is encoded as UTF-8, where U+00E9 takes two code units. `u\"\\U0001F600\"` is UTF-16, where a code point above U+FFFF becomes a surrogate pair of two code units, and `U\"\\U0001F600\"` is UTF-32, where it is one unit. The option `1 1 1` counts code points, not the code units the arrays hold.",
+      "refs": [
+        "[lex.string]",
+        "[lex.charset]"
+      ]
+    },
+    {
+      "id": "chr-cout-u8",
+      "kind": "warmup",
+      "prompt": "In C++20, what is the status of this program?",
+      "code": "#include <iostream>\n\nint main() {\n  std::cout << u8\"abc\";\n}",
+      "options": [
+        "Well-formed: it prints `abc`",
+        "Well-formed: it prints a pointer value",
+        "Ill-formed: the stream insertion for `const char8_t*` is deleted",
+        "Undefined behavior: the stream reads past the array"
+      ],
+      "answer": 2,
+      "explanation": "C++20 added deleted overloads of `operator<<` for `char8_t` and `const char8_t*` on narrow streams, specifically to stop `u8` literals from printing as a pointer or as numbers. Overload resolution selects the deleted function, which makes the program ill-formed. In C++17 the same line compiled and printed `abc`, because the literal was `const char`.",
+      "refs": [
+        "[lex.string]"
+      ]
+    },
+    {
+      "id": "chr-u8string-size",
+      "kind": "tricky",
+      "prompt": "In C++20 or later, what is printed?",
+      "code": "#include <cstdio>\n#include <string>\n\nint main() {\n  std::u8string s = u8\"e\\u0301\";\n  std::printf(\"%zu\\n\", s.size());\n}",
+      "options": [
+        "1",
+        "2",
+        "4",
+        "3"
+      ],
+      "answer": 3,
+      "explanation": "`size()` counts code units. The letter `e` is one UTF-8 code unit and U+0301, the combining acute accent, is two, so the total is 3. It is also two code points and one grapheme cluster, which is why neither `1` nor `2` is a code-unit count.",
+      "refs": [
+        "[lex.string]",
+        "[basic.fundamental]"
+      ]
+    },
+    {
+      "id": "chr-three-distinct",
+      "kind": "tricky",
+      "prompt": "What is printed on every conforming implementation?",
+      "code": "#include <cstdio>\n#include <type_traits>\n\nint main() {\n  std::printf(\"%d\\n\", std::is_same_v<char, signed char> +\n                       std::is_same_v<char, unsigned char>);\n}",
+      "options": [
+        "1",
+        "2",
+        "0",
+        "It depends on whether `char` is signed"
+      ],
+      "answer": 2,
+      "explanation": "`char`, `signed char` and `unsigned char` are three distinct types in every implementation. Plain `char` behaves like one of the other two, and which one is implementation-defined, but it is never the same type as either. The tempting answer `1` confuses the representation with the type, and the last option is wrong because the result does not change with signedness.",
+      "refs": [
+        "[basic.fundamental]"
+      ]
+    },
+    {
+      "id": "chr-non-bmp-char16",
+      "kind": "tricky",
+      "prompt": "In C++23, what is the status of this declaration?",
+      "code": "char16_t c = u'\\U0001F600';\n\nint main() { return 0; }",
+      "options": [
+        "Well-formed: it holds the high surrogate",
+        "Ill-formed: the code point is not encodable in a single `char16_t`",
+        "Well-formed: the value is truncated to 16 bits",
+        "Implementation-defined value"
+      ],
+      "answer": 1,
+      "explanation": "A character literal holds a single code unit. U+1F600 needs two UTF-16 code units, so it cannot be represented by a `char16_t` character literal, and C++23 makes such a literal ill-formed. Both compilers reject it, and neither truncates silently. `U'\\U0001F600'` would be fine, since `char32_t` holds the whole code point.",
+      "refs": [
+        "[lex.ccon]"
+      ]
+    },
+    {
+      "id": "chr-cctype-negative",
+      "kind": "standardese",
+      "prompt": "Assume `char` is signed, `'\\xE9'` converts to -23, and `EOF` is -1. Which function has undefined behavior when called as shown?",
+      "code": "#include <cctype>\n#include <cstdio>\n\nbool a(char c) { return std::isalpha(c); }\nbool b(char c) { return std::isalpha(static_cast<unsigned char>(c)); }\nbool c() { return std::isalpha(EOF); }\n\nint main() { return b('\\xE9') + c(); }",
+      "options": [
+        "`a`, because `-23` is not representable as `unsigned char` and is not `EOF`",
+        "`b`, because the cast to `unsigned char` can overflow",
+        "`c`, because `EOF` is not a valid argument",
+        "None: `std::isalpha` accepts any `int`"
+      ],
+      "answer": 0,
+      "explanation": "The `<cctype>` functions require an argument representable as `unsigned char` or equal to `EOF`; anything else is undefined. In `a`, a plain `char` with a negative value is passed unchanged, which breaks that rule. In `b` the cast yields 233, which is valid, and `c` passes `EOF`, which is explicitly allowed. The last option mistakes the `int` parameter type for the actual domain.",
+      "refs": [
+        "[basic.fundamental]"
+      ]
+    },
+    {
+      "id": "chr-codecvt-status",
+      "kind": "standardese",
+      "prompt": "A C++23 program uses `std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>` to convert UTF-32 to UTF-8. What does the C++23 standard say?",
+      "code": "#include <codecvt>\n#include <locale>\n#include <string>\n\nint main() {\n  std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;\n  std::string s = conv.to_bytes(U\"abc\");\n  return s.size() == 3 ? 0 : 1;\n}",
+      "options": [
+        "Ill-formed: both were removed in C++20",
+        "The program is valid, and this is the recommended way to convert UTF encodings",
+        "The behavior is undefined because `codecvt_utf8` only supports UCS-2",
+        "The program is valid, and both facilities are deprecated, so a compiler may warn"
+      ],
+      "answer": 3,
+      "explanation": "`<codecvt>` and `std::wstring_convert` were deprecated in C++17 and remain in the C++23 library, so using them is valid and typically produces a deprecation warning. They are listed for removal in C++26. The deprecation is the reason not to call them recommended, and the `char32_t` instantiation is supported, so it is not undefined.",
+      "refs": [
+        "[depr.locale.stdcvt]",
+        "[depr.conversions]"
+      ]
+    }
+  ]
+}

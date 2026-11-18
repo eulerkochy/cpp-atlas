@@ -1,0 +1,67 @@
+{
+  "root": {
+    "label": "Hazard pointers and RCU",
+    "note": "C++26 safe reclamation: writers retire objects and the library deletes them once no reader can still use them.",
+    "children": [
+      {
+        "label": "The reclamation problem",
+        "note": "A lock-free reader may still dereference an object that a writer has just unlinked.",
+        "children": [
+          { "label": "Retire, not delete", "note": "Writers hand removed objects to the library, which picks a safe moment to call the deleter." },
+          { "label": "Status", "note": "P2530R3 and P2545R4, adopted June 2023; feature-test macros are 202306L." },
+          { "label": "Implementations", "note": "Neither libstdc++ 16 nor libc++ 21 ships the headers; Folly is the reference implementation." }
+        ]
+      },
+      {
+        "label": "Hazard pointers",
+        "note": "A reader publishes the address it uses; reclamation skips retired objects whose address is published.",
+        "children": [
+          { "label": "hazard_pointer_obj_base", "note": "Exactly one public non-virtual base of this type makes T hazard-protectable and stores its deleter." },
+          { "label": "make_hazard_pointer", "note": "Constructs an owned, unassociated hazard pointer; may throw bad_alloc." },
+          { "label": "Empty object", "note": "Default-constructed or moved-from; protect and reset_protection on it are undefined behavior." },
+          { "label": "try_protect", "note": "Publish, reload src with acquire, clear protection if it changed; returns whether it was stable." },
+          { "label": "swap", "note": "Exchanges ownership without ending or starting any protection epoch." }
+        ]
+      },
+      {
+        "label": "Retirement rules",
+        "note": "What retire requires and what it does.",
+        "children": [
+          { "label": "At most once", "note": "Retiring the same object twice is undefined behavior." },
+          { "label": "Deleter must not throw", "note": "Undefined behavior if reclaiming or a scheduled evaluation exits via an exception." },
+          { "label": "Intrusive retire is noexcept", "note": "The deleter lives in the base class, so the member retire never allocates." },
+          { "label": "rcu_retire may throw", "note": "The non-intrusive form may allocate, throwing bad_alloc; on throw nothing is scheduled." }
+        ]
+      },
+      {
+        "label": "RCU",
+        "note": "Readers bracket work in regions; deleters run only after every region that could have seen the object ends.",
+        "children": [
+          { "label": "rcu_domain is Lockable", "note": "Meets Cpp17Lockable, so use std::scoped_lock on rcu_default_domain()." },
+          { "label": "try_lock always true", "note": "Equivalent to lock(); readers never wait for writers." },
+          { "label": "Nested regions", "note": "unlock closes the most recently opened region on that domain in the same thread." },
+          { "label": "No reader retries", "note": "A reader sees either the old or the new version and never has to start over." }
+        ]
+      },
+      {
+        "label": "Waiting",
+        "note": "Two blocking calls with different jobs; neither implies the other.",
+        "children": [
+          { "label": "rcu_synchronize", "note": "Blocks until every pre-existing region on the domain has ended; does not run deleters." },
+          { "label": "rcu_barrier", "note": "Blocks until every deleter scheduled before the call has been evaluated." },
+          { "label": "Self-deadlock", "note": "rcu_synchronize inside your own region waits for an unlock that comes after it, so it never returns." },
+          { "label": "No hazard cleanup", "note": "C++26 has no call that forces hazard-pointer reclamation, and no custom domains." }
+        ]
+      },
+      {
+        "label": "Choosing",
+        "note": "Hazard pointers replace reference counts; RCU replaces reader-writer locks.",
+        "children": [
+          { "label": "Bounded garbage", "note": "Hazard pointers bound possibly-reclaimable objects; one stalled RCU reader holds back all deletion." },
+          { "label": "Reader cost", "note": "RCU reads are almost free; hazard pointers cost a publish and reload per protected object." },
+          { "label": "Writers still synchronize", "note": "Both make deletion safe only; concurrent writers need a mutex or compare-and-swap." }
+        ]
+      }
+    ]
+  }
+}

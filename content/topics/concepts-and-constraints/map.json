@@ -1,0 +1,62 @@
+{
+  "root": {
+    "label": "Concepts and constraints",
+    "note": "Constraints are checked by evaluation after deduction and ordered by the structure of their atomic constraints.",
+    "children": [
+      {
+        "label": "Concepts",
+        "note": "A concept is a named constraint; a concept-id is a prvalue of type bool.",
+        "children": [
+          { "label": "Restrictions", "note": "A concept cannot be constrained, specialized, or refer to itself." },
+          { "label": "Four spellings", "note": "Type-constraint, requires-clause, trailing requires-clause, constrained auto." },
+          { "label": "Clause grammar", "note": "Operands are primary expressions; requires (sizeof(T) > 4) needs the parentheses." }
+        ]
+      },
+      {
+        "label": "Requires-expressions",
+        "note": "A bool prvalue that is true when every requirement in its body is valid.",
+        "children": [
+          { "label": "Simple", "note": "Checks that an expression is valid, never that it is true." },
+          { "label": "Type", "note": "typename X; checks that the type can be named." },
+          { "label": "Compound", "note": "{ e } noexcept -> C checks C<decltype((e))>, so lvalues give reference types." },
+          { "label": "Nested", "note": "requires E; is the only requirement that evaluates a value." },
+          { "label": "requires requires", "note": "A clause whose operand is an ad hoc requires-expression." }
+        ]
+      },
+      {
+        "label": "Atomic constraints",
+        "note": "Normalization splits on top-level && and ||; everything else is an opaque atom.",
+        "children": [
+          { "label": "Substitution failure", "note": "An atom whose substitution is invalid is simply not satisfied." },
+          { "label": "Exactly bool", "note": "An atom of type int makes the program ill-formed; no conversion applies." },
+          { "label": "Short-circuit", "note": "In A || B, B is not substituted when A is satisfied." },
+          { "label": "Stable results", "note": "Satisfaction changing between points in the program is IFNDR." }
+        ]
+      },
+      {
+        "label": "Subsumption",
+        "note": "The more constrained of two otherwise equivalent templates wins overload resolution.",
+        "children": [
+          { "label": "Atom identity", "note": "Atoms match only if they come from the same source expression." },
+          { "label": "Build on concepts", "note": "Define Int32 as Integral<T> && ... so it subsumes Integral." },
+          { "label": "Negation is opaque", "note": "!C<T> is one atom and never implies or contradicts C<T>." }
+        ]
+      },
+      {
+        "label": "Constrained auto",
+        "note": "A placeholder with a type-constraint deduces first, then checks the concept.",
+        "children": [
+          { "label": "Abbreviated templates", "note": "Each auto parameter invents its own template parameter." },
+          { "label": "Deduced type first", "note": "C<int> auto checks C<T, int>, with the deduced type as the first argument." }
+        ]
+      },
+      {
+        "label": "Satisfy vs model",
+        "note": "Satisfaction is syntax; modelling adds the concept's semantic requirements.",
+        "children": [
+          { "label": "IFNDR", "note": "Relying on a library concept that is satisfied but not modelled is ill-formed, NDR." }
+        ]
+      }
+    ]
+  }
+}

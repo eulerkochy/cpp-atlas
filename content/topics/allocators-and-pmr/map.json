@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "Allocators and pmr",
+    "note": "An allocator is a handle to a memory source; equal handles can free each other's memory.",
+    "children": [
+      {
+        "label": "Allocator model",
+        "note": "Containers reach allocators only through allocator_traits.",
+        "children": [
+          { "label": "Minimal allocator", "note": "value_type, allocate, deallocate, == and a converting constructor are enough." },
+          { "label": "Traits defaults", "note": "construct, destroy, pointer, max_size and is_always_equal = is_empty come from traits." },
+          { "label": "Rebind", "note": "Node containers allocate nodes through rebind_alloc; rebound copies must compare equal." }
+        ]
+      },
+      {
+        "label": "Propagation traits",
+        "note": "Decide whether the allocator follows the elements on copy, move and swap.",
+        "children": [
+          { "label": "Copy construction", "note": "Uses select_on_container_copy_construction of the source's allocator." },
+          { "label": "POCMA false, unequal", "note": "Move assignment allocates and moves elements one by one, so it may throw." },
+          { "label": "POCS false, unequal", "note": "swap is undefined behavior; there is no element-wise fallback." },
+          { "label": "Move construction", "note": "Always moves the allocator and adopts the buffer; it is noexcept." }
+        ]
+      },
+      {
+        "label": "polymorphic_allocator",
+        "note": "Stores a memory_resource* and forwards to its virtual interface.",
+        "children": [
+          { "label": "memory_resource", "note": "Public allocate, deallocate, is_equal call private virtual do_ functions." },
+          { "label": "Never propagates", "note": "POCCA, POCMA and POCS are all false, so a container keeps its resource." },
+          { "label": "Copies use default", "note": "Copy construction picks get_default_resource(), not the source's resource." },
+          { "label": "Not nothrow move-assign", "note": "pmr::vector move assignment is noexcept(false) because resources may differ." }
+        ]
+      },
+      {
+        "label": "Standard resources",
+        "note": "Two global resources and three resource classes ship with the library.",
+        "children": [
+          { "label": "new_delete_resource", "note": "Uses ::operator new; it is the initial default resource." },
+          { "label": "null_memory_resource", "note": "Throws bad_alloc on every allocation; an upstream that forbids fallback." },
+          { "label": "monotonic_buffer_resource", "note": "Bump allocation; deallocate is a no-op until release() or destruction." },
+          { "label": "Pool resources", "note": "Reuse fixed-size blocks; the synchronized version is thread-safe." }
+        ]
+      },
+      {
+        "label": "Uses-allocator construction",
+        "note": "Passes the container's allocator down to elements that accept one.",
+        "children": [
+          { "label": "Opting in", "note": "uses_allocator, via nested allocator_type, plus a trailing or allocator_arg-led parameter." },
+          { "label": "pmr does it", "note": "polymorphic_allocator::construct makes nested pmr strings share the outer resource." },
+          { "label": "scoped_allocator_adaptor", "note": "C++11 adaptor that performs the same protocol for other allocators." }
+        ]
+      },
+      {
+        "label": "allocate_at_least",
+        "note": "C++23: allocator_traits returns {ptr, count} with count >= n.",
+        "children": [
+          { "label": "Fallback", "note": "Without a member, traits return {allocate(n), n}." },
+          { "label": "Deallocate size", "note": "Pass a size between the requested n and the returned count." }
+        ]
+      }
+    ]
+  }
+}

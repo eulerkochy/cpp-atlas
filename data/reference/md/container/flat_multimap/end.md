@@ -1,0 +1,62 @@
+# std::flat_multimap<Key,T,Compare,KeyContainer,MappedContainer>::end, std::flat_multimap<Key,T,Compare,KeyContainer,MappedContainer>::cend
+
+Source: https://en.cppreference.com/w/cpp/container/flat_multimap/end
+
+```cpp
+iterator end() noexcept; // (1) (since C++23)
+const_iterator end() const noexcept; // (2) (since C++23)
+const_iterator cend() const noexcept; // (3) (since C++23)
+```
+
+Returns an iterator to the element following the last element of the `flat_multimap`.
+
+This element acts as a placeholder; attempting to access it results in undefined behavior.
+
+## Parameters
+
+(none)
+
+## Return value
+
+Iterator to the element following the last element.
+
+## Complexity
+
+Constant.
+
+## Example
+
+```cpp
+#include <iostream>
+#include <flat_map>
+
+int main()
+{
+    std::flat_multimap<int, int> map{{4, 13}, {9, 94}, {1, 19}, {4, 42}};
+
+    for (auto it = map.cbegin(); it != map.cend(); ++it)
+        std::cout << '[' << it->first << "] = " << it->second << '\n';
+
+    // Unlike std::multimap's bidirectional iterators, the std::flat_multimap
+    // iterators are random-access, so they can be used with the operator[]:
+    auto it = map.cbegin();
+    assert(it[1] == 19);
+    assert(it[4] == 13);
+    assert(it[4] == 42);
+    assert(it[9] == 94);
+}
+```
+
+Output:
+
+```text
+[1] = 19
+[4] = 13
+[4] = 42
+[9] = 94
+```
+
+## See also
+
+- [`begin`](https://en.cppreference.com/w/cpp/container/flat_multimap/begin), [`cbegin`](https://en.cppreference.com/w/cpp/container/flat_multimap/begin): returns an iterator to the beginning (public member function)
+- [`end`](https://en.cppreference.com/w/cpp/iterator/end) (C++11), [`cend`](https://en.cppreference.com/w/cpp/iterator/end) (C++14): returns an iterator to the end of a container or array (function template)

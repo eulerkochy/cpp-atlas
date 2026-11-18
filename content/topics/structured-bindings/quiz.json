@@ -1,0 +1,145 @@
+{
+  "questions": [
+    {
+      "id": "structured-bindings-copy-not-alias",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <utility>\n\nstruct S { int v = 1; };\n\nint main() {\n  std::pair<S, int> p;\n  auto [a, b] = p;\n  a.v = 5;\n  std::printf(\"%d\\n\", p.first.v);\n  auto& [c, d] = p;\n  c.v = 7;\n  std::printf(\"%d\\n\", p.first.v);\n}",
+      "options": [
+        "`5`, then `7`",
+        "`1`, then `7`",
+        "`1`, then `1`",
+        "`5`, then `5`"
+      ],
+      "answer": 1,
+      "explanation": "`auto [a, b] = p;` declares a hidden variable `auto e = p;`, which is a copy, and `a` names `e.first`, so the write does not reach `p`. With `auto&`, the hidden variable is a reference to `p`, so `c` names `p.first` and the second write is visible. The first option assumes bindings always alias the initializer, which is only true when the hidden variable is a reference.",
+      "refs": [
+        "[dcl.struct.bind]"
+      ]
+    },
+    {
+      "id": "structured-bindings-lvalue-ref-prvalue",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "#include <utility>\n\nstd::pair<int, int> make() { return {1, 2}; }\n\nint main() {\n  auto& [a, b] = make();\n  return a + b;\n}",
+      "options": [
+        "Well-formed: structured bindings always extend the lifetime of the initializer",
+        "Well-formed, but `a` and `b` dangle after the declaration",
+        "Ill-formed: the hidden variable is a non-const lvalue reference initialized from a prvalue",
+        "Ill-formed: structured bindings cannot have a reference qualifier"
+      ],
+      "answer": 2,
+      "explanation": "The declaration introduces `auto& e = make();`, and a non-const lvalue reference cannot bind to a prvalue, so the program is ill-formed. Lifetime extension would apply if the binding were allowed, which is why `const auto&` and `auto&&` work. Reference qualifiers on structured bindings are perfectly legal.",
+      "refs": [
+        "[dcl.struct.bind]",
+        "[dcl.init.ref]"
+      ]
+    },
+    {
+      "id": "structured-bindings-private-member",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "class P {\n  int x = 1;\npublic:\n  int y = 2;\n};\n\nint main() {\n  auto [a, b] = P{};\n  return a + b;\n}",
+      "options": [
+        "Ill-formed: `x` is not accessible in `main`",
+        "Well-formed: only public members are bound, so `a` is `y`",
+        "Ill-formed, but only because `P` is not an aggregate",
+        "Well-formed: structured bindings ignore access control"
+      ],
+      "answer": 0,
+      "explanation": "With no `std::tuple_size` specialization, the names bind to all non-static data members of `P` in declaration order, and every one of them must be accessible at the point of the declaration. `x` is private and `main` is not a friend, so the program is ill-formed. Private members are not skipped, and aggregate status is irrelevant: binding to members does not use aggregate initialization.",
+      "refs": [
+        "[dcl.struct.bind]",
+        "[class.access]"
+      ]
+    },
+    {
+      "id": "structured-bindings-decltype-tuple",
+      "kind": "tricky",
+      "prompt": "What is `decltype(a)` after this declaration?",
+      "code": "#include <utility>\n\nstd::pair<int, int> p{1, 2};\nauto& [a, b] = p;",
+      "options": [
+        "`int&`",
+        "`const int&`",
+        "`int&&`",
+        "`int`"
+      ],
+      "answer": 3,
+      "explanation": "`std::pair` uses the tuple protocol, and `decltype` of an unparenthesized structured binding is its referenced type, `std::tuple_element<0, std::pair<int, int>>::type`, which is `int`. The `&` makes the hidden variable a reference, but it does not change the referenced type. `int&` is what `decltype((a))` gives, because the parenthesized form uses the rule for lvalue expressions.",
+      "refs": [
+        "[dcl.type.decltype]",
+        "[dcl.struct.bind]"
+      ]
+    },
+    {
+      "id": "structured-bindings-tie-alias",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <tuple>\n\nint main() {\n  int x = 1, y = 2;\n  auto [a, b] = std::tie(x, y);\n  a = 10;\n  std::printf(\"%d %d\\n\", x, y);\n}",
+      "options": [
+        "`1 2`: plain `auto` copies, so `a` is independent",
+        "`10 2`",
+        "Nothing: ill-formed, because `std::tie` returns a prvalue",
+        "Nothing: undefined behavior, because the tuple is a destroyed temporary"
+      ],
+      "answer": 1,
+      "explanation": "`std::tie(x, y)` returns `std::tuple<int&, int&>`, and `auto` makes the hidden variable a tuple of that type. It holds references to `x` and `y`, so `std::tuple_element<0, E>::type` is `int&` and `a` refers to `x` itself. `auto` produces a new tuple, not new ints, and since the hidden variable is an object rather than a reference to the temporary, nothing dangles.",
+      "refs": [
+        "[dcl.struct.bind]",
+        "[tuple.creation]"
+      ]
+    },
+    {
+      "id": "structured-bindings-lifetime",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <utility>\n\nstruct Noisy { ~Noisy() { std::puts(\"~Noisy\"); } };\nstd::pair<Noisy, int> make() { return {}; }\n\nint main() {\n  {\n    const auto& [n, i] = make();\n    std::puts(\"body\");\n    (void)n; (void)i;\n  }\n  std::puts(\"after\");\n}",
+      "options": [
+        "`~Noisy`, `body`, `after`: the temporary dies at the end of the declaration",
+        "`body`, `after`, `~Noisy`",
+        "`body`, `~Noisy`, `after`",
+        "Undefined behavior: `n` and `i` refer into a destroyed temporary"
+      ],
+      "answer": 2,
+      "explanation": "The hidden variable is `const auto& e = make();`, a reference bound directly to the prvalue, so the temporary pair has its lifetime extended to that of `e`, the end of the inner block. `body` is printed while the pair is alive, then `~Noisy` at the closing brace, then `after`. The first and last options assume the bindings themselves would need to extend the lifetime; they do not, because `e` already does.",
+      "refs": [
+        "[class.temporary]",
+        "[dcl.struct.bind]"
+      ]
+    },
+    {
+      "id": "structured-bindings-get-lookup",
+      "kind": "standardese",
+      "prompt": "Both a member `get` and a free `get` exist. What does this program print?",
+      "code": "#include <cstddef>\n#include <cstdio>\n#include <utility>\n\nnamespace geo {\nstruct Pt {\n  int x, y;\n  template <std::size_t I> int get() const { std::puts(\"member\"); return I == 0 ? x : y; }\n};\ntemplate <std::size_t I> int get(const Pt& p) { std::puts(\"free\"); return I == 0 ? p.x : p.y; }\n}\n\ntemplate <> struct std::tuple_size<geo::Pt> : std::integral_constant<std::size_t, 2> {};\ntemplate <std::size_t I> struct std::tuple_element<I, geo::Pt> { using type = int; };\n\nint main() {\n  auto [a, b] = geo::Pt{3, 4};\n  std::printf(\"%d %d\\n\", a, b);\n}",
+      "options": [
+        "`free`, `free`, `3 4`",
+        "Ill-formed: the call to `get` is ambiguous",
+        "`3 4` only: `Pt` is an aggregate, so its data members are bound directly",
+        "`member`, `member`, `3 4`"
+      ],
+      "answer": 3,
+      "explanation": "Because `std::tuple_size<geo::Pt>` is complete, the tuple protocol is used, not direct member binding. [dcl.struct.bind] then uses `e.get<i>()` whenever member lookup for `get` finds a function template whose first template parameter is a non-type parameter, and only otherwise falls back to `get<i>(e)` found by argument-dependent lookup. The two are never put into one overload set, so there is no ambiguity, and the member is called once per binding.",
+      "refs": [
+        "[dcl.struct.bind]",
+        "[tuple.helper]"
+      ]
+    },
+    {
+      "id": "structured-bindings-specifiers-cpp23",
+      "kind": "standardese",
+      "prompt": "In C++23, which of these structured binding declarations at block scope is well-formed?",
+      "options": [
+        "`constexpr auto [a, b] = std::pair{1, 2};`",
+        "`static auto [a, b] = std::pair{1, 2};`",
+        "`inline auto [a, b] = std::pair{1, 2};`",
+        "`extern auto [a, b] = std::pair{1, 2};`"
+      ],
+      "answer": 1,
+      "explanation": "C++20 allowed the storage class specifiers `static` and `thread_local` on structured binding declarations, alongside `auto` and cv-qualifiers. `constexpr` was not permitted until C++26 (P2686); GCC accepts it in C++23 mode only as an extension with a warning, and Clang rejects it. `inline` and `extern` are not allowed in any version.",
+      "refs": [
+        "[dcl.struct.bind]"
+      ]
+    }
+  ]
+}

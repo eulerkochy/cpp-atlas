@@ -42,7 +42,7 @@ export function MapPreview({
           node.depth === 0
             ? "var(--ink)"
             : node.depth === 1
-              ? "rgb(0 0 0 / 0.24)"
+              ? "var(--line-strong)"
               : "var(--line-strong)";
 
         return (

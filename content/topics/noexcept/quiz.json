@@ -1,0 +1,150 @@
+{
+  "questions": [
+    {
+      "id": "noexcept-operator-unevaluated",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nint main() {\n  int n = 0;\n  bool b = noexcept(n++);\n  std::printf(\"%d %d\\n\", n, b);\n}",
+      "options": [
+        "`1 1`",
+        "`0 0`",
+        "`1 0`",
+        "`0 1`"
+      ],
+      "answer": 3,
+      "explanation": "The operand of the `noexcept` operator is unevaluated, exactly like the operand of `sizeof`, so `n++` never runs and `n` stays 0. A built-in increment calls no function and cannot throw, so the result is `true`, printed as 1. The tempting `1 1` assumes the operand is executed to find out whether it throws.",
+      "refs": [
+        "[expr.unary.noexcept]",
+        "[except.spec]"
+      ]
+    },
+    {
+      "id": "noexcept-pointer-conversion",
+      "kind": "warmup",
+      "prompt": "In C++23, which initialization is ill-formed?",
+      "code": "void safe() noexcept;\nvoid risky();\n\nvoid (*a)() = safe;           // #1\nvoid (*b)() noexcept = safe;  // #2\nvoid (*c)() noexcept = risky; // #3\nauto d = +[]() noexcept {};   // #4",
+      "options": [
+        "#1, because the types differ in their exception specification",
+        "#3",
+        "#4, because a lambda's exception specification is not part of its conversion",
+        "None of them; the exception specification is not part of the type"
+      ],
+      "answer": 1,
+      "explanation": "Since C++17 `noexcept` is part of the function type, and the function pointer conversion only removes it: a pointer to a non-throwing function converts to a pointer to a potentially-throwing one, which makes #1 fine. #3 would add a promise that `risky` never made, so it is ill-formed. The last option describes C++14, where the specification was not part of the type.",
+      "refs": [
+        "[conv.fctptr]",
+        "[except.spec]",
+        "[dcl.fct]"
+      ]
+    },
+    {
+      "id": "noexcept-vector-copies",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <vector>\n\nstruct Slow {\n  Slow() = default;\n  Slow(const Slow&) { std::puts(\"copy\"); }\n  Slow(Slow&&) { std::puts(\"move\"); }\n};\n\nint main() {\n  std::vector<Slow> v(1);\n  v.reserve(10);\n}",
+      "options": [
+        "`copy`",
+        "`move`",
+        "Nothing; `reserve` does not touch existing elements",
+        "Either `copy` or `move`; it is unspecified"
+      ],
+      "answer": 0,
+      "explanation": "`reserve` beyond the current capacity reallocates and must relocate the existing element while keeping the strong guarantee. Because `Slow`'s move constructor is potentially throwing and `Slow` is copyable, the library uses `std::move_if_noexcept`, which yields an lvalue and selects the copy constructor. Marking the move constructor `noexcept` would make it print `move`.",
+      "refs": [
+        "[vector.capacity]",
+        "[except.spec]"
+      ]
+    },
+    {
+      "id": "noexcept-implicit-destructor",
+      "kind": "tricky",
+      "prompt": "What happens when this program runs?",
+      "code": "#include <cstdio>\n\nstruct Closer {\n  ~Closer() { throw 1; }\n};\n\nint main() {\n  try {\n    Closer c;\n  } catch (int) {\n    std::puts(\"caught\");\n  }\n}",
+      "options": [
+        "Prints `caught`, since no other exception is in flight",
+        "Ill-formed: a destructor cannot contain a `throw`",
+        "`std::terminate` is called",
+        "Undefined behavior"
+      ],
+      "answer": 2,
+      "explanation": "A destructor declared without a specifier gets the specification of the implicit destructor, which is non-throwing here because `Closer` has no members or bases with throwing destructors. The exception therefore hits a `noexcept` boundary and `std::terminate` is called. `caught` would only be printed if the destructor were declared `noexcept(false)`; the code is well-formed, and compilers merely warn.",
+      "refs": [
+        "[class.dtor]",
+        "[except.spec]",
+        "[except.terminate]"
+      ]
+    },
+    {
+      "id": "noexcept-virtual-override",
+      "kind": "tricky",
+      "prompt": "Which statement about this code is true?",
+      "code": "struct Base {\n  virtual void a() noexcept;\n  virtual void b();\n};\n\nstruct Derived : Base {\n  void a() override;           // #1\n  void b() noexcept override;  // #2\n};",
+      "options": [
+        "Both overrides are well-formed; exception specifications do not affect overriding",
+        "#1 is well-formed and #2 is ill-formed",
+        "Both are ill-formed; an overrider must have exactly the same specification",
+        "#1 is ill-formed and #2 is well-formed"
+      ],
+      "answer": 3,
+      "explanation": "Code calling `a()` through a `Base&` has been promised it will not throw, so an overrider of a non-throwing virtual function must itself be non-throwing, and #1 is ill-formed. The reverse is fine: `Derived::b` makes a stronger promise than `Base::b`, which callers through the base can only benefit from. Requiring an exact match, as the third option claims, is stricter than the rule.",
+      "refs": [
+        "[except.spec]",
+        "[class.virtual]"
+      ]
+    },
+    {
+      "id": "noexcept-temporary-destructor",
+      "kind": "tricky",
+      "prompt": "What is the value of `r`?",
+      "code": "struct Leaky {\n  ~Leaky() noexcept(false);\n};\n\nLeaky make() noexcept;\n\nconstexpr bool r = noexcept(make());",
+      "options": [
+        "`true`, because `make` is `noexcept`",
+        "`false`",
+        "Ill-formed: `make` is declared but not defined",
+        "Ill-formed: the operand of `noexcept` must not create a temporary"
+      ],
+      "answer": 1,
+      "explanation": "The operand `make()` is a prvalue that is a full-expression, so a temporary is materialized and destroyed at its end, and that destruction is part of the expression the operator inspects. `~Leaky` is potentially throwing, so the whole expression is potentially throwing and the result is `false`. Looking only at the called function, as the first option does, misses the implicit destructor call. Because the operand is unevaluated, no definition of `make` is needed.",
+      "refs": [
+        "[expr.unary.noexcept]",
+        "[except.spec]",
+        "[class.temporary]"
+      ]
+    },
+    {
+      "id": "noexcept-violation-unwinding",
+      "kind": "standardese",
+      "prompt": "An exception thrown in `g` propagates up to `f`, which is declared `noexcept`, with no handler in between. What does the C++23 standard say?",
+      "options": [
+        "The exception propagates to `f`'s caller, because `noexcept` is only an optimization hint",
+        "`std::terminate` is called after all locals in `g` and `f` have been destroyed",
+        "`std::terminate` is called; whether the stack is unwound, partially unwound or not unwound first is implementation-defined",
+        "The behavior is undefined"
+      ],
+      "answer": 2,
+      "explanation": "[except.terminate] says that when the search for a handler reaches the outermost block of a function with a non-throwing exception specification, `std::terminate` is called, and it is implementation-defined whether the stack is unwound, unwound partially, or not unwound at all. GCC and Clang destroy `g`'s locals but not `f`'s. The second option is tempting because full unwinding is what happens when a handler is found, but no handler is found here. The behavior is defined, just not fully specified.",
+      "refs": [
+        "[except.terminate]",
+        "[except.spec]"
+      ]
+    },
+    {
+      "id": "noexcept-dynamic-spec-cpp17",
+      "kind": "standardese",
+      "prompt": "Compiled as C++17, is this declaration well-formed?",
+      "code": "void parse() throw(int);",
+      "options": [
+        "Ill-formed: dynamic exception specifications with types were removed in C++17",
+        "Well-formed but deprecated, as in C++11 and C++14",
+        "Well-formed, and equivalent to `noexcept(false)`",
+        "Well-formed, and calls `std::unexpected` if anything other than an `int` escapes"
+      ],
+      "answer": 0,
+      "explanation": "C++11 deprecated dynamic exception specifications, and C++17 removed every form except the empty `throw()`, which it kept as a deprecated synonym for `noexcept(true)` until C++20 removed it too. `std::unexpected`, the handler the last option describes, was removed in C++17 along with them. The second option is the C++14 answer.",
+      "refs": [
+        "[except.spec]",
+        "[diff.cpp14.except]"
+      ]
+    }
+  ]
+}

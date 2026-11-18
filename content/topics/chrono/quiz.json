@@ -1,0 +1,142 @@
+{
+  "questions": [
+    {
+      "id": "chrono-common-type",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <chrono>\n#include <iostream>\nusing namespace std::chrono_literals;\n\nint main() {\n  auto d = 2h + 30min;\n  std::cout << d.count() << '\\n';\n}",
+      "options": [
+        "`32`",
+        "`150`",
+        "`2.5`",
+        "`2`"
+      ],
+      "answer": 1,
+      "explanation": "Adding durations converts both to their common type, the coarsest unit that represents both exactly, which here is `minutes`. So `2h` becomes 120 minutes and the sum is `minutes{150}`. Adding the raw counts, 2 and 30, would ignore the units, which the type system prevents.",
+      "refs": [
+        "[time.duration.nonmember]"
+      ]
+    },
+    {
+      "id": "chrono-implicit-conversion",
+      "kind": "warmup",
+      "prompt": "Which declaration does not compile?",
+      "code": "#include <chrono>\nusing namespace std::chrono;\nusing namespace std::chrono_literals;\n\nint main() {\n  milliseconds a = 2s;                          // (1)\n  duration<double> b = 1500ms;                  // (2)\n  seconds c = 1500ms;                           // (3)\n  seconds d = duration_cast<seconds>(1500ms);   // (4)\n}",
+      "options": [
+        "(1)",
+        "(2)",
+        "(3)",
+        "(4)"
+      ],
+      "answer": 2,
+      "explanation": "A duration converts implicitly only when no precision can be lost: to a finer integer unit, or to any floating-point rep. Converting `1500ms` to integer `seconds` would drop 500 ms, so it needs `duration_cast`, which is why (3) is ill-formed and (4) is fine.",
+      "refs": [
+        "[time.duration.cons]"
+      ]
+    },
+    {
+      "id": "chrono-cast-vs-floor",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <chrono>\n#include <iostream>\nusing namespace std::chrono;\nusing namespace std::chrono_literals;\n\nint main() {\n  std::cout << duration_cast<seconds>(-1500ms).count() << ' '\n            << floor<seconds>(-1500ms).count() << '\\n';\n}",
+      "options": [
+        "`-1 -2`",
+        "`-2 -2`",
+        "`-1 -1`",
+        "`-2 -1`"
+      ],
+      "answer": 0,
+      "explanation": "`duration_cast` converts the representation by truncating toward zero, so -1500 ms becomes -1 s. `floor` rounds toward negative infinity and gives -2 s. For positive values the two agree, which is why the difference is easy to miss.",
+      "refs": [
+        "[time.duration.cast]"
+      ]
+    },
+    {
+      "id": "chrono-month-arith",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <chrono>\n#include <iostream>\nusing namespace std::chrono;\n\nint main() {\n  year_month_day d = 2024y / January / 31;\n  d += months{1};\n  std::cout << d.ok() << ' ' << unsigned(d.day()) << '\\n';\n}",
+      "options": [
+        "`1 29`: the day is clamped to the end of February",
+        "`1 31`",
+        "It throws, because February 31 does not exist",
+        "`0 31`"
+      ],
+      "answer": 3,
+      "explanation": "Adding months to a `year_month_day` changes the month and keeps the day number. The result is February 31, 2024, which is a representable but invalid date, so `ok()` is false and `day()` is still 31. Nothing clamps and nothing throws; you must call `ok()` and decide what to do.",
+      "refs": [
+        "[time.cal.ymd.nonmembers]"
+      ]
+    },
+    {
+      "id": "chrono-duration-division",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <chrono>\n#include <iostream>\nusing namespace std::chrono;\nusing namespace std::chrono_literals;\n\nint main() {\n  std::cout << 1500ms / 1s << ' '\n            << duration<double>(1500ms) / 1s << '\\n';\n}",
+      "options": [
+        "`1.5 1.5`",
+        "`1 1.5`",
+        "`1500 1.5`",
+        "`1 1`"
+      ],
+      "answer": 1,
+      "explanation": "Dividing one duration by another converts both to their common type and divides the counts in the common rep. For `1500ms / 1s` the rep is integral, so the quotient is 1500 / 1000, which is 1. When one operand has a `double` rep, the common rep is `double` and the quotient is 1.5.",
+      "refs": [
+        "[time.duration.nonmember]"
+      ]
+    },
+    {
+      "id": "chrono-ns-overflow",
+      "kind": "tricky",
+      "prompt": "Is this program well-formed in C++23?",
+      "code": "#include <chrono>\nusing namespace std::chrono_literals;\n\nconstexpr auto t = std::chrono::nanoseconds::max() + 1ns;\n\nint main() { (void)t; }",
+      "options": [
+        "Yes: `t` wraps around to `nanoseconds::min()`",
+        "Yes: duration arithmetic saturates at `max()`",
+        "No: the addition overflows the signed representation, which is not a constant expression",
+        "Yes, but `t` has an unspecified value"
+      ],
+      "answer": 2,
+      "explanation": "The representation of `nanoseconds` is a signed integer, and duration addition is ordinary integer addition on it, so exceeding the maximum is signed overflow, which is undefined behavior. A `constexpr` initializer must be a constant expression, and undefined behavior is not one, so the program is ill-formed and the compiler rejects it. At run time the same overflow would silently be undefined behavior; there is no saturation or wraparound guarantee.",
+      "refs": [
+        "[expr.pre]",
+        "[time.duration.nonmember]"
+      ]
+    },
+    {
+      "id": "chrono-ymd-normalize",
+      "kind": "standardese",
+      "prompt": "What does this program print in C++20 or later?",
+      "code": "#include <chrono>\n#include <iostream>\nusing namespace std::chrono;\n\nint main() {\n  year_month_day d = 2023y / February / 30;\n  std::cout << d.ok() << (sys_days{d} == sys_days{2023y / March / 2}) << '\\n';\n}",
+      "options": [
+        "`00`: an invalid date has no `sys_days` value",
+        "`11`",
+        "`10`",
+        "`01`"
+      ],
+      "answer": 3,
+      "explanation": "February 30 is not a valid date, so `ok()` is false. The conversion to `sys_days` is nonetheless specified when the year and month are valid: it gives the first of the month plus the day number minus one. For February 2023 that is March 2, so the comparison is true and the output is `01`. Only an invalid year or month leaves the result unspecified.",
+      "refs": [
+        "[time.cal.ymd.members]"
+      ]
+    },
+    {
+      "id": "chrono-zoned-gap",
+      "kind": "standardese",
+      "prompt": "In the `America/New_York` zone, clocks went from 02:00 to 03:00 on 2024-03-10. What does the standard specify for this program, assuming a time zone database is available?",
+      "code": "#include <chrono>\n#include <iostream>\nusing namespace std::chrono;\nusing namespace std::chrono_literals;\n\nint main() {\n  try {\n    zoned_time z{\"America/New_York\", local_days{2024y / March / 10} + 2h + 30min};\n    std::cout << z << '\\n';\n  } catch (const nonexistent_local_time&) {\n    std::cout << \"gap\\n\";\n  }\n}",
+      "options": [
+        "It prints `gap`: constructing a `zoned_time` from a nonexistent local time throws",
+        "It prints `2024-03-10 03:30:00 EDT`: the time is moved forward by the length of the gap",
+        "It prints `2024-03-10 01:30:00 EST`: the earlier offset is used",
+        "Undefined behavior: the local time does not exist"
+      ],
+      "answer": 0,
+      "explanation": "A local time inside a daylight saving gap maps to no instant. When the `zoned_time` constructor has to pick an instant from such a `local_time` and no `choose` argument was given, it throws `nonexistent_local_time`; the two silent options in the other answers are not behaviors the library provides. The ambiguous case, an hour that occurs twice when clocks go back, throws `ambiguous_local_time` unless `choose::earliest` or `choose::latest` is passed.",
+      "refs": [
+        "[time.zone.zonedtime.ctor]",
+        "[time.zone.exception.nonexist]"
+      ]
+    }
+  ]
+}

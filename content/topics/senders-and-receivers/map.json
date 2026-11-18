@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "Senders and receivers",
+    "note": "C++26 std::execution (P2300 and follow-ups): lazy, composable asynchronous work with structured lifetimes.",
+    "children": [
+      {
+        "label": "Core contract",
+        "note": "The rules in [exec.async.ops] that every sender, receiver and algorithm obeys.",
+        "children": [
+          { "label": "Lazy senders", "note": "A sender only describes work; nothing runs until connect and start." },
+          { "label": "Three channels", "note": "Complete exactly once: set_value with any arguments, set_error with one, set_stopped with none." },
+          { "label": "Operation state lifetime", "note": "Destroying it before completion is undefined behaviour; library op states cannot be copied or moved." },
+          { "label": "Completion signatures", "note": "Computed at compile time by a static consteval member; errors are constexpr exceptions (P3557)." }
+        ]
+      },
+      {
+        "label": "Algorithms",
+        "note": "Factories start chains, adaptors transform them, and all adaptors are pipeable.",
+        "children": [
+          { "label": "just and friends", "note": "just, just_error and just_stopped complete immediately on one channel." },
+          { "label": "then vs let_value", "note": "then sends the callable's result; let_value runs the sender the callable returns." },
+          { "label": "when_all", "note": "Concatenates child values; on error or stop it requests stop on the other children." },
+          { "label": "Reshaping", "note": "into_variant, stopped_as_optional, stopped_as_error, upon_error and the bulk family." }
+        ]
+      },
+      {
+        "label": "Consumers",
+        "note": "Ways to actually connect and start a sender.",
+        "children": [
+          { "label": "sync_wait", "note": "Blocks, returns optional<tuple<...>>, empty when stopped; needs exactly one value signature." },
+          { "label": "Errors become exceptions", "note": "exception_ptr is rethrown, error_code becomes system_error, other errors are thrown as is." },
+          { "label": "co_await and task", "note": "Senders are awaitable; std::execution::task<T> (P3552) is a lazy coroutine that is a sender." }
+        ]
+      },
+      {
+        "label": "Schedulers",
+        "note": "Handles to execution resources; schedule(sch) completes on that resource.",
+        "children": [
+          { "label": "starts_on", "note": "Starts the work on a scheduler; the continuation stays wherever the work completed." },
+          { "label": "continues_on", "note": "Moves the continuation onto a scheduler after the predecessor completes." },
+          { "label": "on", "note": "Goes to a scheduler for the work, then transfers back to where it was started." },
+          { "label": "parallel_scheduler", "note": "From get_parallel_scheduler() (P2079): parallel forward progress, replaceable backend." }
+        ]
+      },
+      {
+        "label": "Cancellation and scopes",
+        "note": "Cooperative stopping and structured ownership of background work.",
+        "children": [
+          { "label": "Stop tokens", "note": "Read from the receiver's environment; when_all supplies its own inplace_stop_token." },
+          { "label": "counting_scope", "note": "spawn and spawn_future associate work with a scope; join() waits for all of it (P3149)." },
+          { "label": "Removed: ensure_started", "note": "P3187 removed ensure_started and start_detached; split is not in C++26 either." }
+        ]
+      },
+      {
+        "label": "Availability",
+        "note": "Status of implementations in late 2026.",
+        "children": [
+          { "label": "No GCC or Clang", "note": "libstdc++ 16 and libc++ 21 do not define __cpp_lib_senders." },
+          { "label": "stdexec and Beman", "note": "NVIDIA stdexec and the Beman project implement the draft outside namespace std." }
+        ]
+      }
+    ]
+  }
+}

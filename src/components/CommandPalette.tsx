@@ -64,7 +64,7 @@ const FLAGSHIP_LINKS = [
   },
 ];
 
-export function CommandPalette() {
+export function CommandPalette({ referencePages }: { referencePages: number }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -150,7 +150,7 @@ export function CommandPalette() {
       open={open}
       onOpenChange={setOpen}
       title="Search topics & cppreference"
-      description="Search all study topics, concept maps, and 7,589 C++ and C reference entries."
+      description={`Search all study topics, concept maps, and ${referencePages.toLocaleString("en-US")} C++ and C reference pages.`}
       className="sm:max-w-xl rounded-[var(--radius-window)] border border-line bg-paper-raised text-ink-body shadow-window"
     >
       <Command shouldFilter={false}>
@@ -162,7 +162,7 @@ export function CommandPalette() {
         <CommandList className="max-h-96">
           <CommandEmpty>
             {loading
-              ? "Searching topics and the 7,589-entry index…"
+              ? `Searching topics and ${referencePages.toLocaleString("en-US")} reference pages…`
               : "Nothing matches. Try a topic like “coroutines” or symbol like “shared_ptr”."}
           </CommandEmpty>
 

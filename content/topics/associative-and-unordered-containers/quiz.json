@@ -1,0 +1,143 @@
+{
+  "questions": [
+    {
+      "id": "aou-subscript-inserts",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <map>\n\nint main() {\n  std::map<int, int> m;\n  int a = m[5];\n  std::cout << m.size() << ' ' << a << '\\n';\n}",
+      "options": [
+        "0 0",
+        "1 0",
+        "Throws `std::out_of_range`",
+        "Undefined behavior: there is no key 5"
+      ],
+      "answer": 1,
+      "explanation": "`operator[]` on a map inserts a value-initialized element when the key is missing, then returns a reference to it. So the size becomes 1 and `a` is 0. Reading with `[]` is therefore never a pure lookup; `at` is the lookup that throws `std::out_of_range`, and `find` or `contains` do not modify anything.",
+      "refs": [
+        "[map.access]",
+        "[associative.reqmts]"
+      ]
+    },
+    {
+      "id": "aou-insert-no-overwrite",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <map>\n\nint main() {\n  std::map<int, int> m;\n  m.insert({1, 10});\n  auto [it, inserted] = m.insert({1, 20});\n  std::cout << it->second << ' ' << inserted << '\\n';\n}",
+      "options": [
+        "20 1",
+        "20 0",
+        "10 1",
+        "10 0"
+      ],
+      "answer": 3,
+      "explanation": "`insert` never overwrites. When an equivalent key is present it does nothing and returns an iterator to the existing element together with `false`, so the mapped value is still 10 and `inserted` prints as 0. To replace a value use `insert_or_assign` or assign through `operator[]`.",
+      "refs": [
+        "[associative.reqmts]"
+      ]
+    },
+    {
+      "id": "aou-const-key",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "#include <map>\n#include <string>\n\nint main() {\n  std::map<std::string, int> m{{\"a\", 1}};\n  auto it = m.begin();\n  it->first = \"b\";\n}",
+      "options": [
+        "Yes; the node is re-keyed and the map stays ordered",
+        "Yes, but the behavior is undefined because the order may break",
+        "No: the key member of the element is `const`",
+        "Yes; the map re-sorts itself on the next lookup"
+      ],
+      "answer": 2,
+      "explanation": "The element type of `map<K, V>` is `pair<const K, V>`, so assigning to `it->first` is rejected at compile time. The constness is what protects the container's ordering invariant. To change a key you must erase the element and insert a new one, or move the node out with `extract` and change `key()` on the node handle.",
+      "refs": [
+        "[map.overview]",
+        "[associative.reqmts]"
+      ]
+    },
+    {
+      "id": "aou-try-emplace-no-move",
+      "kind": "tricky",
+      "prompt": "What is guaranteed to be printed?",
+      "code": "#include <iostream>\n#include <map>\n#include <string>\n#include <utility>\n\nint main() {\n  std::map<int, std::string> m;\n  m.emplace(1, \"old\");\n  std::string s(30, 'x');\n  m.try_emplace(1, std::move(s));\n  std::cout << s.size() << ' ' << m[1] << '\\n';\n}",
+      "options": [
+        "0 old",
+        "Unspecified: `s` may or may not have been moved from",
+        "30 old",
+        "0 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "answer": 2,
+      "explanation": "`try_emplace` looks the key up first and, if it exists, does nothing: the arguments are not moved from. So `s` still holds its 30 characters and the old value stays. With `emplace`, the standard allows the node to be built before the key check, so the same call would leave `s` unspecified, which is why the second option is tempting.",
+      "refs": [
+        "[map.modifiers]"
+      ]
+    },
+    {
+      "id": "aou-multiset-erase-key",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <set>\n\nint main() {\n  std::multiset<int> s{1, 1, 1, 2};\n  auto n = s.erase(1);\n  std::cout << n << ' ' << s.size() << '\\n';\n}",
+      "options": [
+        "3 1",
+        "1 3",
+        "1 1",
+        "Ill-formed: `erase(key)` is not available on a multiset"
+      ],
+      "answer": 0,
+      "explanation": "`erase(const key_type&)` removes every element whose key is equivalent and returns how many it removed, three here, leaving only the 2. To erase a single one of several equivalent elements you must erase by iterator, for example `s.erase(s.find(1))`.",
+      "refs": [
+        "[associative.reqmts]"
+      ]
+    },
+    {
+      "id": "aou-multimap-order",
+      "kind": "tricky",
+      "prompt": "In what order are the mapped values printed?",
+      "code": "#include <iostream>\n#include <map>\n\nint main() {\n  std::multimap<int, char> m;\n  m.insert({1, 'a'});\n  m.insert({1, 'b'});\n  m.insert({0, 'z'});\n  m.insert({1, 'c'});\n  for (auto [k, v] : m) std::cout << v;\n  std::cout << '\\n';\n}",
+      "options": [
+        "zcba",
+        "zabc",
+        "Unspecified: equivalent keys may appear in any order",
+        "abzc"
+      ],
+      "answer": 1,
+      "explanation": "Elements are ordered by key, and `insert` on a multimap places a new element at the upper end of its equivalent range, so equivalent elements keep insertion order. The 0 comes first, then a, b, c. The fourth option is plain insertion order, which ignores the key ordering; the third is wrong because this guarantee exists for `insert` and `emplace`.",
+      "refs": [
+        "[associative.reqmts]"
+      ]
+    },
+    {
+      "id": "aou-hash-eq-mismatch",
+      "kind": "standardese",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <cstddef>\n#include <unordered_set>\n\nstruct Hash {\n  std::size_t operator()(int x) const { return static_cast<std::size_t>(x); }\n};\nstruct Eq {\n  bool operator()(int a, int b) const { return a % 10 == b % 10; }\n};\n\nint main() {\n  std::unordered_set<int, Hash, Eq> s;\n  s.insert(1);\n  s.insert(11);\n}",
+      "options": [
+        "Ill-formed: the hash and equality types must agree",
+        "The set ends with one element",
+        "The set ends with two elements",
+        "Undefined behavior: keys that compare equal must hash equally"
+      ],
+      "answer": 3,
+      "explanation": "The requirements on an unordered container say that if `Pred(a, b)` is true, then `Hash(a) == Hash(b)` must hold. Here 1 and 11 compare equal but hash to different values, which violates a library requirement and makes the behavior undefined. Observing one or two elements on a given implementation proves nothing; the compiler cannot diagnose the mismatch.",
+      "refs": [
+        "[unord.req]"
+      ]
+    },
+    {
+      "id": "aou-bad-comparator",
+      "kind": "standardese",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <functional>\n#include <set>\n\nint main() {\n  std::set<int, std::less_equal<int>> s;\n  s.insert(1);\n  s.insert(1);\n}",
+      "options": [
+        "Undefined behavior: `Compare` must be a strict weak ordering",
+        "Ill-formed: `std::less_equal` is not a valid `Compare`",
+        "The set holds one element",
+        "The set holds two elements"
+      ],
+      "answer": 0,
+      "explanation": "`Compare` for an ordered container must induce a strict weak ordering, which requires `comp(x, x)` to be false. `less_equal` returns true for equal arguments, so the requirement is violated and the behavior is undefined. It compiles, and many implementations will store two elements, but that is an accident of the tree code rather than a guarantee.",
+      "refs": [
+        "[associative.reqmts]",
+        "[alg.sorting]"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "questions": [
+    {
+      "id": "attributes-nodiscard-not-required",
+      "kind": "warmup",
+      "prompt": "In C++23, what does the standard require of a compiler translating `demo`?",
+      "code": "[[nodiscard]] int compute();\n\nvoid demo() {\n  compute();\n}",
+      "options": [
+        "It must reject the program: discarding the result is ill-formed",
+        "It must issue a diagnostic, but may still accept the program",
+        "Nothing: a warning is only recommended practice",
+        "Nothing, but calling `demo` is undefined behavior"
+      ],
+      "answer": 2,
+      "explanation": "[dcl.attr.nodiscard] only encourages a warning when a nodiscard call's result is discarded; it appears under recommended practice. The program is well-formed, a silent compiler is conforming, and nothing about the call's behavior changes. GCC and Clang do warn, which is why the first two options feel right.",
+      "refs": [
+        "[dcl.attr.nodiscard]"
+      ]
+    },
+    {
+      "id": "attributes-unknown-ignored",
+      "kind": "warmup",
+      "prompt": "In C++23, is this program well-formed? No compiler you know of supports `acme::fast`.",
+      "code": "[[acme::fast]] int f();\n\nint f() { return 1; }\n\nint main() { return f(); }",
+      "options": [
+        "Ill-formed: `acme::fast` is not a recognized attribute",
+        "Well-formed: an unrecognized attribute is ignored",
+        "Implementation-defined behavior",
+        "Ill-formed: attribute namespaces other than `gnu`, `clang` and `msvc` are reserved"
+      ],
+      "answer": 1,
+      "explanation": "Since C++17, [dcl.attr.grammar] says an attribute token the implementation does not recognize is ignored, which is what lets vendor attributes appear in portable code. Compilers usually warn, as GCC does with `-Wattributes`. Implementation-defined behavior was the C++11 and C++14 rule for attributes not specified by the standard.",
+      "refs": [
+        "[dcl.attr.grammar]"
+      ]
+    },
+    {
+      "id": "attributes-assume-not-evaluated",
+      "kind": "warmup",
+      "prompt": "In C++23, what does this program print?",
+      "code": "#include <cstdio>\n\nint main() {\n  int i = 0;\n  [[assume(++i > 0)]];\n  std::printf(\"%d\\n\", i);\n}",
+      "options": [
+        "`1`",
+        "Undefined behavior",
+        "Nothing: an assumption may not have side effects, so it is ill-formed",
+        "`0`"
+      ],
+      "answer": 3,
+      "explanation": "The expression of an assumption is never evaluated, so `++i` never runs and `i` is still 0. There is no undefined behavior, because the expression would be true if it were evaluated. Side effects are allowed in the expression; they are simply discarded, and Clang warns that such an assumption is ignored.",
+      "refs": [
+        "[dcl.attr.assume]"
+      ]
+    },
+    {
+      "id": "attributes-nodiscard-position",
+      "kind": "tricky",
+      "prompt": "In C++23, what is the effect of this declaration?",
+      "code": "[[nodiscard]] struct Error { int code; };",
+      "options": [
+        "`Error` becomes a nodiscard type, the same as `struct [[nodiscard]] Error`",
+        "The attribute is ignored because it is in an unrecognized position",
+        "It is ill-formed: an attribute at the start of a declaration needs a declarator to appertain to",
+        "The attribute applies to the next function declared"
+      ],
+      "answer": 2,
+      "explanation": "An attribute specifier at the start of a simple declaration appertains to the entities its declarators declare, and the grammar only allows it when there is a declarator list. This declaration has none, so it is ill-formed; the class attribute belongs after the class key, as in `struct [[nodiscard]] Error`. Clang rejects it, while GCC only warns that the attribute is ignored, which makes the second option look right.",
+      "refs": [
+        "[dcl.pre]",
+        "[dcl.attr.grammar]"
+      ]
+    },
+    {
+      "id": "attributes-nodiscard-reference",
+      "kind": "tricky",
+      "prompt": "Which of the discarded calls in `demo` are nodiscard calls, the ones compilers are encouraged to warn about?",
+      "code": "struct [[nodiscard]] Error { int code; };\n\nError make();\nError& last();\n\nvoid demo() {\n  make();\n  last();\n}",
+      "options": [
+        "Both calls",
+        "Only `make()`",
+        "Only `last()`",
+        "Neither: the attribute is on the type, not on the functions"
+      ],
+      "answer": 1,
+      "explanation": "A nodiscard call is a call to a function declared nodiscard, or a call whose return type is a class or enumeration type marked nodiscard. `make` returns `Error` by value, so it qualifies. `last` returns `Error&`, a reference type, so the type's attribute does not apply; GCC warns about `make()` only.",
+      "refs": [
+        "[dcl.attr.nodiscard]"
+      ]
+    },
+    {
+      "id": "attributes-fallthrough-last",
+      "kind": "tricky",
+      "prompt": "In C++23, is this function well-formed?",
+      "code": "int f(int x) {\n  switch (x) {\n    case 1:\n      ++x;\n      [[fallthrough]];\n    case 2:\n      return x;\n    default:\n      ++x;\n      [[fallthrough]];\n  }\n  return x;\n}",
+      "options": [
+        "Well-formed: falling out of the switch is a kind of fall-through",
+        "Undefined behavior only when the default branch is taken",
+        "Well-formed, but compilers may warn",
+        "Ill-formed: the second `[[fallthrough]];` is not followed by a case or default label"
+      ],
+      "answer": 3,
+      "explanation": "[dcl.attr.fallthrough] requires the next statement executed after a fallthrough statement to be labelled with a case or default label of the same switch, and makes the program ill-formed if there is no such statement. The first use is fine; the second sits at the end of the switch. Clang rejects it, while GCC only warns, which is a permitted diagnostic but makes the third option tempting.",
+      "refs": [
+        "[dcl.attr.fallthrough]"
+      ]
+    },
+    {
+      "id": "attributes-noreturn-first-declaration",
+      "kind": "standardese",
+      "prompt": "In C++23, is this translation unit well-formed?",
+      "code": "void stop();\n[[noreturn]] void stop();",
+      "options": [
+        "Ill-formed: the first declaration must specify `noreturn` if any declaration does",
+        "Well-formed: attributes accumulate across redeclarations",
+        "Ill-formed, no diagnostic required",
+        "Well-formed, and undefined behavior only if `stop` returns"
+      ],
+      "answer": 0,
+      "explanation": "[dcl.attr.noreturn] says the first declaration of a function shall specify `noreturn` if any of its declarations does. Within one translation unit that is an ordinary diagnosable rule, and both GCC and Clang reject this. The no-diagnostic-required case is the cross-file one, where a function is declared `noreturn` in one translation unit and without it in another. Many other attributes, such as `deprecated`, may be added on a redeclaration, which is why the second option is tempting.",
+      "refs": [
+        "[dcl.attr.noreturn]"
+      ]
+    },
+    {
+      "id": "attributes-no-unique-address-same-type",
+      "kind": "standardese",
+      "prompt": "For an object `p` of type `Pair`, which of these does the C++23 standard guarantee?",
+      "code": "struct Empty {};\n\nstruct Pair {\n  [[no_unique_address]] Empty a;\n  [[no_unique_address]] Empty b;\n  int i;\n};",
+      "options": [
+        "`sizeof(Pair) == sizeof(int)`",
+        "`(void*)&p.a == (void*)&p.b`",
+        "`(void*)&p.a != (void*)&p.b`",
+        "`sizeof(Pair) > sizeof(int)`"
+      ],
+      "answer": 2,
+      "explanation": "[intro.object] allows two objects with overlapping lifetimes to share an address only if one is nested in the other, or at least one is a zero-size subobject and their types are not similar. `a` and `b` have the same type, so their addresses must differ even though both may be zero-size. Neither size claim is guaranteed: the attribute only permits overlap, and MSVC ignores it entirely.",
+      "refs": [
+        "[intro.object]",
+        "[dcl.attr.nouniqueaddr]"
+      ]
+    }
+  ]
+}

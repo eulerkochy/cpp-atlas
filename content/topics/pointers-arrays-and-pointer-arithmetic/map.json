@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Pointers and arrays",
+    "note": "A pointer value is an address plus a claim about which object it belongs to.",
+    "children": [
+      {
+        "label": "Pointer values",
+        "note": "Every object pointer value is one of exactly four kinds.",
+        "children": [
+          { "label": "Past-the-end", "note": "May be formed, copied, compared and subtracted, never dereferenced." },
+          { "label": "Invalid", "note": "After storage ends; dereference or delete is UB, any other use is implementation-defined." },
+          { "label": "Same address, different value", "note": "p + 1 == &neighbour is unspecified." }
+        ]
+      },
+      {
+        "label": "Decay",
+        "note": "Arrays convert to a pointer to their first element in most expressions.",
+        "children": [
+          { "label": "No decay", "note": "Under sizeof, decltype, typeid, unary &, reference binding and range-for." },
+          { "label": "Array parameters", "note": "void f(int a[10]) declares f(int*); the bound is ignored." },
+          { "label": "Deduction", "note": "By-value T deduces int*; const T& deduces int[N]." },
+          { "label": "&a vs a", "note": "&a is int(*)[N]; &a + 1 steps over the whole array." }
+        ]
+      },
+      {
+        "label": "Arithmetic",
+        "note": "Defined only within one array, counting one past the end.",
+        "children": [
+          { "label": "Out of range", "note": "Forming a pointer outside [0, n] is UB even without a dereference." },
+          { "label": "ptrdiff_t overflow", "note": "Subtracting across a char array longer than PTRDIFF_MAX is UB." },
+          { "label": "Multidimensional", "note": "int m[3][4] is three arrays of four; indexing past a row is UB." },
+          { "label": "Byte walking", "note": "Stepping through object bytes is relied on but under-specified; P1839 addresses it." }
+        ]
+      },
+      {
+        "label": "Comparison",
+        "note": "== works everywhere; < is only specified within one object.",
+        "children": [
+          { "label": "Unrelated with <", "note": "Unspecified in C++, undefined in C, never a constant expression." },
+          { "label": "Member order", "note": "Later-declared members compare greater; C++23 dropped the same-access condition." },
+          { "label": "std::less", "note": "Guarantees an implementation-defined strict total order over pointers." }
+        ]
+      },
+      {
+        "label": "Other pointer kinds",
+        "note": "Function pointers, nullptr_t and interconvertible objects follow their own rules.",
+        "children": [
+          { "label": "Interconvertible", "note": "Standard-layout object and first member, or union and member; other casts only relabel the pointer." },
+          { "label": "Function pointers", "note": "No arithmetic; calling through a mismatched type is UB; to void* is conditional." },
+          { "label": "std::nullptr_t", "note": "Converts to pointers, not integers; to bool only by direct-initialization." }
+        ]
+      },
+      {
+        "label": "References and to_address",
+        "note": "Aliases without object identity, and raw pointers without dereferencing.",
+        "children": [
+          { "label": "References", "note": "Not objects; may need no storage; never null or reseated in valid code." },
+          { "label": "std::to_address", "note": "C++20: raw pointer from a fancy pointer or iterator, safe for end()." }
+        ]
+      }
+    ]
+  }
+}

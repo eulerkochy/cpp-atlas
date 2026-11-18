@@ -1,0 +1,153 @@
+{
+  "questions": [
+    {
+      "id": "implicit-conversions-brace-narrowing-line",
+      "kind": "warmup",
+      "prompt": "Which line makes this translation unit ill-formed?",
+      "code": "int a = 3.9;    // (A)\nint b(3.9);     // (B)\nint c{3.9};     // (C)\nint d = {3};    // (D)",
+      "options": [
+        "(A)",
+        "(B)",
+        "(C)",
+        "(D)"
+      ],
+      "answer": 2,
+      "explanation": "Floating to integer is a narrowing conversion, and narrowing is banned only in list-initialization. (C) is list-initialization from a `double`, so it is ill-formed. (A) and (B) perform the same conversion with `=` and parentheses, which is allowed and truncates to 3. (D) is also list-initialization, but from the `int` constant 3, which needs no conversion.",
+      "refs": [
+        "[dcl.init.list]",
+        "[conv.fpint]"
+      ]
+    },
+    {
+      "id": "implicit-conversions-string-literal-bool",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <string>\n\nvoid f(bool)        { std::puts(\"bool\"); }\nvoid f(std::string) { std::puts(\"string\"); }\n\nint main() { f(\"hello\"); }",
+      "options": [
+        "`bool`",
+        "`string`",
+        "Nothing: the call is ambiguous, so the program is ill-formed",
+        "Implementation-defined"
+      ],
+      "answer": 0,
+      "explanation": "The literal decays to `const char*` and then undergoes a boolean conversion to `bool`: a standard conversion sequence. Reaching `std::string` needs its converting constructor, a user-defined conversion sequence. A standard conversion sequence always ranks better than a user-defined one, so `f(bool)` wins and there is no ambiguity.",
+      "refs": [
+        "[conv.array]",
+        "[conv.bool]",
+        "[over.ics.rank]"
+      ]
+    },
+    {
+      "id": "implicit-conversions-float-promotion",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nvoid f(long)   { std::puts(\"long\"); }\nvoid f(double) { std::puts(\"double\"); }\n\nint main() {\n  float x = 1.0f;\n  f(x);\n}",
+      "options": [
+        "`long`",
+        "Nothing: the call is ambiguous, so the program is ill-formed",
+        "Implementation-defined",
+        "`double`"
+      ],
+      "answer": 3,
+      "explanation": "`float` to `double` is the floating-point promotion, while `float` to `long` is a floating-integral conversion. A promotion ranks better than a conversion, so `f(double)` is chosen. The ambiguity is what you get with a `short` argument: `short` to `long` and `short` to `double` are both conversions, and neither is better.",
+      "refs": [
+        "[conv.fpprom]",
+        "[conv.fpint]",
+        "[over.ics.scs]"
+      ]
+    },
+    {
+      "id": "implicit-conversions-one-user-defined",
+      "kind": "tricky",
+      "prompt": "Which of these declarations are well-formed?",
+      "code": "#include <string>\n\nstruct Name {\n  Name(std::string) {}\n};\n\nName n1 = \"Ada\";\nName n2(\"Ada\");\nName n3 = {\"Ada\"};",
+      "options": [
+        "All three",
+        "Only `n2` and `n3`",
+        "Only `n2`",
+        "Only `n1` and `n2`"
+      ],
+      "answer": 1,
+      "explanation": "`n1` is copy-initialization from `const char[4]`, which needs a single implicit conversion all the way to `Name`: `const char*` to `std::string` and then `std::string` to `Name`, two user-defined conversions, so it is ill-formed. `n2` and `n3` select `Name`'s constructor by overload resolution, so the only implicit conversion left is the argument to `std::string`, which needs just one. Copy-list-initialization is the tempting exception people forget: it calls the constructor directly too.",
+      "refs": [
+        "[class.conv]",
+        "[dcl.init.general]",
+        "[over.match.list]"
+      ]
+    },
+    {
+      "id": "implicit-conversions-constant-narrowing",
+      "kind": "tricky",
+      "prompt": "With `CHAR_BIT == 8`, which of these braced initializations are well-formed?",
+      "code": "void demo(int i) {\n  char c1{i};\n  constexpr int k = 10;\n  char c2{k};\n  constexpr int big = 300;\n  signed char c3{big};\n}",
+      "options": [
+        "All three: each value fits or is converted modulo 2^8",
+        "`c1` and `c2`",
+        "Only `c2`",
+        "`c2` and `c3`"
+      ],
+      "answer": 2,
+      "explanation": "`int` to `char` is narrowing unless the source is a constant expression whose value fits. `i` is not a constant expression, so `c1` is ill-formed even though 10 would fit at run time; GCC only warns about it by default, while Clang rejects it. `k` is a constant 10, so `c2` is fine. `big` is a constant, but 300 does not fit in an 8-bit `signed char`, so `c3` is ill-formed.",
+      "refs": [
+        "[dcl.init.list]",
+        "[expr.const]"
+      ]
+    },
+    {
+      "id": "implicit-conversions-pointer-to-bool-braces",
+      "kind": "tricky",
+      "prompt": "In C++20 or later, which of these initializations are ill-formed?",
+      "code": "void demo(int* p) {\n  bool b1 = p;\n  bool b2{p};\n  bool b3 = !!p;\n}",
+      "options": [
+        "Only `b2`",
+        "`b1` and `b2`",
+        "None of them",
+        "Only `b1`"
+      ],
+      "answer": 0,
+      "explanation": "P1957, adopted for C++20 as a defect report, made pointer and pointer-to-member to `bool` a narrowing conversion, so it is banned in the braces of `b2`. It is still an ordinary implicit boolean conversion, so `b1` is fine. `b3` contextually converts `p` for `!` and then initializes from a `bool`, which needs no conversion at all. GCC diagnoses `b2` only with a warning by default; Clang rejects it.",
+      "refs": [
+        "[dcl.init.list]",
+        "[conv.bool]",
+        "[expr.unary.op]"
+      ]
+    },
+    {
+      "id": "implicit-conversions-noexcept-narrowing",
+      "kind": "standardese",
+      "prompt": "In C++23, which declaration is ill-formed?",
+      "options": [
+        "`static_assert(2);`",
+        "`bool b = 2;`",
+        "`void g() { if constexpr (2) {} }`",
+        "`void f() noexcept(2);`"
+      ],
+      "answer": 3,
+      "explanation": "The operand of a `noexcept` specifier is a contextually converted constant expression of type `bool`, and converted constant expressions forbid narrowing; `int` 2 to `bool` is narrowing because `bool` cannot represent 2. C++23 (P1401) relaxed exactly two such contexts, `static_assert` and `if constexpr`, to plain contextual conversion, so the first and third options are valid. `bool b = 2;` is ordinary copy-initialization, where narrowing is allowed.",
+      "refs": [
+        "[expr.const]",
+        "[except.spec]",
+        "[dcl.pre]",
+        "[stmt.if]"
+      ]
+    },
+    {
+      "id": "implicit-conversions-null-pointer-constant",
+      "kind": "standardese",
+      "prompt": "In C++23, what does the standard say about this code?",
+      "code": "const int zero = 0;\nint* p = zero;",
+      "options": [
+        "Well-formed: `zero` is an integral constant expression equal to zero",
+        "Ill-formed: `zero` is not a null pointer constant",
+        "Well-formed, but `p` holds an unspecified pointer value",
+        "Implementation-defined"
+      ],
+      "answer": 1,
+      "explanation": "Since C++11 (CWG 903), a null pointer constant is an integer literal with value zero or a prvalue of type `std::nullptr_t`. `zero` is a constant expression, but it is not a literal, and there is no other conversion from `int` to `int*`, so the initialization is ill-formed. The first option describes the C++03 rule, under which any integral constant expression evaluating to zero qualified.",
+      "refs": [
+        "[conv.ptr]",
+        "[lex.icon]"
+      ]
+    }
+  ]
+}

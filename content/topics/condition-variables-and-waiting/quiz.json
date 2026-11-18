@@ -1,0 +1,144 @@
+{
+  "questions": [
+    {
+      "id": "condition-variables-and-waiting-pred-already-true",
+      "kind": "warmup",
+      "prompt": "What does this program do?",
+      "code": "#include <condition_variable>\n#include <cstdio>\n#include <mutex>\n\nstd::mutex m;\nstd::condition_variable cv;\nbool ready = true;\n\nint main() {\n  std::unique_lock lk(m);\n  cv.wait(lk, [] { return ready; });\n  std::puts(\"done\");\n}",
+      "options": [
+        "Blocks forever, because nothing ever calls `notify_one`",
+        "Prints `done` unless a spurious wakeup is missed",
+        "Undefined behavior: `wait` requires a matching notification",
+        "Prints `done`"
+      ],
+      "answer": 3,
+      "explanation": "`wait(lock, pred)` is specified as `while (!pred()) wait(lock);`, so the predicate is checked before the first sleep. It is already true, so `wait` returns at once without blocking. The first option is what the bare `wait(lock)` overload would do here, which is one more reason to always pass a predicate.",
+      "refs": [
+        "[thread.condition.condvar]"
+      ]
+    },
+    {
+      "id": "condition-variables-and-waiting-lock-guard",
+      "kind": "warmup",
+      "prompt": "Is this code well-formed?",
+      "code": "#include <condition_variable>\n#include <mutex>\n\nstd::mutex m;\nstd::condition_variable cv;\nbool ready = false;\n\nvoid waiter() {\n  std::lock_guard<std::mutex> lk(m);\n  cv.wait(lk, [] { return ready; });\n}",
+      "options": [
+        "Well-formed: any lock that holds `m` can be passed",
+        "Ill-formed: `std::condition_variable::wait` takes only `std::unique_lock<std::mutex>`",
+        "Well-formed, but undefined behavior because `lock_guard` cannot be unlocked",
+        "Ill-formed: the predicate must be a function pointer"
+      ],
+      "answer": 1,
+      "explanation": "Every `wait` overload of `std::condition_variable` takes a `std::unique_lock<std::mutex>&`, because the wait must unlock and relock it, and `lock_guard` offers neither operation. There is no conversion, so overload resolution fails and the code does not compile. `std::condition_variable_any` accepts any lockable type, but a `lock_guard` still lacks `lock` and `unlock`, so it would not work there either.",
+      "refs": [
+        "[thread.condition.condvar]"
+      ]
+    },
+    {
+      "id": "condition-variables-and-waiting-semaphore-no-owner",
+      "kind": "warmup",
+      "prompt": "In C++20, what does this program print?",
+      "code": "#include <cstdio>\n#include <semaphore>\n#include <thread>\n\nstd::binary_semaphore sem(0);\n\nint main() {\n  std::thread t([] {\n    std::puts(\"worker\");\n    sem.release();\n  });\n  sem.acquire();\n  std::puts(\"main\");\n  t.join();\n}",
+      "options": [
+        "`worker` then `main`",
+        "`main` then `worker`, or the other way round",
+        "Undefined behavior: only the thread that acquired a semaphore may release it",
+        "Nothing: `acquire` blocks forever because the count starts at 0"
+      ],
+      "answer": 0,
+      "explanation": "The semaphore starts at 0, so `acquire` blocks until the worker's `release` makes it 1. A release strongly happens before an acquire that observes its effect, so the worker's `puts` comes first. Semaphores have no notion of ownership, unlike mutexes, so releasing from a different thread is the normal use, not undefined behavior.",
+      "refs": [
+        "[thread.sema.cnt]"
+      ]
+    },
+    {
+      "id": "condition-variables-and-waiting-atomic-flag-lost-wakeup",
+      "kind": "tricky",
+      "prompt": "`waiter` and `setter` run concurrently in two threads, once each. Which statement is correct?",
+      "code": "#include <atomic>\n#include <condition_variable>\n#include <mutex>\n\nstd::mutex m;\nstd::condition_variable cv;\nstd::atomic<bool> ready{false};\n\nvoid waiter() {\n  std::unique_lock lk(m);\n  cv.wait(lk, [] { return ready.load(); });\n}\n\nvoid setter() {\n  ready = true;\n  cv.notify_one();\n}",
+      "options": [
+        "Correct: the flag is atomic, so the waiter always wakes",
+        "Undefined behavior: data race on `ready`",
+        "No data race, but `waiter` can block forever",
+        "Correct, provided `notify_all` is used instead of `notify_one`"
+      ],
+      "answer": 2,
+      "explanation": "All accesses to `ready` are atomic, so there is no data race. But the setter does not take `m`, so it can store and notify after the waiter has checked the predicate and before it blocks; that notification finds no waiter and is lost, and the waiter then sleeps forever. Locking `m` around the store closes the window, because the waiter holds `m` from its check until the atomic unlock-and-block. `notify_all` loses the same race.",
+      "refs": [
+        "[thread.condition.condvar]",
+        "[thread.condition]",
+        "[intro.races]"
+      ]
+    },
+    {
+      "id": "condition-variables-and-waiting-atomic-wait-value",
+      "kind": "tricky",
+      "prompt": "In C++20, what does this program do?",
+      "code": "#include <atomic>\n#include <cstdio>\n\nint main() {\n  std::atomic<int> a{1};\n  a.wait(0);\n  std::puts(\"returned\");\n}",
+      "options": [
+        "Prints `returned`",
+        "Blocks forever, because nothing calls `notify_one`",
+        "Blocks until a spurious wakeup, then prints `returned`",
+        "Undefined behavior: `wait` needs a matching `notify`"
+      ],
+      "answer": 0,
+      "explanation": "`a.wait(old)` blocks only while the value equals `old`: it loads, compares, and returns as soon as the values differ. The value is 1 and `old` is 0, so it returns at once. The tempting answer treats `wait` like a condition variable that sleeps until notified; the argument is the value you expect to change away from, not a value to wait for.",
+      "refs": [
+        "[atomics.wait]",
+        "[atomics.types.operations]"
+      ]
+    },
+    {
+      "id": "condition-variables-and-waiting-notify-after-unlock",
+      "kind": "tricky",
+      "prompt": "Which statement about `run` is correct?",
+      "code": "#include <condition_variable>\n#include <mutex>\n#include <thread>\n\nvoid run() {\n  std::mutex m;\n  std::condition_variable cv;\n  bool done = false;\n  std::thread([&] {\n    {\n      std::lock_guard lk(m);\n      done = true;\n    }\n    cv.notify_one();\n  }).detach();\n  std::unique_lock lk(m);\n  cv.wait(lk, [&] { return done; });\n}",
+      "options": [
+        "It is correct: `done` is changed under the mutex, so nothing can go wrong",
+        "It can deadlock, because the notification may be lost",
+        "It is ill-formed: a detached thread cannot capture locals by reference",
+        "It can have undefined behavior: `run` may return and destroy `cv` before the worker calls `notify_one`"
+      ],
+      "answer": 3,
+      "explanation": "The predicate is changed under the mutex, so no wakeup is lost; the waiter either sees `done` or is already blocked when the notification arrives. The problem is lifetime: after the worker unlocks, `run` may see `done`, for instance through a spurious wakeup or before ever blocking, return, and destroy `cv` while the worker is still about to call `notify_one` on it. Calling `notify_one` before the lock is released prevents this, because `run` cannot return from `wait` until it reacquires `m`.",
+      "refs": [
+        "[thread.condition.condvar]",
+        "[basic.life]"
+      ]
+    },
+    {
+      "id": "condition-variables-and-waiting-two-mutexes",
+      "kind": "standardese",
+      "prompt": "Threads running `a` and `b` are both blocked on `cv` at the same time. What does the standard say?",
+      "code": "#include <atomic>\n#include <condition_variable>\n#include <mutex>\n\nstd::condition_variable cv;\nstd::mutex m1, m2;\nstd::atomic<bool> ready{false};\n\nvoid a() {\n  std::unique_lock lk(m1);\n  cv.wait(lk, [] { return ready.load(); });\n}\n\nvoid b() {\n  std::unique_lock lk(m2);\n  cv.wait(lk, [] { return ready.load(); });\n}",
+      "options": [
+        "It is fine: each waiter reacquires its own mutex on wakeup",
+        "It is fine, but only `notify_all` is guaranteed to wake both",
+        "Undefined behavior: concurrent waiters must all use the same mutex",
+        "Ill-formed: a condition variable is bound to one mutex at construction"
+      ],
+      "answer": 2,
+      "explanation": "A precondition of `std::condition_variable::wait` is that either no other thread is waiting on the object, or every concurrently waiting thread passed a lock on the same mutex. Two waiters with `m1` and `m2` violate it, so the behavior is undefined. Nothing binds the mutex at construction, which is why the code compiles; the constraint is on how waits overlap at run time. Using different mutexes at different, non-overlapping times is allowed.",
+      "refs": [
+        "[thread.condition.condvar]"
+      ]
+    },
+    {
+      "id": "condition-variables-and-waiting-stop-token-wait",
+      "kind": "standardese",
+      "prompt": "In C++20, what does this program print?",
+      "code": "#include <condition_variable>\n#include <cstdio>\n#include <mutex>\n#include <stop_token>\n\nint main() {\n  std::mutex m;\n  std::condition_variable_any cv;\n  std::stop_source src;\n  src.request_stop();\n  std::unique_lock lk(m);\n  bool r = cv.wait(lk, src.get_token(), [] { return false; });\n  std::printf(\"%d\\n\", r);\n}",
+      "options": [
+        "`1`, because the wait ended without a timeout",
+        "`0`",
+        "Nothing: it blocks forever, because nobody notifies `cv`",
+        "Nothing: a stop request makes the wait throw"
+      ],
+      "answer": 1,
+      "explanation": "The stop-aware `wait` is specified as `while (!stoken.stop_requested()) { if (pred()) return true; wait(lock); } return pred();`. Stop was already requested, so the loop body never runs and the function returns `pred()`, which is `false`. The result always reports the predicate, so a `false` return means stop was requested while the condition still did not hold. Nothing is thrown, and no notification is needed.",
+      "refs": [
+        "[thread.condvarany.intwait]"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "root": {
+    "label": "Startup and termination",
+    "note": "Static initialization, then dynamic initialization, then main, then a reverse teardown chosen by the exit path.",
+    "children": [
+      {
+        "label": "main",
+        "note": "The program's entry point, with rules no other function has.",
+        "children": [
+          { "label": "Declared int", "note": "Return type must be declared int; auto main() -> int is fine, deduction is not." },
+          { "label": "Forbidden forms", "note": "No inline, static, constexpr, consteval, deleted or coroutine main; it may not be used." },
+          { "label": "Implicit return 0", "note": "Falling off the end of main is equivalent to return 0." },
+          { "label": "Return calls exit", "note": "Returning destroys main's locals, then calls std::exit with the value." }
+        ]
+      },
+      {
+        "label": "Static initialization",
+        "note": "Zero and constant initialization, complete before any dynamic initialization.",
+        "children": [
+          { "label": "Constant init", "note": "Used when the initialization is a constant expression; safe to read from anywhere." },
+          { "label": "Zero init", "note": "Everything else with static storage is zeroed first." },
+          { "label": "constinit (C++20)", "note": "Requires constant initialization without making the variable const." },
+          { "label": "Static instead of dynamic", "note": "An implementation may do dynamic init statically, so early readers may see either value." }
+        ]
+      },
+      {
+        "label": "Dynamic initialization",
+        "note": "Runs code; order depends on the kind of variable.",
+        "children": [
+          { "label": "Ordered", "note": "Ordinary namespace-scope variables follow definition order within one file." },
+          { "label": "Partially ordered", "note": "Non-template inline variables keep the order they have in every defining file." },
+          { "label": "Unordered", "note": "Static members of class templates and variable template specializations have no order." },
+          { "label": "Deferral", "note": "May be deferred until first odr-use of something in the same file; implementation-defined." },
+          { "label": "Block statics", "note": "Initialized on first pass, thread-safe since C++11, retried if the initializer throws." }
+        ]
+      },
+      {
+        "label": "Exit paths",
+        "note": "Each way out runs a different subset of the teardown.",
+        "children": [
+          { "label": "std::exit", "note": "Thread-locals, then statics and atexit handlers in one reverse sequence, then C streams." },
+          { "label": "std::quick_exit", "note": "Only at_quick_exit handlers, in reverse, then _Exit; no objects destroyed." },
+          { "label": "std::abort", "note": "Abnormal termination; no destructors and no handlers of any kind." },
+          { "label": "std::terminate", "note": "Calls the terminate handler, abort by default; unwinding before it may not happen." }
+        ]
+      },
+      {
+        "label": "Teardown order",
+        "note": "Reverse of completion, with atexit registrations in the same sequence.",
+        "children": [
+          { "label": "Reverse completion", "note": "The static object constructed last is destroyed first." },
+          { "label": "atexit interleaving", "note": "A handler registered after an object completed runs before that object is destroyed." },
+          { "label": "Dead statics", "note": "Passing through a destroyed static local during later teardown is UB." },
+          { "label": "Exceptions", "note": "An exception from a static initializer, destructor or atexit handler calls terminate." }
+        ]
+      }
+    ]
+  }
+}

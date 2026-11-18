@@ -1,21 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { CppRefPageView } from "@/components/CppRefPageView";
-import { getCppRefPage } from "@/lib/cppref-engine";
-import { ALL_CPPREF_DOMAINS, INDEX_STATS } from "@/lib/cppref-index";
+import { getDomainsForLang, getIndexStats } from "@/lib/cppref-index";
+import { loadReferencePage, referenceMetadata } from "@/lib/reference-route";
 
-export const metadata: Metadata = {
-  title: "C++ Reference (/w/cpp)",
-  description:
-    "1:1 indexed overview of the C++ programming language and standard library headers.",
-};
+export function generateMetadata(): Metadata {
+  return referenceMetadata("cpp", []);
+}
 
-export default async function CppRootPage() {
-  const page = await getCppRefPage([]);
-  if (!page) {
-    notFound();
-  }
+export default function CppRootPage() {
+  const page = loadReferencePage("cpp", []);
+  const stats = getIndexStats("cpp");
 
   return (
     <>
@@ -31,8 +26,8 @@ export default async function CppRootPage() {
               id="cpp-domains-heading"
               className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink"
             >
-              Browse {INDEX_STATS.uniquePages.toLocaleString("en-US")} C++ pages
-              across {INDEX_STATS.domainCount} domains
+              Browse {stats.pages.toLocaleString("en-US")} C++ pages
+              across {stats.domainCount} domains
             </h2>
             <Link
               href="/explore?lang=cpp"
@@ -43,7 +38,7 @@ export default async function CppRootPage() {
           </div>
 
           <ul className="grid border-t border-line sm:grid-cols-2 lg:grid-cols-3 sm:gap-x-10">
-            {ALL_CPPREF_DOMAINS.map((d) => (
+            {getDomainsForLang("cpp").map((d) => (
               <li key={d.slug} className="border-b border-line">
                 <Link
                   href={`/explore?lang=cpp&domain=${encodeURIComponent(d.name)}`}

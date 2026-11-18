@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "template-argument-deduction-conflicting",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed, and if so what does it return?",
+      "code": "template<class T> T biggest(T a, T b) { return a < b ? b : a; }\n\nint main() {\n  return static_cast<int>(biggest(1, 2.5));\n}",
+      "options": [
+        "Well-formed; returns 2, because `T` is deduced as `double`",
+        "Well-formed; returns 1, because `T` is deduced from the first argument as `int`",
+        "Ill-formed: `T` is deduced as `int` from one argument and as `double` from the other",
+        "Ill-formed: the call is ambiguous between `biggest<int>` and `biggest<double>`"
+      ],
+      "answer": 2,
+      "explanation": "Each parameter/argument pair is deduced independently: the first gives `T = int`, the second `T = double`, and conflicting deductions make deduction fail, so there is no viable function. Deduction never considers the usual arithmetic conversions, so the \"common type\" answer is the tempting wrong one. `biggest<double>(1, 2.5)` would compile, because explicitly specified parameters no longer take part in deduction and `1` then converts.",
+      "refs": [
+        "[temp.deduct.call]",
+        "[temp.deduct.type]"
+      ]
+    },
+    {
+      "id": "template-argument-deduction-byvalue-const-ref",
+      "kind": "warmup",
+      "prompt": "What is `T` deduced as?",
+      "code": "template<class T> void f(T x);\n\nvoid g(const int& r) {\n  f(r);\n}",
+      "options": [
+        "`const int&`",
+        "`const int`",
+        "`int&`",
+        "`int`"
+      ],
+      "answer": 3,
+      "explanation": "The expression `r` has type `const int`; references are stripped from an expression's type before anything else happens. Because `P` is the non-reference `T`, top-level cv-qualifiers of `A` are dropped as well, so `T = int` and the parameter is a fresh copy. `const int&` is tempting if you think of deduction as copying the declared type of the variable, which it does not.",
+      "refs": [
+        "[temp.deduct.call]",
+        "[expr.type]"
+      ]
+    },
+    {
+      "id": "template-argument-deduction-forwarding-lvalue",
+      "kind": "warmup",
+      "prompt": "What is `T` deduced as in the call `g(i)`?",
+      "code": "template<class T> void g(T&& x);\n\nvoid h() {\n  int i = 0;\n  g(i);\n}",
+      "options": [
+        "`int`",
+        "`int&`",
+        "`int&&`",
+        "Nothing: an lvalue cannot bind to `T&&`, so the call is ill-formed"
+      ],
+      "answer": 1,
+      "explanation": "`T&&` where `T` is a function template parameter is a forwarding reference. For an lvalue argument, deduction uses \"lvalue reference to `A`\" in place of `A`, giving `T = int&`, and reference collapsing turns `int& &&` into `int&`. With `T = int` the parameter would be `int&&`, which cannot bind an lvalue; that rule is what the last option misremembers.",
+      "refs": [
+        "[temp.deduct.call]",
+        "[dcl.ref]"
+      ]
+    },
+    {
+      "id": "template-argument-deduction-type-identity",
+      "kind": "tricky",
+      "prompt": "Which of the two calls in `demo` is well-formed?",
+      "code": "#include <type_traits>\n#include <vector>\n\ntemplate<class T> void scale_a(std::vector<T>&, T) {}\ntemplate<class T> void scale_b(std::vector<T>&, std::type_identity_t<T>) {}\n\nvoid demo() {\n  std::vector<double> v;\n  scale_a(v, 2);  // #1\n  scale_b(v, 2);  // #2\n}",
+      "options": [
+        "Both: `2` converts to `double` in each case",
+        "Neither: `T` conflicts in both",
+        "Only #2",
+        "Only #1"
+      ],
+      "answer": 2,
+      "explanation": "In `scale_a`, the second parameter deduces `T = int`, which conflicts with `T = double` from the vector, so deduction fails and #1 is ill-formed. In `scale_b`, `std::type_identity_t<T>` is the nested name `std::type_identity<T>::type`, a non-deduced context, so `T = double` comes only from the vector and `2` is then converted like an ordinary argument. Conversions are never considered during deduction, which is why the first option is wrong.",
+      "refs": [
+        "[temp.deduct.type]",
+        "[temp.arg.explicit]"
+      ]
+    },
+    {
+      "id": "template-argument-deduction-braced-list",
+      "kind": "tricky",
+      "prompt": "Is the call `f({1, 2, 3})` well-formed?",
+      "code": "#include <initializer_list>\n\ntemplate<class T> void f(T) {}\n\nint main() {\n  auto il = {1, 2, 3};\n  f(il);\n  f({1, 2, 3});\n}",
+      "options": [
+        "Yes: `T` is deduced as `std::initializer_list<int>`, just as for `il`",
+        "No: a braced list makes the parameter a non-deduced context, so `T` cannot be deduced",
+        "Yes: `T` is deduced as `int[3]`",
+        "Yes: `T` is deduced as `int`, from the first element"
+      ],
+      "answer": 1,
+      "explanation": "A braced-init-list has no type. Unless the parameter is `std::initializer_list<P>` or a reference to an array, an initializer-list argument makes the parameter a non-deduced context, and `T` is left undeduced, so the call is ill-formed. The tempting answer comes from `auto`: `auto il = {1, 2, 3};` deduces `std::initializer_list<int>` by a special rule for `auto`, and `f(il)` then deduces from an ordinary expression.",
+      "refs": [
+        "[temp.deduct.call]",
+        "[dcl.type.auto.deduct]"
+      ]
+    },
+    {
+      "id": "template-argument-deduction-default-vs-deduced",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <type_traits>\n\ntemplate<class T = double>\nconst char* kind(T = {}) {\n  return std::is_same_v<T, int> ? \"int\" : std::is_same_v<T, double> ? \"double\" : \"other\";\n}\n\nint main() {\n  std::puts(kind(1));\n  std::puts(kind());\n}",
+      "options": [
+        "`double`, `double`",
+        "`int`, `double`",
+        "`int`, then a compile error for `kind()`",
+        "`double`, then `other`"
+      ],
+      "answer": 1,
+      "explanation": "A default template argument is used only when the parameter is neither specified nor deduced. In `kind(1)`, `T` is deduced as `int` from the argument, so the default is ignored. In `kind()`, the only function parameter relies on its default argument, which is a non-deduced context, so `T` falls back to `double` and `{}` value-initializes it. Without the default template argument, `kind()` would be the compile error of the third option.",
+      "refs": [
+        "[temp.deduct.type]",
+        "[temp.deduct]"
+      ]
+    },
+    {
+      "id": "template-argument-deduction-non-deduced-which",
+      "kind": "standardese",
+      "prompt": "In which of these function parameter types is `T` in a non-deduced context, so that a call `f(x)` can never deduce `T`?",
+      "options": [
+        "`const T&`",
+        "`std::vector<T>*`",
+        "`typename std::remove_reference<T>::type&`",
+        "`T (*)(int)`",
+        "`T[4]` passed by reference, as `T (&)[4]`"
+      ],
+      "answer": 2,
+      "explanation": "The nested-name-specifier of a qualified type name is a non-deduced context: the compiler would have to invert an arbitrary metafunction, which it cannot. This is why `std::forward<T>` takes `typename std::remove_reference<T>::type&` and must be called with an explicit `T`. The other forms are all built from `T` with compound type constructors (references, pointers, template-ids, function types and arrays), and all of them can be deduced from a matching argument type.",
+      "refs": [
+        "[temp.deduct.type]"
+      ]
+    },
+    {
+      "id": "template-argument-deduction-derived-vs-convert",
+      "kind": "standardese",
+      "prompt": "Which of the calls in `demo` are well-formed?",
+      "code": "template<class T> struct Base {};\nstruct Derived : Base<int> {};\ntemplate<class T> void take(Base<T>*) {}\n\ntemplate<class T> struct Wrapper { Wrapper(T) {} };\ntemplate<class T> void wrap(Wrapper<T>) {}\n\nvoid demo() {\n  Derived d;\n  take(&d);  // #1\n  wrap(1);   // #2\n}",
+      "options": [
+        "Both",
+        "Only #1",
+        "Only #2",
+        "Neither"
+      ],
+      "answer": 1,
+      "explanation": "[temp.deduct.call] lists the only differences allowed between the adjusted parameter and argument types; one is that when `P` is a class template specialization or a pointer to one, `A` may be a derived class, so #1 deduces `T = int` from the base `Base<int>`. User-defined conversions are not on the list: `Wrapper<T>` cannot match `int`, and the converting constructor is invisible to deduction, so #2 is ill-formed. A non-template `void wrap(Wrapper<int>)` would accept `1`, which is why #2 looks plausible.",
+      "refs": [
+        "[temp.deduct.call]"
+      ]
+    }
+  ]
+}

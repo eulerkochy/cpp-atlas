@@ -1,0 +1,124 @@
+{
+  "root": {
+    "label": "Character types and Unicode",
+    "note": "A character type holds one code unit; what a reader sees as a character may span several.",
+    "children": [
+      {
+        "label": "Character types",
+        "note": "Six types hold code units; only some have a portable encoding.",
+        "children": [
+          {
+            "label": "char, signed, unsigned",
+            "note": "Three distinct types; the signedness of plain char is implementation-defined."
+          },
+          {
+            "label": "wchar_t",
+            "note": "Size and encoding are implementation-defined, 16 bits on Windows and usually 32 elsewhere."
+          },
+          {
+            "label": "char8_t, char16_t, char32_t",
+            "note": "Distinct types for UTF-8, UTF-16 and UTF-32 code units; char8_t arrived in C++20."
+          }
+        ]
+      },
+      {
+        "label": "Literals and encodings",
+        "note": "A prefix chooses the element type and the encoding of a literal.",
+        "children": [
+          {
+            "label": "Prefixes u8, u, U, L",
+            "note": "u8 is UTF-8, u is UTF-16, U is UTF-32, and L uses the wide literal encoding."
+          },
+          {
+            "label": "Ordinary literal encoding",
+            "note": "Chosen by the compiler, for example GCC's -fexec-charset, independent of the source file."
+          },
+          {
+            "label": "Source encoding, C++23",
+            "note": "Implementations must support UTF-8 source files; the translation character set is Unicode."
+          },
+          {
+            "label": "Char literal: one unit",
+            "note": "u'\\U0001F600' is ill-formed in C++23 because the code point needs two UTF-16 units."
+          }
+        ]
+      },
+      {
+        "label": "Escapes",
+        "note": "Escapes name code points or raw code units without depending on the source encoding.",
+        "children": [
+          {
+            "label": "Universal character names",
+            "note": "\\u and \\U name a code point and are encoded per the literal's encoding."
+          },
+          {
+            "label": "Named and delimited, C++23",
+            "note": "\\N{NAME}, \\u{...}, \\x{...} and \\o{...} have no digit-count limit."
+          },
+          {
+            "label": "\\x versus \\u",
+            "note": "\\x writes a raw code unit value; \\u names a code point."
+          }
+        ]
+      },
+      {
+        "label": "The char8_t break",
+        "note": "In C++20, u8 literals changed type and old code stopped compiling.",
+        "children": [
+          {
+            "label": "Pointer conversion",
+            "note": "const char8_t* does not convert to const char*, so assigning a u8 literal to const char* fails."
+          },
+          {
+            "label": "Stream output",
+            "note": "operator<< for char8_t and const char8_t* on narrow streams is deleted."
+          },
+          {
+            "label": "Migration",
+            "note": "Use u8string, cast deliberately, or use an ordinary literal when it is UTF-8."
+          }
+        ]
+      },
+      {
+        "label": "Library limits",
+        "note": "The library counts code units and classifies single bytes; Unicode logic is yours.",
+        "children": [
+          {
+            "label": "cctype negative char",
+            "note": "Arguments must fit unsigned char or equal EOF, so cast a plain char before calling."
+          },
+          {
+            "label": "Code units versus graphemes",
+            "note": "size() counts code units; e plus a combining accent is three UTF-8 units but one grapheme."
+          },
+          {
+            "label": "format width",
+            "note": "std::format estimates column width and truncates precision by whole grapheme clusters."
+          },
+          {
+            "label": "No normalization",
+            "note": "The standard library has no normalization, collation or grapheme segmentation."
+          }
+        ]
+      },
+      {
+        "label": "Conversion and detection",
+        "note": "The old converters are on their way out; C++26 adds a way to identify encodings.",
+        "children": [
+          {
+            "label": "codecvt deprecated",
+            "note": "Deprecated in C++17 and listed for removal in C++26; libstdc++ still ships it."
+          },
+          {
+            "label": "cuchar functions",
+            "note": "mbrtoc8, mbrtoc16 and mbrtoc32 convert between the locale encoding and Unicode one code point at a time."
+          },
+          {
+            "label": "text_encoding (C++26)",
+            "note": "Identifies an encoding by IANA name and id; literal() reports the ordinary literal encoding."
+          }
+        ]
+      }
+    ]
+  }
+}

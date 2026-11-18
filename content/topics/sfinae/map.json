@@ -1,0 +1,61 @@
+{
+  "root": {
+    "label": "SFINAE",
+    "note": "An invalid type or expression produced by substitution into a signature removes that template from overload resolution.",
+    "children": [
+      {
+        "label": "Immediate context",
+        "note": "Only failures in the function type, template parameter types and explicit specifier are soft.",
+        "children": [
+          { "label": "Signature, not body", "note": "Function bodies are never checked by substitution; errors there are hard." },
+          { "label": "Instantiated classes", "note": "An error inside a class template instantiated during substitution is a hard error." },
+          { "label": "auto return types", "note": "Asking for a deduced return type instantiates the body, so probing it is a hard error." },
+          { "label": "Lambda bodies (C++20)", "note": "A lambda in the signature is not part of the immediate context." }
+        ]
+      },
+      {
+        "label": "Substitution order",
+        "note": "Since CWG 1227, substitution runs in lexical order and stops at the first failure.",
+        "children": [
+          { "label": "Early fail is safe", "note": "A failing return type before a parameter prevents that parameter's instantiations." },
+          { "label": "Differing orders", "note": "Redeclarations that substitute in different orders with different results are IFNDR." }
+        ]
+      },
+      {
+        "label": "enable_if",
+        "note": "enable_if_t<B, T> names T when B is true and nothing when false, failing substitution.",
+        "children": [
+          { "label": "Return type", "note": "Simple, but impossible for constructors and conversion functions." },
+          { "label": "Defaulted parameter", "note": "Works for constructors but changes arity and function pointer types." },
+          { "label": "Template parameter", "note": "Idiomatic; use the non-type form enable_if_t<B, int> = 0." },
+          { "label": "Redeclaration trap", "note": "Defaults are not in the signature, so class = enable_if_t<...> twice is a redefinition." },
+          { "label": "Class parameter trap", "note": "A non-template member using the class's T in enable_if is a hard error." }
+        ]
+      },
+      {
+        "label": "Expression SFINAE",
+        "note": "Since C++11, any invalid expression in the signature counts as a substitution failure.",
+        "children": [
+          { "label": "decltype(e, void())", "note": "Checks e and yields void; the void() blocks an overloaded comma operator." },
+          { "label": "Access checks", "note": "Naming an inaccessible member during substitution is a soft failure." }
+        ]
+      },
+      {
+        "label": "Detection idiom",
+        "note": "Partial specialization matching also substitutes, so traits can test validity.",
+        "children": [
+          { "label": "void_t (C++17)", "note": "Maps any valid types to void so a specialization matches the primary's default." },
+          { "label": "is_detected", "note": "Library Fundamentals TS v2 helper; never standardized, superseded by concepts." }
+        ]
+      },
+      {
+        "label": "Concepts replace it",
+        "note": "C++20 requires-clauses state conditions directly and also rank overloads.",
+        "children": [
+          { "label": "No redeclaration trap", "note": "Different constraints make different templates, so overloads just work." },
+          { "label": "Same boundary", "note": "Errors inside what a requires-expression instantiates are still hard errors." }
+        ]
+      }
+    ]
+  }
+}

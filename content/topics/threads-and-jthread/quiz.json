@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "threads-and-jthread-joinable-dtor",
+      "kind": "warmup",
+      "prompt": "What happens when this program reaches the end of `main`?",
+      "code": "#include <cstdio>\n#include <thread>\n\nint main() {\n  std::thread t([] {});\n  std::puts(\"leaving main\");\n}",
+      "options": [
+        "The destructor of `t` joins the thread, and the program exits normally",
+        "The destructor of `t` detaches the thread, and the program exits normally",
+        "Undefined behavior",
+        "`std::terminate` is called"
+      ],
+      "answer": 3,
+      "explanation": "`t` is still joinable when it is destroyed, because nobody called `join()` or `detach()`. [thread.thread.destr] specifies that destroying a joinable `std::thread` calls `std::terminate`, so this is well-defined termination rather than undefined behavior. Implicit joining is what `std::jthread` does; `std::thread` deliberately refuses to pick either policy for you.",
+      "refs": [
+        "[thread.thread.destr]"
+      ]
+    },
+    {
+      "id": "threads-and-jthread-int-ref-arg",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "#include <thread>\n\nvoid inc(int& n) { ++n; }\n\nint main() {\n  int x = 0;\n  std::thread t(inc, x);\n  t.join();\n}",
+      "options": [
+        "Well-formed, and `x` is 1 after the join",
+        "Well-formed, but `inc` increments a copy, so `x` stays 0",
+        "Ill-formed: the decay-copied argument is an rvalue and cannot bind to `int&`",
+        "Undefined behavior: data race on `x`"
+      ],
+      "answer": 2,
+      "explanation": "The thread constructor decay-copies each argument in the calling thread and passes the copies to the function as rvalues. An rvalue `int` cannot bind to `int&`, so the constructor's requirement that the call be invocable fails and the program does not compile. The second option describes what happens for a `const int&` parameter. Passing `std::ref(x)` makes it compile and increment `x` itself.",
+      "refs": [
+        "[thread.thread.constr]",
+        "[refwrap]"
+      ]
+    },
+    {
+      "id": "threads-and-jthread-jthread-dtor",
+      "kind": "warmup",
+      "prompt": "In C++20, what does this program do?",
+      "code": "#include <cstdio>\n#include <stop_token>\n#include <thread>\n\nint main() {\n  std::jthread t([](std::stop_token st) {\n    while (!st.stop_requested()) {}\n    std::puts(\"stopped\");\n  });\n  std::puts(\"main done\");\n}",
+      "options": [
+        "Prints `main done`, then `stopped`, and exits normally",
+        "Calls `std::terminate`, because `t` is joinable when destroyed",
+        "Hangs forever, because nothing calls `request_stop`",
+        "Prints `main done` and exits; the loop is killed with the process"
+      ],
+      "answer": 0,
+      "explanation": "`std::jthread` passes its own stop token to a callable whose first parameter is a `std::stop_token`. Its destructor calls `request_stop()` and then `join()`, so the loop sees the request, prints `stopped`, and the join returns. Termination on a joinable destructor is the `std::thread` rule, which `jthread` replaces, and the hang would only happen if the destructor joined without requesting stop.",
+      "refs": [
+        "[thread.jthread.class]",
+        "[thread.stoptoken]"
+      ]
+    },
+    {
+      "id": "threads-and-jthread-char-buffer",
+      "kind": "tricky",
+      "prompt": "Which statement about `start` is correct?",
+      "code": "#include <string>\n#include <thread>\n\nvoid show(const std::string& s);\n\nvoid start() {\n  char buf[32] = \"hello\";\n  std::thread t(show, buf);\n  t.detach();\n}",
+      "options": [
+        "It is safe: the `std::string` is built from `buf` before the constructor returns",
+        "It is ill-formed: a `char` array cannot be passed to a `const std::string&` parameter",
+        "It is safe because `detach` waits until the arguments have been consumed",
+        "The new thread may build the string from a dangling `char*` after `start` returns, which is undefined behavior"
+      ],
+      "answer": 3,
+      "explanation": "Decay-copying applies to the argument as written, so the thread stores a copy of the `char*` that `buf` decays to. The conversion to `std::string` happens when the new thread calls `show`, which may be after `start` has returned and `buf` is gone. Converting at the call site, as `std::string(buf)`, makes the string itself the stored copy. The first option is what most people assume, but the constructor only copies; it never applies the parameter's conversion.",
+      "refs": [
+        "[thread.thread.constr]",
+        "[basic.life]"
+      ]
+    },
+    {
+      "id": "threads-and-jthread-exception-escape",
+      "kind": "tricky",
+      "prompt": "What does this program do?",
+      "code": "#include <cstdio>\n#include <stdexcept>\n#include <thread>\n\nint main() {\n  try {\n    std::thread t([] { throw std::runtime_error(\"boom\"); });\n    t.join();\n  } catch (...) {\n    std::puts(\"caught\");\n  }\n}",
+      "options": [
+        "Prints `caught`, because `join` rethrows the thread's exception",
+        "Prints `caught`, because the exception unwinds into the creating thread",
+        "Calls `std::terminate`; `caught` is never printed",
+        "Undefined behavior"
+      ],
+      "answer": 2,
+      "explanation": "[thread.thread.constr] says that if the thread's function exits with an uncaught exception, `std::terminate` is called. Exceptions do not cross thread boundaries, and `join` has no channel to carry one. Rethrowing on retrieval is what `std::future::get` does, which is the tempting confusion. To report errors, catch in the thread and pass a `std::exception_ptr` or use a promise.",
+      "refs": [
+        "[thread.thread.constr]",
+        "[except.terminate]"
+      ]
+    },
+    {
+      "id": "threads-and-jthread-stop-callback",
+      "kind": "tricky",
+      "prompt": "In C++20, what does this program print?",
+      "code": "#include <cstdio>\n#include <stop_token>\n\nint main() {\n  std::stop_source src;\n  bool first = src.request_stop();\n  bool second = src.request_stop();\n  std::stop_callback cb(src.get_token(), [] { std::puts(\"callback\"); });\n  std::printf(\"%d %d\\n\", first, second);\n}",
+      "options": [
+        "`1 1`, and the callback never runs because it was registered too late",
+        "`callback` then `1 0`",
+        "`1 0` then `callback`, printed when `cb` is destroyed",
+        "`1 0`, and the callback never runs because it was registered too late"
+      ],
+      "answer": 1,
+      "explanation": "`request_stop` returns `true` only for the call that actually makes the stop request, so the second call returns `false`. A `stop_callback` constructed after stop has been requested invokes its callback immediately, in the constructing thread, before the constructor returns. That is why `callback` is printed first. A callback registered late is never lost, which rules out the first and last options.",
+      "refs": [
+        "[stopsource]",
+        "[stopcallback]"
+      ]
+    },
+    {
+      "id": "threads-and-jthread-hardware-concurrency",
+      "kind": "standardese",
+      "prompt": "What does the standard guarantee about the value of `std::thread::hardware_concurrency()`?",
+      "options": [
+        "It is at least 1, since the calling thread is running on some hardware context",
+        "It is the maximum number of `std::thread` objects that can be joinable at once",
+        "It equals the number of physical cores",
+        "It is a hint about hardware thread contexts, and may be 0 if not computable or not well defined"
+      ],
+      "answer": 3,
+      "explanation": "[thread.thread.static] describes the value as the number of hardware thread contexts, to be regarded only as a hint, and says it returns 0 when the value is not computable or well defined. Nothing promises it is at least 1, so code that sizes a pool from it should clamp. It says nothing about how many threads may be created, and hardware thread contexts typically count simultaneous multithreading siblings, not physical cores.",
+      "refs": [
+        "[thread.thread.static]"
+      ]
+    },
+    {
+      "id": "threads-and-jthread-thread-local-join",
+      "kind": "standardese",
+      "prompt": "What is guaranteed to be printed?",
+      "code": "#include <cstdio>\n#include <thread>\n\nstruct Noisy {\n  ~Noisy() { std::puts(\"dtor\"); }\n};\n\nint main() {\n  std::thread t([] {\n    thread_local Noisy n;\n    std::puts(\"body\");\n  });\n  t.join();\n  std::puts(\"joined\");\n}",
+      "options": [
+        "`body`, `joined`, `dtor`: thread-local objects are destroyed at program exit",
+        "`body`, `dtor`, `joined`",
+        "`body` and `joined`, with `dtor` in an unspecified position",
+        "`body` and `joined` only: thread-local objects of other threads are never destroyed"
+      ],
+      "answer": 1,
+      "explanation": "Constructed objects with thread storage duration are destroyed as a result of the thread returning from its initial function, per [basic.start.term], so their destruction is part of that thread's completion. [thread.thread.member] says the thread's completion synchronizes with the successful return of `join()`. So `dtor` is printed before `join` returns, and therefore before `joined`. The first option confuses thread storage with static storage, which is destroyed at program exit.",
+      "refs": [
+        "[basic.start.term]",
+        "[basic.stc.thread]",
+        "[thread.thread.member]"
+      ]
+    }
+  ]
+}

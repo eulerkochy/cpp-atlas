@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "non-type-template-parameters-auto-identity",
+      "kind": "warmup",
+      "prompt": "What are the values of `A` and `B`?",
+      "code": "#include <type_traits>\n\ntemplate<auto V> struct X {};\n\nconstexpr bool A = std::is_same_v<X<1>, X<2 - 1>>;\nconstexpr bool B = std::is_same_v<X<1>, X<1u>>;",
+      "options": [
+        "Both are true",
+        "`A` is true, `B` is false",
+        "`A` is false, `B` is false",
+        "Ill-formed: `auto` cannot be the type of a template parameter"
+      ],
+      "answer": 1,
+      "explanation": "`2 - 1` is the `int` value 1, so `A` names the same specialization twice. For `X<1u>` the placeholder deduces `unsigned int`, and template-argument equivalence requires the same type as well as the same value, so `B` is false. `auto` parameters have been allowed since C++17.",
+      "refs": [
+        "[temp.type]",
+        "[temp.param]",
+        "[dcl.type.auto.deduct]"
+      ]
+    },
+    {
+      "id": "non-type-template-parameters-string-literal",
+      "kind": "warmup",
+      "prompt": "Which line is ill-formed in C++23?",
+      "code": "template<const char* P> struct Tag {};\n\nconstexpr char name[] = \"hi\";\n\nTag<name> a;      // #1\nTag<\"hi\"> b;      // #2\nTag<nullptr> c;   // #3",
+      "options": [
+        "#1, because `name` has internal linkage",
+        "#3, because a null pointer is not an object address",
+        "None of them since C++17",
+        "#2, because a pointer argument cannot designate a string literal"
+      ],
+      "answer": 3,
+      "explanation": "[temp.arg.nontype] forbids a pointer or reference argument from referring to a string literal, a temporary, a `typeid` result or `__func__`, so #2 is ill-formed. Internal linkage has been enough since C++11 and no linkage is needed since C++17, so #1 is fine, and a null pointer value is a valid argument for a pointer parameter. Pass text through a class-type parameter that stores the characters instead.",
+      "refs": [
+        "[temp.arg.nontype]"
+      ]
+    },
+    {
+      "id": "non-type-template-parameters-fixed-string",
+      "kind": "warmup",
+      "prompt": "In C++20, what does this program print?",
+      "code": "#include <cstddef>\n#include <cstdio>\n\ntemplate<std::size_t N> struct fixed_string {\n  char data[N];\n  constexpr fixed_string(const char (&s)[N]) {\n    for (std::size_t i = 0; i < N; ++i) data[i] = s[i];\n  }\n};\n\ntemplate<fixed_string S> struct Name {\n  static constexpr const char* get() { return S.data; }\n};\n\nint main() { std::puts(Name<\"ok\">::get()); }",
+      "options": [
+        "`ok`",
+        "Nothing: ill-formed because string literals cannot be template arguments",
+        "Nothing: ill-formed because `fixed_string` has a user-provided constructor",
+        "Undefined behavior: `S.data` dangles after `get` returns"
+      ],
+      "answer": 0,
+      "explanation": "The parameter is a placeholder for a deduced class type, so `fixed_string<3>` is deduced from `\"ok\"` and the class copies the characters. The string-literal ban applies to pointer and reference arguments, not to a class value built from a literal, and user-provided constructors are fine in a structural type. `S` names a template parameter object with static storage duration, so the returned pointer stays valid.",
+      "refs": [
+        "[temp.param]",
+        "[temp.arg.nontype]",
+        "[over.match.class.deduct]"
+      ]
+    },
+    {
+      "id": "non-type-template-parameters-negative-zero",
+      "kind": "tricky",
+      "prompt": "In C++20, on an implementation with IEEE 754 `double` (such as any x86-64 or arm64 target), what is the value of `same`?",
+      "code": "#include <type_traits>\n\ntemplate<double D> struct F {};\n\nconstexpr bool same = std::is_same_v<F<0.0>, F<-0.0>>;",
+      "options": [
+        "`true`, because `0.0 == -0.0`",
+        "`false`",
+        "Ill-formed: floating-point types cannot be template parameters",
+        "Unspecified"
+      ],
+      "answer": 1,
+      "explanation": "For floating-point arguments, [temp.type] requires the values to be identical, not merely equal under `==`. Positive and negative zero compare equal but are different values, so they give two distinct specializations. Floating-point parameters are allowed since C++20, so the third option describes C++17.",
+      "refs": [
+        "[temp.type]",
+        "[temp.param]"
+      ]
+    },
+    {
+      "id": "non-type-template-parameters-int-to-double",
+      "kind": "tricky",
+      "prompt": "In C++20, is this well-formed?",
+      "code": "template<double D> struct Scale {};\n\nScale<1> s;",
+      "options": [
+        "Well-formed: 1 converts exactly to 1.0",
+        "Ill-formed: integral-to-floating conversions are not allowed in a converted constant expression",
+        "Well-formed, but `Scale<1>` and `Scale<1.0>` are different types",
+        "Ill-formed: floating-point parameters require a floating-point literal with a suffix"
+      ],
+      "answer": 1,
+      "explanation": "An NTTP argument must be a converted constant expression of the parameter type, and [expr.const] allows only a short list of conversions: non-narrowing integral conversions and promotions, floating-point promotions and exact floating-point conversions, and a few pointer conversions. A floating-integral conversion is not on the list, even though 1 is exactly representable, so the program is ill-formed. GCC and Clang both reject it; write `Scale<1.0>`.",
+      "refs": [
+        "[expr.const]",
+        "[temp.arg.nontype]"
+      ]
+    },
+    {
+      "id": "non-type-template-parameters-parameter-object",
+      "kind": "tricky",
+      "prompt": "In C++20, what does this program print?",
+      "code": "#include <cstdio>\n\nstruct P { int x; };\n\ntemplate<P V> const P* f() { return &V; }\ntemplate<P V> const P* g() { return &V; }\n\nint main() {\n  std::printf(\"%d\\n\", f<P{1}>() == g<P{1}>());\n}",
+      "options": [
+        "`0`: each function template has its own copy of the argument",
+        "Ill-formed: a template parameter is a prvalue and has no address",
+        "Undefined behavior: the pointer dangles after `where` returns",
+        "`1`"
+      ],
+      "answer": 3,
+      "explanation": "A class-type NTTP names a template parameter object of type `const P` with static storage duration, and no two such objects are template-argument-equivalent, so `f<P{1}>` and `g<P{1}>` both refer to the one object for the value `P{1}`. Taking the address is fine because, unlike a scalar NTTP, the name is an lvalue. The prvalue rule in the second option applies to `template<int N>`, where `&N` is ill-formed.",
+      "refs": [
+        "[temp.param]",
+        "[temp.type]"
+      ]
+    },
+    {
+      "id": "non-type-template-parameters-structural",
+      "kind": "standardese",
+      "prompt": "Under C++20 rules, which of these class types can be the type of a non-type template parameter?",
+      "code": "struct A { int v; constexpr A(int x) : v(x) {} };\nclass B { int v = 0; public: constexpr B() = default; };\nstruct C { mutable int v; };\nstruct D : private A { constexpr D() : A(0) {} };",
+      "options": [
+        "Only `A`",
+        "`A` and `B`",
+        "`A` and `D`",
+        "All four, since each is a literal type"
+      ],
+      "answer": 0,
+      "explanation": "A structural class type must be a literal class whose bases and non-static data members are all public and non-mutable, with structural types. `A` qualifies; its user-provided constexpr constructor does not matter. `B` has a private member, `C` a mutable one, and `D` a private base, so none of them is structural even though all are literal types.",
+      "refs": [
+        "[temp.param]",
+        "[basic.types.general]"
+      ]
+    },
+    {
+      "id": "non-type-template-parameters-subobject",
+      "kind": "standardese",
+      "prompt": "In which standard versions is `Slot<&arr[1]>` a valid template argument?",
+      "code": "template<int* P> struct Slot {};\nint arr[3];\n\nSlot<&arr[1]> s;",
+      "options": [
+        "C++20 and later",
+        "C++17 and later",
+        "C++11 and later",
+        "None: array elements can never be template arguments"
+      ],
+      "answer": 0,
+      "explanation": "Before C++17 a pointer argument had to be the address of a complete object with linkage, which an array element is not. C++17 accepted any constant expression but still excluded pointers to subobjects. C++20 lifted that exclusion, keeping only the bans on temporaries, string literals, `typeid` results, `__func__` and their subobjects, so the argument is valid from C++20 on.",
+      "refs": [
+        "[temp.arg.nontype]"
+      ]
+    }
+  ]
+}

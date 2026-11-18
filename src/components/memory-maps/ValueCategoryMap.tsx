@@ -173,12 +173,12 @@ export function ValueCategoryMap() {
             <path
               d="M200 0 L200 12 L95 12 L95 32"
               strokeWidth={activeExpr.glvalue ? 2 : 1.2}
-              stroke={activeExpr.glvalue ? "#000000" : "rgb(0 0 0 / 0.18)"}
+              stroke={activeExpr.glvalue ? "var(--ink)" : "var(--line-strong)"}
             />
             <path
               d="M200 12 L305 12 L305 32"
               strokeWidth={activeExpr.rvalue ? 2 : 1.2}
-              stroke={activeExpr.rvalue ? "#000000" : "rgb(0 0 0 / 0.18)"}
+              stroke={activeExpr.rvalue ? "var(--ink)" : "var(--line-strong)"}
             />
           </svg>
 
@@ -263,8 +263,8 @@ export function ValueCategoryMap() {
               strokeWidth={activeExpr.category === "lvalue" ? 2.2 : 1.2}
               stroke={
                 activeExpr.category === "lvalue"
-                  ? "#000000"
-                  : "rgb(0 0 0 / 0.18)"
+                  ? "var(--ink)"
+                  : "var(--line-strong)"
               }
             />
             <path
@@ -272,8 +272,8 @@ export function ValueCategoryMap() {
               strokeWidth={activeExpr.category === "xvalue" ? 2.2 : 1.2}
               stroke={
                 activeExpr.category === "xvalue"
-                  ? "#000000"
-                  : "rgb(0 0 0 / 0.18)"
+                  ? "var(--ink)"
+                  : "var(--line-strong)"
               }
             />
             <path
@@ -281,8 +281,8 @@ export function ValueCategoryMap() {
               strokeWidth={activeExpr.category === "xvalue" ? 2.2 : 1.2}
               stroke={
                 activeExpr.category === "xvalue"
-                  ? "#000000"
-                  : "rgb(0 0 0 / 0.18)"
+                  ? "var(--ink)"
+                  : "var(--line-strong)"
               }
             />
             <path
@@ -290,8 +290,8 @@ export function ValueCategoryMap() {
               strokeWidth={activeExpr.category === "prvalue" ? 2.2 : 1.2}
               stroke={
                 activeExpr.category === "prvalue"
-                  ? "#000000"
-                  : "rgb(0 0 0 / 0.18)"
+                  ? "var(--ink)"
+                  : "var(--line-strong)"
               }
             />
           </svg>

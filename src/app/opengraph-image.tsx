@@ -1,17 +1,22 @@
 import { ImageResponse } from "next/og";
+import { getSiteStats } from "@/lib/site-stats";
 
 export const alt = "C++ Atlas — Every cppreference Page Mapped 1:1";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const STATS = [
-  { value: "33", label: "Study topics", wide: false },
-  { value: "11", label: "Memory simulators", wide: false },
-  { value: "220", label: "Standardese traps", wide: false },
-  { value: "7,589", label: "1:1 /w/cpp & /w/c entries", wide: true },
-] as const;
-
 export default function OpenGraphImage() {
+  const stats = getSiteStats();
+  const STATS = [
+    { value: String(stats.topics), label: "Study topics", wide: false },
+    { value: String(stats.simulators), label: "Memory simulators", wide: false },
+    { value: String(stats.traps), label: "Standardese traps", wide: false },
+    {
+      value: stats.referencePages.toLocaleString("en-US"),
+      label: "1:1 /w/cpp & /w/c pages",
+      wide: true,
+    },
+  ] as const;
   return new ImageResponse(
     (
       <div

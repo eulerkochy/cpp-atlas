@@ -1,14 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { HeroExpressionInspector } from "@/components/HeroExpressionInspector";
 import { SearchPrompt } from "@/components/SearchPrompt";
 import { TrackList } from "@/components/TrackList";
 import { ALL_QUIZZES } from "@/data/companions";
-import {
-  countUniquePagesUnderPrefix,
-  C_INDEX_STATS,
-  INDEX_STATS,
-} from "@/lib/cppref-index";
+import { countPagesUnderPrefix, getIndexStats } from "@/lib/cppref-index";
 import { getAllTopics, getTracks } from "@/lib/topics";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 const HOME_SECTIONS = [
   { lang: "cpp" as const, path: "language", title: "Language" },
@@ -22,6 +23,8 @@ const HOME_SECTIONS = [
 ];
 
 export default function HomePage() {
+  const cppStats = getIndexStats("cpp");
+  const cStats = getIndexStats("c");
   const tracks = getTracks();
   const activeTracks = tracks.filter((t) => t.topics.length > 0);
   const allTopics = getAllTopics();
@@ -60,7 +63,7 @@ export default function HomePage() {
 
         <div
           aria-hidden
-          className="settle-letters font-display relative z-0 mt-6 text-center text-[clamp(8.5rem,33vw,29rem)] leading-[0.78] font-[480] tracking-[-0.055em] text-white/90 select-none sm:mt-8"
+          className="settle-letters font-display relative z-0 mt-6 text-center text-[clamp(8.5rem,33vw,29rem)] leading-[0.78] font-[480] tracking-[-0.055em] text-[var(--hero-glyph)] select-none sm:mt-8"
           style={{ fontVariationSettings: '"SOFT" 30, "WONK" 0, "opsz" 144' }}
         >
           C++
@@ -143,8 +146,8 @@ export default function HomePage() {
             </h2>
             <p className="mt-4 max-w-[50ch] text-[1.0625rem] leading-relaxed text-ink-soft">
               When a study track is not enough, all{" "}
-              {INDEX_STATS.uniquePages.toLocaleString("en-US")} C++ pages and{" "}
-              {C_INDEX_STATS.uniquePages.toLocaleString("en-US")} C pages of
+              {cppStats.pages.toLocaleString("en-US")} C++ pages and{" "}
+              {cStats.pages.toLocaleString("en-US")} C pages of
               cppreference.com are mapped 1:1 at their exact addresses:{" "}
               <code className="font-mono text-[0.9em] text-ink">
                 /w/cpp/container/vector
@@ -174,7 +177,7 @@ export default function HomePage() {
                       {sec.title}
                     </span>
                     <span className="text-sm text-ink-faint tabular-nums">
-                      {countUniquePagesUnderPrefix(sec.lang, sec.path).toLocaleString("en-US")}{" "}
+                      {countPagesUnderPrefix(sec.lang, sec.path).toLocaleString("en-US")}{" "}
                       pages
                     </span>
                   </Link>
@@ -199,7 +202,7 @@ export default function HomePage() {
                 href="/explore"
                 className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
               >
-                Browse all {INDEX_STATS.domainCount + C_INDEX_STATS.domainCount}{" "}
+                Browse all {cppStats.domainCount + cStats.domainCount}{" "}
                 domains
               </Link>
             </div>

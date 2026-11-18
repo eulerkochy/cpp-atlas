@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "namespaces-and-scope-if-else-redeclare",
+      "kind": "warmup",
+      "prompt": "Is this function well-formed?",
+      "code": "int get();\n\nvoid f() {\n  if (int x = get()) {\n    (void)x;\n  } else {\n    int x = 2;\n    (void)x;\n  }\n}",
+      "options": [
+        "Well-formed: the `else` block is a new scope, so its `x` shadows the condition's `x`",
+        "Ill-formed: `x` from the condition cannot be redeclared in the outermost block of the `else` branch",
+        "Well-formed, but the `else` branch reads the condition's `x`",
+        "Ill-formed: a variable cannot be declared in an `if` condition"
+      ],
+      "answer": 1,
+      "explanation": "The condition's `x` belongs to the block scope of the whole `if` statement, which encloses both branches. [basic.scope.block] makes it ill-formed for a declaration in the outermost block of a substatement, such as either branch, to redeclare a name from that enclosing condition. The shadowing answer would be right one level deeper: a nested block `{ int x = 2; }` inside the `else` branch is allowed.",
+      "refs": [
+        "[basic.scope.block]",
+        "[stmt.select]"
+      ]
+    },
+    {
+      "id": "namespaces-and-scope-shadowed-levels",
+      "kind": "warmup",
+      "prompt": "What does `main` return?",
+      "code": "int level = 0;\n\nint depth() {\n  int level = 1;\n  {\n    int level = 2;\n    return level + ::level;\n  }\n}\n\nint main() { return depth(); }",
+      "options": [
+        "3, because `::level` names the enclosing local",
+        "1",
+        "2",
+        "Ill-formed: `level` is redeclared in a nested block"
+      ],
+      "answer": 2,
+      "explanation": "The innermost `level` is 2, and `::level` is qualified lookup in the global namespace, which finds the global `level` with value 0, so `depth` returns 2. `::` never refers to an enclosing block; once the middle `level` is hidden, there is no way to name it. Redeclaring a name in a nested block is ordinary shadowing, which is legal, although `-Wshadow` warns about it.",
+      "refs": [
+        "[basic.scope.block]",
+        "[basic.lookup.unqual]",
+        "[namespace.qual]"
+      ]
+    },
+    {
+      "id": "namespaces-and-scope-alias-reopen",
+      "kind": "warmup",
+      "prompt": "Is this translation unit well-formed?",
+      "code": "namespace very_long_name { int a; }\nnamespace v = very_long_name;\nnamespace v { int b; }",
+      "options": [
+        "Well-formed: it adds `b` to `very_long_name`",
+        "Well-formed: it defines a new namespace `v` that hides the alias",
+        "Ill-formed: a namespace alias cannot be used to reopen a namespace",
+        "Ill-formed: aliases may only name nested namespaces"
+      ],
+      "answer": 2,
+      "explanation": "A namespace definition that reopens a namespace must name the namespace itself, not an alias, and `v` already names an alias in this scope, so it cannot also be a new namespace. GCC and Clang both reject the third line. The first option is the tempting one, because an alias works everywhere else a namespace name does, such as in `v::a`.",
+      "refs": [
+        "[namespace.def]",
+        "[namespace.alias]"
+      ]
+    },
+    {
+      "id": "namespaces-and-scope-point-of-declaration",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nconst int n = 4;\n\nint main() {\n  char n[n] = {};\n  const int k = 10;\n  {\n    enum { k = k + 5, m = k * 2 };\n    std::printf(\"%zu %d %d\\n\", sizeof n, k, m);\n  }\n}",
+      "options": [
+        "`4 15 30`",
+        "`4 5 10`, because the enumerator `k` starts at zero",
+        "Nothing: `char n[n]` is ill-formed because `n` is used in its own declarator",
+        "`4 15 20`, because `m` uses the outer `k`"
+      ],
+      "answer": 0,
+      "explanation": "A variable's point of declaration is just after its complete declarator, so the bound in `char n[n]` still sees the global `n` with value 4. An enumerator's point of declaration is after its initializer, so `k + 5` reads the local `const int k`, giving 15, and `m = k * 2` then sees the new enumerator, giving 30. The \"ill-formed\" option assumes a name is visible as soon as it is spelled, which is true for the initializer but not for the declarator.",
+      "refs": [
+        "[basic.scope.pdecl]"
+      ]
+    },
+    {
+      "id": "namespaces-and-scope-using-directive-nearest",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nnamespace lib { int value() { return 1; } }\n\nnamespace app {\n  int value() { return 2; }\n  int get() {\n    using namespace lib;\n    return value();\n  }\n}\n\nint main() { std::printf(\"%d\\n\", app::get()); }",
+      "options": [
+        "`1`, because the using-directive is in the innermost scope",
+        "Nothing; the call is ambiguous between `lib::value` and `app::value`",
+        "`2`",
+        "Nothing; a using-directive is not allowed inside a function"
+      ],
+      "answer": 2,
+      "explanation": "During unqualified lookup, a using-directive makes the nominated names appear as if declared in the nearest enclosing namespace that contains both the directive and the nominated namespace. Here that is the global namespace, so `lib::value` behaves like a global and is hidden by `app::value`, which lookup reaches first. The first option treats the directive like a using-declaration; `using lib::value;` in the function would indeed return 1.",
+      "refs": [
+        "[namespace.udir]",
+        "[basic.lookup.unqual]"
+      ]
+    },
+    {
+      "id": "namespaces-and-scope-unnamed-ambiguity",
+      "kind": "tricky",
+      "prompt": "Is this translation unit well-formed?",
+      "code": "namespace { int counter = 0; }\nint counter = 1;\n\nint read() { return counter; }",
+      "options": [
+        "Ill-formed: the second line redefines `counter`",
+        "Well-formed: `read` returns 1, because the global declaration hides the unnamed one",
+        "Well-formed: `read` returns 0, because the unnamed namespace is searched first",
+        "Ill-formed: the use of `counter` in `read` is ambiguous"
+      ],
+      "answer": 3,
+      "explanation": "An unnamed namespace behaves like a uniquely named namespace followed by a using-directive for it. The global `counter` is a different entity from the one in the unnamed namespace, so the first two lines are fine. In `read`, the using-directive makes the unnamed namespace's `counter` appear as if declared in the global namespace, next to the global `counter`, and the unqualified use is ambiguous. `::counter` does compile and names the global one, because qualified lookup consults using-directives only when the namespace has no such member itself; the unnamed namespace's `counter` then cannot be named from outside that namespace at all.",
+      "refs": [
+        "[namespace.unnamed]",
+        "[namespace.udir]",
+        "[basic.lookup.unqual]"
+      ]
+    },
+    {
+      "id": "namespaces-and-scope-two-directives",
+      "kind": "standardese",
+      "prompt": "Which numbered line makes this translation unit ill-formed?",
+      "code": "namespace A { int n = 1; }\nnamespace B { int n = 2; }\n\nusing namespace A;                  // (1)\nusing namespace B;                  // (2)\nint first() { return A::n; }        // (3)\nint second() { return n; }          // (4)",
+      "options": [
+        "(2), because it brings in a second `n`",
+        "(4)",
+        "(3), because `A::n` is hidden by the directives",
+        "None; the most recent directive wins"
+      ],
+      "answer": 1,
+      "explanation": "[namespace.udir] says a using-directive adds no members to the scope where it appears; it only affects unqualified lookup. Two directives that bring in the same name are therefore not a conflict by themselves. The ambiguity is only diagnosed when an unqualified use finds both `A::n` and `B::n`, which happens in (4) and makes it ill-formed. The qualified `A::n` in (3) is unaffected.",
+      "refs": [
+        "[namespace.udir]",
+        "[basic.lookup.general]"
+      ]
+    },
+    {
+      "id": "namespaces-and-scope-inline-namespace",
+      "kind": "standardese",
+      "prompt": "Given `namespace lib { inline namespace v2 { struct Config {}; } }`, which statement is true?",
+      "options": [
+        "`lib::Config` names the type, and its members' mangled names under the Itanium ABI still contain `v2`",
+        "`lib::Config` names the type, and its mangled names are identical to those of a `Config` declared directly in `lib`",
+        "A template in `lib::v2` cannot be explicitly specialized using the name `lib::`",
+        "For an argument of type `lib::v2::Config`, ADL searches `lib::v2` but not `lib`"
+      ],
+      "answer": 0,
+      "explanation": "Members of an inline namespace can be used in most respects as members of the enclosing namespace: lookup, explicit specialization through the enclosing name, and ADL, where the enclosing namespace is associated as well. The inline namespace is still a real namespace, so it appears in the entity's name and therefore in mangled names, so GCC 16 mangles a function `lib::load(lib::Config)` as `_ZN3lib4loadENS_2v26ConfigE`. That is the whole point of using inline namespaces for ABI versioning, and why the second option is wrong.",
+      "refs": [
+        "[namespace.def]",
+        "[basic.lookup.argdep]"
+      ]
+    }
+  ]
+}

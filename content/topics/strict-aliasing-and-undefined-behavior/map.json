@@ -1,0 +1,61 @@
+{
+  "root": {
+    "label": "Strict aliasing and UB",
+    "note": "UB is an assumption the optimizer may make; the aliasing rule is one of the assumptions it relies on most.",
+    "children": [
+      {
+        "label": "Abstract machine",
+        "note": "Implementations only need to reproduce the observable behavior of the abstract machine.",
+        "children": [
+          { "label": "No requirements", "note": "An execution containing UB has no requirements, even for operations before the UB." },
+          { "label": "Optimizer assumptions", "note": "Null checks after a dereference and x + 1 > x on signed int can be folded away." }
+        ]
+      },
+      {
+        "label": "Behavior categories",
+        "note": "Four distinct kinds of non-portable behavior.",
+        "children": [
+          { "label": "Implementation-defined", "note": "One behavior, documented by the implementation, such as sizeof(int)." },
+          { "label": "Unspecified", "note": "One of several allowed outcomes, undocumented, such as function argument evaluation order." },
+          { "label": "Ill-formed NDR", "note": "The program is invalid but needs no diagnostic, such as an ODR violation." },
+          { "label": "Erroneous behavior", "note": "C++26 only: uninitialized reads give an implementation value, with [[indeterminate]] to opt out." }
+        ]
+      },
+      {
+        "label": "Type-accessibility rule",
+        "note": "[basic.lval] restricts which glvalue types may access an object's stored value.",
+        "children": [
+          { "label": "Allowed types", "note": "The dynamic type (up to cv), its signed or unsigned counterpart, and char, unsigned char, std::byte." },
+          { "label": "signed char excluded", "note": "Unlike C, C++ does not let signed char access arbitrary objects." },
+          { "label": "One-way exemption", "note": "Bytes may view any object, but a byte buffer cannot be read as an int that is not there." }
+        ]
+      },
+      {
+        "label": "Punning",
+        "note": "Reinterpreting bytes as another type needs a sanctioned tool.",
+        "children": [
+          { "label": "Union punning is UB", "note": "Only the active member is alive; C defines punning, and GCC allows it at run time as an extension." },
+          { "label": "memcpy and bit_cast", "note": "memcpy copies representations; bit_cast (C++20) needs equal size and trivially copyable types." },
+          { "label": "start_lifetime_as", "note": "C++23: makes an implicit-lifetime T from bytes already in place, with no copy." }
+        ]
+      },
+      {
+        "label": "Pointer provenance",
+        "note": "A pointer points to a specific object; its arithmetic and casts depend on that object.",
+        "children": [
+          { "label": "Array bounds", "note": "Arithmetic stays within the array or one past the end; forming any other pointer is UB." },
+          { "label": "Pointer-interconvertible", "note": "Only union and member, or standard-layout object and first member, retarget via reinterpret_cast." },
+          { "label": "Unrelated comparison", "note": "Built-in < on unrelated pointers is unspecified; std::less gives a total order." }
+        ]
+      },
+      {
+        "label": "Constant evaluation",
+        "note": "Core-language UB makes an expression non-constant, so it must be diagnosed.",
+        "children": [
+          { "label": "constexpr as UB checker", "note": "A static_assert over a constexpr test turns overflow, bad reads and bounds errors into compile errors." },
+          { "label": "Limits", "note": "Library-precondition UB need not be diagnosed, and compilers have gaps." }
+        ]
+      }
+    ]
+  }
+}

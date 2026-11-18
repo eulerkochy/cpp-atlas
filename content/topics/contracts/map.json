@@ -1,0 +1,66 @@
+{
+  "root": {
+    "label": "Contracts (C++26)",
+    "note": "Redundant checks via pre, post and contract_assert; how they are checked is chosen by the implementation.",
+    "children": [
+      {
+        "label": "Three assertion kinds",
+        "note": "Preconditions, postconditions and assertion statements, each with a bool predicate.",
+        "children": [
+          { "label": "pre(expr)", "note": "Checked after parameters are initialized, before the body runs, in lexical order." },
+          { "label": "post(r: expr)", "note": "Checked on normal return only; r is a const lvalue naming the result object." },
+          { "label": "contract_assert(expr);", "note": "A full keyword and a statement; unaffected by NDEBUG, unlike the assert macro." }
+        ]
+      },
+      {
+        "label": "Placement rules",
+        "note": "Specifiers attach to the function's first declaration and are not part of its type.",
+        "children": [
+          { "label": "First declaration", "note": "Later declarations omit them or repeat the same sequence; adding or partly repeating is an error." },
+          { "label": "Not in the type", "note": "Ignored by overload resolution; pointers to functions and type aliases cannot carry them." },
+          { "label": "Banned in C++26", "note": "Virtual functions, deleted functions, and functions defaulted on first declaration. Virtual support is C++29 (P3097)." },
+          { "label": "Lambdas and coroutines", "note": "Allowed. Contract-only uses cannot trigger implicit capture; coroutine posts cannot read by-value parameters." }
+        ]
+      },
+      {
+        "label": "Const predicates",
+        "note": "Outside variables, *this and the result binding are const inside a predicate.",
+        "children": [
+          { "label": "Implicit const", "note": "Calling a non-const member or incrementing a parameter in a predicate is ill-formed." },
+          { "label": "Const parameters for post", "note": "A by-value parameter read in a postcondition must be const on every declaration." },
+          { "label": "Side effects", "note": "Still possible via mutable or const_cast; a predicate may run zero, one or several times." }
+        ]
+      },
+      {
+        "label": "Evaluation semantics",
+        "note": "Implementation-defined per evaluation; enforce is the recommended default.",
+        "children": [
+          { "label": "ignore", "note": "Predicate not evaluated, but still odr-used, so it must compile." },
+          { "label": "observe", "note": "Checked; on violation the handler runs and execution continues if it returns." },
+          { "label": "enforce", "note": "Checked; handler runs, then the program is contract-terminated if it returns." },
+          { "label": "quick-enforce", "note": "Checked; contract-terminated at once without calling the handler." },
+          { "label": "Constant evaluation", "note": "A violation is ill-formed under a terminating semantic and a diagnostic under observe." }
+        ]
+      },
+      {
+        "label": "Violation handling",
+        "note": "::handle_contract_violation receives a const std::contracts::contract_violation&.",
+        "children": [
+          { "label": "Replaceable handler", "note": "Replaceability is implementation-defined; __cpp_lib_replaceable_contract_violation_handler reports it." },
+          { "label": "Observers", "note": "kind, semantic, is_terminating, detection_mode, comment, location. GCC 16 spells detection_mode as mode." },
+          { "label": "Throwing predicate", "note": "A violation; the handler runs inside an active handler for that exception." },
+          { "label": "Throwing handler", "note": "Acts as if the function body threw; in a noexcept function, std::terminate is called." }
+        ]
+      },
+      {
+        "label": "Related features",
+        "note": "How contracts differ from older and neighbouring mechanisms.",
+        "children": [
+          { "label": "[[assume]]", "note": "A false assumption is UB; contracts never let the optimizer assume an unchecked predicate." },
+          { "label": "C++20 attributes", "note": "[[expects]], [[ensures]] and [[assert]] with levels were removed in 2019 before shipping." },
+          { "label": "Library hardening", "note": "In a hardened implementation, library Hardened preconditions are checked with a terminating semantic." }
+        ]
+      }
+    ]
+  }
+}

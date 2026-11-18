@@ -1,0 +1,149 @@
+{
+  "questions": [
+    {
+      "id": "enumerations-and-unions-scoped-conversion",
+      "kind": "warmup",
+      "prompt": "Which line is ill-formed?",
+      "code": "enum Fruit { apple, pear };\nenum class Color { red, green };\n\nint a = pear;                          // line A\nint b = Color::green;                  // line B\nint c = static_cast<int>(Color::red);  // line C\nColor d = Color::red;                  // line D",
+      "options": [
+        "Line A",
+        "Line B",
+        "Line C",
+        "Line D",
+        "None of them"
+      ],
+      "answer": 1,
+      "explanation": "A scoped enumeration has no implicit conversion to an integer, so initializing an `int` from `Color::green` is ill-formed. The explicit `static_cast` on line C is the intended way, along with `std::to_underlying` in C++23. Line A is fine because unscoped enumerations promote implicitly, and the enumerator `pear` is visible without qualification.",
+      "refs": [
+        "[dcl.enum]",
+        "[conv.prom]"
+      ]
+    },
+    {
+      "id": "enumerations-and-unions-inactive-read",
+      "kind": "warmup",
+      "prompt": "What does the C++ standard say about this program?",
+      "code": "union U { int i; float f; };\n\nint main() {\n  U u;\n  u.f = 1.0f;\n  return u.i;\n}",
+      "options": [
+        "It returns the bit pattern of `1.0f` reinterpreted as an `int`",
+        "The value returned is implementation-defined",
+        "It is ill-formed",
+        "The behavior is undefined"
+      ],
+      "answer": 3,
+      "explanation": "Assigning to `u.f` makes `f` the active member, so no `int` object is alive in the union. Reading `u.i` accesses an object outside its lifetime, which is undefined behavior. The first option describes what C guarantees and what GCC documents as an extension, but standard C++ makes no such promise; use `std::bit_cast<int>(1.0f)` instead.",
+      "refs": [
+        "[class.union.general]",
+        "[basic.life]"
+      ]
+    },
+    {
+      "id": "enumerations-and-unions-using-enum",
+      "kind": "warmup",
+      "prompt": "In C++20, is this function well-formed?",
+      "code": "enum class Color { red, green };\n\nint code(Color c) {\n  switch (c) {\n    using enum Color;\n    case red:   return 1;\n    case green: return 2;\n  }\n  return 0;\n}",
+      "options": [
+        "Yes: `using enum Color;` makes `red` and `green` visible in the switch body",
+        "No: `using enum` may only appear at namespace scope",
+        "No: case labels of a scoped enumeration must always be qualified",
+        "No: a declaration cannot appear before the first case label"
+      ],
+      "answer": 0,
+      "explanation": "`using enum` (P1099, C++20) is a declaration that may appear at namespace, class or block scope, and the switch body is a block. It introduces the enumerators of `Color` as if by a using-declaration for each, so the unqualified case labels find them. A declaration with no initialization before the first label is fine, since no jump bypasses an initialization.",
+      "refs": [
+        "[enum.udecl]",
+        "[stmt.switch]"
+      ]
+    },
+    {
+      "id": "enumerations-and-unions-list-init-from-int",
+      "kind": "tricky",
+      "prompt": "Given `enum class Id : unsigned {};`, which declaration is well-formed in C++17 and later?",
+      "options": [
+        "`Id a = 7;`",
+        "`Id b(7);`",
+        "`Id c{7};`",
+        "`Id d = {7};`"
+      ],
+      "answer": 2,
+      "explanation": "P0138 (C++17) lets an enumeration with a fixed underlying type be initialized from an integer, but only by direct-list-initialization with a single, non-narrowing element. `Id d = {7};` is copy-list-initialization and is excluded on purpose, which makes it the most tempting wrong answer. Parentheses and `=` still need a `static_cast`.",
+      "refs": [
+        "[dcl.init.list]",
+        "[dcl.enum]"
+      ]
+    },
+    {
+      "id": "enumerations-and-unions-out-of-range",
+      "kind": "tricky",
+      "prompt": "In C++17 and later, what does the standard say about `x` and `y`?",
+      "code": "enum Small { a = 1, b = 4 };\n\nSmall x = static_cast<Small>(7);\nSmall y = static_cast<Small>(8);",
+      "options": [
+        "Both are well-defined; the values wrap into the underlying type",
+        "`x` is well-defined; initializing `y` has undefined behavior",
+        "Both have undefined behavior, because neither value is an enumerator",
+        "`x` is well-defined; `y` has an unspecified value"
+      ],
+      "answer": 1,
+      "explanation": "`Small` has no fixed underlying type, so its values are those of the smallest bit-field holding 1 and 4: three unsigned bits, 0 to 7. Seven is in range even though no enumerator names it. Eight is out of range, and since C++17 (CWG 1766) the conversion is undefined behavior. The last option was the rule before C++17, when the result was merely unspecified.",
+      "refs": [
+        "[expr.static.cast]",
+        "[dcl.enum]"
+      ]
+    },
+    {
+      "id": "enumerations-and-unions-nontrivial-member",
+      "kind": "tricky",
+      "prompt": "Is this program well-formed?",
+      "code": "#include <string>\n\nunion S {\n  int i;\n  std::string s;\n};\n\nint main() {\n  S v;\n  v.i = 1;\n}",
+      "options": [
+        "Yes: `i` is the active member, so `s` is never touched",
+        "No: the union's default constructor and destructor are deleted",
+        "Yes, but the behavior is undefined because `s` is never constructed",
+        "No: a union may not have a member of class type"
+      ],
+      "answer": 1,
+      "explanation": "Since C++11 a union may have members with non-trivial special member functions, but the union's corresponding special members become deleted. `std::string` has a non-trivial default constructor and destructor, and no variant member has a default member initializer, so `S v;` uses a deleted constructor and the program is ill-formed. You must write `S() : i(0) {}` and `~S() {}` yourself and manage `s` by hand.",
+      "refs": [
+        "[class.union.general]",
+        "[class.default.ctor]",
+        "[class.dtor]"
+      ]
+    },
+    {
+      "id": "enumerations-and-unions-common-initial-sequence",
+      "kind": "standardese",
+      "prompt": "What does `main` return?",
+      "code": "struct A { int tag; double d; };\nstruct B { int tag; long l; };\nunion AB { A a; B b; };\n\nint main() {\n  AB u{.a = {7, 2.0}};\n  return u.b.tag;\n}",
+      "options": [
+        "Nothing defined: `b` is not the active member, so the read is undefined",
+        "An implementation-defined value",
+        "7",
+        "An unspecified value"
+      ],
+      "answer": 2,
+      "explanation": "`A` and `B` are standard-layout structs whose common initial sequence is the `int tag` member. In a standard-layout union whose active member is `a`, reading `b.tag` is permitted and behaves as if `a.tag` were read, so the result is 7. The general rule that reading an inactive member is undefined is what makes the first option tempting; reading `u.b.l` would indeed be undefined.",
+      "refs": [
+        "[class.mem.general]",
+        "[class.union.general]"
+      ]
+    },
+    {
+      "id": "enumerations-and-unions-constexpr-inactive",
+      "kind": "standardese",
+      "prompt": "Is the definition of `x` well-formed?",
+      "code": "union U { int i; float f; };\n\nconstexpr float g() {\n  U u{.i = 1};\n  return u.f;\n}\n\nconstexpr float x = g();",
+      "options": [
+        "No: reading the inactive member is undefined, so `g()` is not a constant expression",
+        "Yes: `x` holds the float whose bit pattern is the integer 1",
+        "Yes: `x` is `1.0f`",
+        "Yes, but the value of `x` is unspecified"
+      ],
+      "answer": 0,
+      "explanation": "[expr.const] excludes from constant expressions any operation with undefined behavior, and names an lvalue-to-rvalue conversion applied to an inactive union member explicitly. A `constexpr` variable must be initialized by a constant expression, so the definition is ill-formed and compilers must diagnose it. The second option is what type punning would produce at run time on many implementations, which is exactly the guess constant evaluation refuses to make.",
+      "refs": [
+        "[expr.const]",
+        "[class.union.general]"
+      ]
+    }
+  ]
+}

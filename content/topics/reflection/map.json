@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Static reflection (C++26)",
+    "note": "P2996 and companions: compile-time values that represent program constructs, queried with <meta> and spliced back into code.",
+    "children": [
+      {
+        "label": "Lift and lower",
+        "note": "^^ turns a construct into a std::meta::info; [: r :] turns a constant info back into code.",
+        "children": [
+          { "label": "^^ operator", "note": "Accepts ::, namespaces, templates, type-ids and id-expressions; parses the longest possible type-id." },
+          { "label": "Splicers", "note": "[:r:] needs a constant expression; add typename or template to disambiguate, obj.[:m:] for members." },
+          { "label": "Aliases stay distinct", "note": "^^Int != ^^int for using Int = int; dealias gives the underlying type." }
+        ]
+      },
+      {
+        "label": "Compile time only",
+        "note": "Reflection values never exist at run time, so they cost nothing there.",
+        "children": [
+          { "label": "Consteval-only types", "note": "info and anything containing it may only be constexpr, a template parameter object, or live inside one evaluation." },
+          { "label": "Immediate functions", "note": "A function with an info in its type must be consteval or immediate-escalating, such as a constexpr template." },
+          { "label": "meta::exception", "note": "Metafunctions throw on bad input; an uncaught throw makes the expression non-constant (P3560)." }
+        ]
+      },
+      {
+        "label": "Querying <meta>",
+        "note": "Over two hundred consteval functions in std::meta.",
+        "children": [
+          { "label": "Names", "note": "identifier_of throws without has_identifier; display_string_of text is implementation-defined." },
+          { "label": "Members", "note": "members_of, nonstatic_data_members_of, enumerators_of, bases_of return vector<info> in declaration order." },
+          { "label": "access_context", "note": "current(), unprivileged() or unchecked(): private members appear only if the caller opts in." },
+          { "label": "Values and templates", "note": "reflect_constant and extract convert values; substitute builds template specializations." }
+        ]
+      },
+      {
+        "label": "Writing code",
+        "note": "Turning computed reflections into declarations and statements.",
+        "children": [
+          { "label": "template for", "note": "P1306 expansion statement: body instantiated per element; break and continue are allowed." },
+          { "label": "define_static_array", "note": "Copies a vector<info> into static storage so template for can iterate it." },
+          { "label": "define_aggregate", "note": "Completes an incomplete class from data_member_spec descriptions, only inside a consteval block." },
+          { "label": "consteval blocks", "note": "consteval { ... } runs code at namespace or class scope; the only place injected declarations may come from." }
+        ]
+      },
+      {
+        "label": "Annotations",
+        "note": "P3394: [[=expr]] attaches structural constants that only reflection reads.",
+        "children": [
+          { "label": "Every one counts", "note": "[[=1, =1]] gives two annotations; redeclarations add more to the same entity." },
+          { "label": "Reading them", "note": "annotations_of and annotations_of_with_type, then extract<T> to get the value." }
+        ]
+      },
+      {
+        "label": "Limits and support",
+        "note": "What C++26 reflection does not do, and where it compiles.",
+        "children": [
+          { "label": "No general injection", "note": "Only aggregate definitions can be generated; no functions, statements or expression reflection." },
+          { "label": "Order matters", "note": "Queries see only preceding declarations, so results can differ by translation unit." },
+          { "label": "GCC 16", "note": "Implemented behind -std=c++26 -freflection; expansion statements need only -std=c++26. Clang 21 lacks it." }
+        ]
+      }
+    ]
+  }
+}

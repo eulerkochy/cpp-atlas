@@ -1000,7 +1000,7 @@ export function StudyDeskClient({
                   type="button"
                   size="xs"
                   onClick={handleConfirmReset}
-                  className="cursor-pointer bg-wrong text-white hover:bg-wrong/90"
+                  className="cursor-pointer bg-wrong text-paper-raised hover:bg-wrong/90"
                 >
                   Confirm reset
                 </Button>

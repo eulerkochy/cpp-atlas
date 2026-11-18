@@ -1,29 +1,29 @@
 import { NextResponse } from "next/server";
 import { COMPANION_OVERLAYS } from "@/data/companions";
-import {
-  ALL_CPPREF_DOMAINS,
-  ALL_CREF_DOMAINS,
-  TOTAL_COMBINED_STATS,
-} from "@/lib/cppref-index";
+import { getDomainsForLang, getIndexStats } from "@/lib/cppref-index";
+import { referenceHref } from "@/lib/reference";
+import { SITE } from "@/lib/site";
 import { getAllTopics } from "@/lib/topics";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://cpp-atlas.vercel.app";
+const BASE_URL = SITE.url;
 
 export function GET() {
   const topics = getAllTopics();
+  const stats = getIndexStats("all");
+  const cpp = getIndexStats("cpp");
+  const cStats = getIndexStats("c");
 
   const lines: string[] = [
     "# C++ Atlas",
     "",
-    `> ${topics.length} structured C++ study topics paired with a full 1:1 indexed companion to en.cppreference.com covering ${TOTAL_COMBINED_STATS.uniquePages} pages and ${TOTAL_COMBINED_STATS.totalEntries} symbols across ${TOTAL_COMBINED_STATS.domainCount} C++ and C domains.`,
+    `> ${topics.length} structured C++ study topics paired with a full 1:1 indexed companion to en.cppreference.com covering ${stats.pages} pages (${cpp.pages} C++, ${cStats.pages} C) across ${stats.domainCount} C++ and C domains, served from an offline snapshot of cppreference.com (CC-BY-SA 3.0 / GFDL).`,
     "",
     "## Gemini Notebook / NotebookLM Audio Overview Ingestion",
     "",
     `- Complete study guide (all topics combined): ${BASE_URL}/api/notebook/topics-all`,
     "- Every `/topics/<slug>` exposes clean Markdown (with concept map outline and quiz traps) at `/api/notebook/topic/<slug>`.",
     "- Every `/w/cpp/<path>` and `/w/c/<path>` page renders complete server-side semantic HTML (`<article>`), making direct URL ingestion reliable.",
-    "- Every reference page also exposes clean Audio-Overview-ready Markdown at `/api/notebook/<path>` (or `/api/notebook/c/<path>` for C pages).",
+    "- Every reference page also exposes clean Audio-Overview-ready Markdown at `/api/notebook/cpp/<path>` (or `/api/notebook/c/<path>` for C pages).",
     "",
     "## Study Topics (with Concept Maps & Standardese Quizzes)",
     "",
@@ -36,21 +36,21 @@ export function GET() {
     "",
     ...COMPANION_OVERLAYS.map(
       (c) =>
-        `- [${c.title}](${BASE_URL}/w/cpp/${c.primaryPath}) — [Markdown](${BASE_URL}/api/notebook/${c.primaryPath}): ${c.mentalModelOneLiner}`
+        `- [${c.title}](${BASE_URL}${referenceHref("cpp", c.primaryPath)}) — [Markdown](${BASE_URL}/api/notebook${referenceHref("cpp", c.primaryPath).slice(2)}): ${c.mentalModelOneLiner}`
     ),
     "",
     "## C++ Reference Domains (/w/cpp)",
     "",
-    ...ALL_CPPREF_DOMAINS.map(
+    ...getDomainsForLang("cpp").map(
       (d) =>
-        `- ${d.name} (${d.count} entries): ${BASE_URL}/explore?lang=cpp&domain=${encodeURIComponent(d.name)}`
+        `- ${d.name} (${d.count} pages): ${BASE_URL}/explore?lang=cpp&domain=${encodeURIComponent(d.name)}`
     ),
     "",
     "## C Reference Domains (/w/c)",
     "",
-    ...ALL_CREF_DOMAINS.map(
+    ...getDomainsForLang("c").map(
       (d) =>
-        `- ${d.name} (${d.count} entries): ${BASE_URL}/explore?lang=c&domain=${encodeURIComponent(d.name)}`
+        `- ${d.name} (${d.count} pages): ${BASE_URL}/explore?lang=c&domain=${encodeURIComponent(d.name)}`
     ),
     "",
     "## Global Endpoints",
@@ -66,7 +66,7 @@ export function GET() {
     `- Full Directory: ${BASE_URL}/explore`,
     `- Standardese Quiz Arena: ${BASE_URL}/quiz`,
     `- NotebookLM Podcast Studio: ${BASE_URL}/notebook`,
-    `- Full XML Sitemap (${TOTAL_COMBINED_STATS.uniquePages + topics.length + 11} URLs): ${BASE_URL}/sitemap.xml`,
+    `- Full XML Sitemap (${stats.pages + topics.length + 11} URLs): ${BASE_URL}/sitemap.xml`,
     "",
   ];
 

@@ -1,0 +1,120 @@
+{
+  "root": {
+    "label": "span and mdspan",
+    "note": "Non-owning views over contiguous data, one-dimensional and multidimensional.",
+    "children": [
+      {
+        "label": "span basics",
+        "note": "A pointer and a length that works as a range.",
+        "children": [
+          {
+            "label": "Non-owning",
+            "note": "It never allocates or frees, so it dangles if the owner dies or reallocates."
+          },
+          {
+            "label": "Borrowed range",
+            "note": "Iterators into a span remain valid after the span object is gone."
+          },
+          {
+            "label": "Deduction from source",
+            "note": "span s(arr) gives a static extent; span s(vec) gives a dynamic one."
+          }
+        ]
+      },
+      {
+        "label": "Extent",
+        "note": "Fixed in the type or stored at run time.",
+        "children": [
+          {
+            "label": "dynamic_extent",
+            "note": "Length is stored in the object; the default."
+          },
+          {
+            "label": "Static extent",
+            "note": "Length lives in the type, so the object can be a single pointer in practice."
+          },
+          {
+            "label": "Explicit conversions",
+            "note": "Dynamic to static, and range to static, are explicit and have a size precondition."
+          }
+        ]
+      },
+      {
+        "label": "Constness",
+        "note": "The element type decides, not the span.",
+        "children": [
+          {
+            "label": "Shallow const",
+            "note": "const span<int> still lets you write the elements."
+          },
+          {
+            "label": "span of const",
+            "note": "span<const int> is read-only and accepts const containers."
+          },
+          {
+            "label": "Rvalue ranges",
+            "note": "Only span<const T> may be built from an rvalue range; the result dangles."
+          }
+        ]
+      },
+      {
+        "label": "Slicing preconditions",
+        "note": "Out-of-range slices are undefined, not exceptions.",
+        "children": [
+          {
+            "label": "first, last, subspan",
+            "note": "Each needs its count or offset within size(); offset == size() is valid."
+          },
+          {
+            "label": "Template forms",
+            "note": "first<N>() and friends always return a static extent."
+          },
+          {
+            "label": "C++26 hardening",
+            "note": "Hardened implementations check these preconditions; plain builds may not."
+          }
+        ]
+      },
+      {
+        "label": "Bytes view",
+        "note": "Object representation as bytes.",
+        "children": [
+          {
+            "label": "as_bytes",
+            "note": "Returns span<const byte> over the same memory."
+          },
+          {
+            "label": "as_writable_bytes",
+            "note": "Needs a non-const element type."
+          }
+        ]
+      },
+      {
+        "label": "mdspan (C++23)",
+        "note": "A non-owning multidimensional view with policies.",
+        "children": [
+          {
+            "label": "Extents",
+            "note": "Static and dynamic dimensions, plus an index type; dextents is all dynamic."
+          },
+          {
+            "label": "Layout policy",
+            "note": "layout_right is row-major and the default; layout_left and layout_stride exist too."
+          },
+          {
+            "label": "Accessor policy",
+            "note": "Controls element access; default_accessor returns a plain reference."
+          },
+          {
+            "label": "m[i, j] subscript",
+            "note": "Multidimensional operator[]; the index count must equal the rank."
+          },
+          {
+            "label": "submdspan (C++26)",
+            "note": "Slices rows, columns and blocks; supported by g++-16 in C++26 mode, not libc++ 21."
+          }
+        ]
+      }
+    ]
+  }
+}

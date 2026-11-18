@@ -1,21 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { CppRefPageView } from "@/components/CppRefPageView";
-import { getReferencePage } from "@/lib/cppref-engine";
-import { ALL_CREF_DOMAINS, C_INDEX_STATS } from "@/lib/cppref-index";
+import { getDomainsForLang, getIndexStats } from "@/lib/cppref-index";
+import { loadReferencePage, referenceMetadata } from "@/lib/reference-route";
 
-export const metadata: Metadata = {
-  title: "C Reference (/w/c)",
-  description:
-    "1:1 indexed overview of the C programming language and standard library headers.",
-};
+export function generateMetadata(): Metadata {
+  return referenceMetadata("c", []);
+}
 
-export default async function CRootPage() {
-  const page = await getReferencePage("c", []);
-  if (!page) {
-    notFound();
-  }
+export default function CRootPage() {
+  const page = loadReferencePage("c", []);
+  const stats = getIndexStats("c");
 
   return (
     <>
@@ -31,8 +26,8 @@ export default async function CRootPage() {
               id="c-domains-heading"
               className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink"
             >
-              Browse {C_INDEX_STATS.uniquePages.toLocaleString("en-US")} C
-              reference pages across {C_INDEX_STATS.domainCount} domains
+              Browse {stats.pages.toLocaleString("en-US")} C
+              reference pages across {stats.domainCount} domains
             </h2>
             <Link
               href="/explore?lang=c"
@@ -43,7 +38,7 @@ export default async function CRootPage() {
           </div>
 
           <ul className="grid border-t border-line sm:grid-cols-2 lg:grid-cols-3 sm:gap-x-10">
-            {ALL_CREF_DOMAINS.map((d) => (
+            {getDomainsForLang("c").map((d) => (
               <li key={d.slug} className="border-b border-line">
                 <Link
                   href={`/explore?lang=c&domain=${encodeURIComponent(d.name)}`}

@@ -1,0 +1,124 @@
+{
+  "root": {
+    "label": "Floating point and numerics",
+    "note": "The standard fixes little; IEEE behaviour is something you test for with is_iec559, not something you get.",
+    "children": [
+      {
+        "label": "What the standard requires",
+        "note": "Only that float values are a subset of double values, which are a subset of long double; the representation is implementation-defined.",
+        "children": [
+          {
+            "label": "is_iec559",
+            "note": "numeric_limits<T>::is_iec559 reports IEC 559 (IEEE 754) conformance; static_assert on it to document the dependency."
+          },
+          {
+            "label": "Division by zero",
+            "note": "Formally undefined in [expr.mul]; IEEE platforms give an infinity or NaN."
+          },
+          {
+            "label": "Extended types (C++23)",
+            "note": "<stdfloat> adds optional float16_t to float128_t and bfloat16_t, each a distinct type from float, double and long double."
+          }
+        ]
+      },
+      {
+        "label": "Equality and ordering",
+        "note": "Floating-point comparison is not a total order, and equality is the wrong tool for computed values.",
+        "children": [
+          {
+            "label": "0.1 + 0.2 != 0.3",
+            "note": "Each literal and the sum are rounded to the binary grid, so the sum lands one step from the nearest double to 0.3."
+          },
+          {
+            "label": "NaN compares",
+            "note": "A NaN is unequal to everything including itself, and only != is true."
+          },
+          {
+            "label": "partial_ordering",
+            "note": "<=> on floating point returns partial_ordering, whose unordered value fails less, equal and greater tests."
+          },
+          {
+            "label": "Signed zero",
+            "note": "+0.0 equals -0.0, but signbit, copysign and a bit_cast can tell them apart."
+          }
+        ]
+      },
+      {
+        "label": "Precision and rounding",
+        "note": "Results can differ between builds because the standard permits wider evaluation and fused operations.",
+        "children": [
+          {
+            "label": "Excess precision",
+            "note": "[expr.pre] lets operands and results use more range and precision than their type, without changing the type."
+          },
+          {
+            "label": "FLT_EVAL_METHOD",
+            "note": "The <cfloat> macro that reports the evaluation format; 0 means each operation uses its own type."
+          },
+          {
+            "label": "Contraction and fma",
+            "note": "A fused a*b+c rounds once; std::fma asks for that, and -ffp-contract=off forbids it."
+          }
+        ]
+      },
+      {
+        "label": "Conversions",
+        "note": "Narrowing from floating point can be undefined, and constant evaluation exposes it.",
+        "children": [
+          {
+            "label": "Float to int",
+            "note": "Truncates toward zero; undefined when the result does not fit, including for infinities and NaNs."
+          },
+          {
+            "label": "Float to float",
+            "note": "In range but inexact picks a neighbour, implementation-defined; out of range is undefined."
+          },
+          {
+            "label": "Constant evaluation",
+            "note": "An out-of-range float-to-int conversion is not a constant expression, so constexpr rejects it."
+          }
+        ]
+      },
+      {
+        "label": "Library helpers",
+        "note": "Utilities that avoid the usual overflow, endpoint and text-conversion mistakes.",
+        "children": [
+          {
+            "label": "midpoint",
+            "note": "Overflow-free average; integer results round toward the first argument."
+          },
+          {
+            "label": "lerp",
+            "note": "Exact at t == 0 and t == 1, monotonic in t, and extrapolates outside the unit interval."
+          },
+          {
+            "label": "to_chars and from_chars",
+            "note": "Shortest text that parses back exactly, guaranteed only within one implementation."
+          },
+          {
+            "label": "numbers constants",
+            "note": "pi, e and friends as double variables, with _v variable templates for other types."
+          }
+        ]
+      },
+      {
+        "label": "Constexpr math and fast-math",
+        "note": "Which cmath functions work at compile time, and why optimization flags can leave the standard.",
+        "children": [
+          {
+            "label": "C++23 constexpr cmath",
+            "note": "Functions independent of the floating-point environment, such as fabs, floor and fma, became constexpr."
+          },
+          {
+            "label": "C++26 constexpr cmath",
+            "note": "Most remaining functions, including sqrt and sin, became constexpr in C++26."
+          },
+          {
+            "label": "-ffast-math",
+            "note": "Licenses reassociation and ignoring NaN, infinity and signed zero; the program no longer follows the standard's rules."
+          }
+        ]
+      }
+    ]
+  }
+}

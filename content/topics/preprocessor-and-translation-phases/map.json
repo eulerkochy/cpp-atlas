@@ -1,0 +1,59 @@
+{
+  "root": {
+    "label": "Preprocessor and phases",
+    "note": "Nine translation phases; macros rewrite tokens in phase 4, before any C++ meaning exists.",
+    "children": [
+      {
+        "label": "Early phases",
+        "note": "Phases 1 to 3 turn bytes into preprocessing tokens.",
+        "children": [
+          { "label": "Phase 1 mapping", "note": "UTF-8 input must be supported since C++23; trigraphs were removed in C++17." },
+          { "label": "Phase 2 splicing", "note": "Backslash then newline is deleted; C++23 allows whitespace in between." },
+          { "label": "Comment splice trap", "note": "A // comment ending in a backslash swallows the next line." },
+          { "label": "Raw strings", "note": "Line splicing is reverted between the quotes of a raw string literal." }
+        ]
+      },
+      {
+        "label": "Tokenization",
+        "note": "Phase 3 takes the longest possible preprocessing token each time.",
+        "children": [
+          { "label": "Maximal munch", "note": "x+++++y is x++ ++ + y and fails; 0xE+1 is a single invalid pp-number." },
+          { "label": "Exceptions", "note": "<:: before a non-colon is < then ::, and >> may close two template lists (C++11)." },
+          { "label": "Digraphs", "note": "<: :> <% %> %: %:%: are real tokens for [ ] { } # ##." },
+          { "label": "Comments", "note": "Each comment becomes one space, so it can never paste tokens." }
+        ]
+      },
+      {
+        "label": "Macro expansion",
+        "note": "Token substitution followed by rescanning, with recursion blocked.",
+        "children": [
+          { "label": "Argument pre-expansion", "note": "Arguments are fully expanded first unless they are operands of # or ##." },
+          { "label": "# and ##", "note": "# makes a string literal from an argument; ## pastes two tokens into one valid token." },
+          { "label": "Painted blue", "note": "A macro name met inside its own expansion is never replaced, then or later." },
+          { "label": "Needs a parenthesis", "note": "A function-like macro name not followed by ( is left alone, as in (max)(a, b)." },
+          { "label": "__VA_OPT__ (C++20)", "note": "Expands its tokens only when variadic arguments are present." }
+        ]
+      },
+      {
+        "label": "Directives",
+        "note": "Inclusion and conditional compilation, evaluated in phase 4.",
+        "children": [
+          { "label": "#include forms", "note": "<h> and \"h\" search implementation-defined places; a macro form must expand to one of them." },
+          { "label": "#if arithmetic", "note": "Done in intmax_t or uintmax_t; leftover identifiers are 0, true is 1." },
+          { "label": "Detection", "note": "__has_include (C++17) and __has_cpp_attribute (C++20) work inside #if." },
+          { "label": "C++23 additions", "note": "#elifdef, #elifndef and #warning." },
+          { "label": "#embed (C++26)", "note": "Expands a resource's bytes to a comma-separated list of integers." }
+        ]
+      },
+      {
+        "label": "Predefined macros",
+        "note": "A short standard list plus feature-test macros.",
+        "children": [
+          { "label": "__cplusplus", "note": "201103L, 201402L, 201703L, 202002L, 202302L for C++11 to C++23." },
+          { "label": "__func__", "note": "A function-local variable, not a macro; its contents are implementation-defined." },
+          { "label": "Feature tests", "note": "__cpp_x for language, __cpp_lib_x from <version>; compare with >=." }
+        ]
+      }
+    ]
+  }
+}

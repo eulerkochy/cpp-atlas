@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Borrowed ranges and dangling",
+    "note": "Iterators are valid only while their elements' owner lives; borrowed ranges do not own them.",
+    "children": [
+      {
+        "label": "borrowed_range",
+        "note": "Iterators obtained from the object stay valid after the object is destroyed.",
+        "children": [
+          { "label": "Lvalue references", "note": "Always borrowed: the caller keeps owning the object." },
+          { "label": "enable_borrowed_range", "note": "Opt-in variable template, false by default and never checked." },
+          { "label": "Owning is not borrowed", "note": "owning_view of a vector owns its elements, so it is not borrowed." }
+        ]
+      },
+      {
+        "label": "ranges::dangling",
+        "note": "Returned instead of an iterator when the range is a non-borrowed rvalue.",
+        "children": [
+          { "label": "borrowed_iterator_t", "note": "iterator_t<R> if R is borrowed, otherwise ranges::dangling." },
+          { "label": "Fails on use", "note": "dangling has no operator* or ++, so using it is a compile error." },
+          { "label": "Values are safe", "note": "ranges::min returns a copy, so it works on temporaries." },
+          { "label": "Legacy std:: unprotected", "note": "std::find on a temporary's iterators compiles and dangles." }
+        ]
+      },
+      {
+        "label": "Standard borrowed types",
+        "note": "Types whose iterators reach elements owned elsewhere or carry their own state.",
+        "children": [
+          { "label": "Always borrowed", "note": "string_view, span, subrange, ref_view, empty_view and iota_view." },
+          { "label": "Conditionally borrowed", "note": "take, drop, drop_while, common, reverse, elements: if the base view is." },
+          { "label": "Never borrowed", "note": "transform_view and filter_view iterators point back into the view." }
+        ]
+      },
+      {
+        "label": "Pipelines and temporaries",
+        "note": "Ownership follows how views::all sees the argument.",
+        "children": [
+          { "label": "Rvalue container", "note": "Moved into owning_view since P2415, so the pipeline is safe." },
+          { "label": "Member of a temporary", "note": "Seen as an lvalue, wrapped in ref_view, and dead at the semicolon." },
+          { "label": "string_view of a temporary", "note": "Borrowed from a string that is destroyed immediately." }
+        ]
+      },
+      {
+        "label": "Range-based for",
+        "note": "The initializer is bound to auto&& __range for the whole loop.",
+        "children": [
+          { "label": "Before C++23", "note": "Only the temporary bound directly is extended; make().items() dangles." },
+          { "label": "C++23 P2718", "note": "All temporaries in the for-range-initializer live until the loop ends." },
+          { "label": "Loop only", "note": "auto& r = make().items(); still dangles in every version." }
+        ]
+      },
+      {
+        "label": "Returning views",
+        "note": "A view must not outlive what it refers to, including captures.",
+        "children": [
+          { "label": "View of a local", "note": "Returns a ref_view to a destroyed vector; compilers rarely warn." },
+          { "label": "Move the container in", "note": "return std::move(v) | adaptor gives an owning_view." },
+          { "label": "Lambda captures", "note": "Capturing locals by reference in a stored lambda dangles on return." }
+        ]
+      }
+    ]
+  }
+}

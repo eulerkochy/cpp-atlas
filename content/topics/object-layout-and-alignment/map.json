@@ -1,0 +1,61 @@
+{
+  "root": {
+    "label": "Object layout and alignment",
+    "note": "The standard guarantees relationships; the ABI supplies the actual numbers.",
+    "children": [
+      {
+        "label": "Size and alignment",
+        "note": "Every complete type has a size and a power-of-two alignment.",
+        "children": [
+          { "label": "sizeof multiple of alignof", "note": "Arrays have no gaps and every element is aligned, so size is a multiple of alignment." },
+          { "label": "Fundamental sizes", "note": "Character types are size 1; bool, int, pointers and the rest are implementation-defined." },
+          { "label": "Over-alignment", "note": "alignas raises alignment; since C++17 new uses align_val_t overloads for extended alignment." }
+        ]
+      },
+      {
+        "label": "Member order and padding",
+        "note": "Members sit at increasing addresses in declaration order, with padding for alignment.",
+        "children": [
+          { "label": "C++23 order rule", "note": "P1847: declaration order holds regardless of access control; before C++23 only within one access level." },
+          { "label": "Sort by alignment", "note": "The compiler never reorders members, so sorting by decreasing alignment shrinks padding." }
+        ]
+      },
+      {
+        "label": "Class properties",
+        "note": "Properties that decide what you may do with an object's bytes.",
+        "children": [
+          { "label": "Trivially copyable", "note": "Eligible copy/move ops all trivial plus trivial destructor; enables memcpy and bit_cast." },
+          { "label": "Standard-layout", "note": "No virtuals, uniform member access, members in one class; enables offsetof and C compatibility." },
+          { "label": "POD is deprecated", "note": "Trivial plus standard-layout; std::is_pod was deprecated in C++20." }
+        ]
+      },
+      {
+        "label": "Empty subobjects",
+        "note": "Complete empty objects have nonzero size, but subobjects may overlap others.",
+        "children": [
+          { "label": "Empty base optimization", "note": "An empty base subobject may occupy zero bytes." },
+          { "label": "[[no_unique_address]]", "note": "C++20: members may overlap like bases; MSVC ignores it and needs [[msvc::no_unique_address]]." },
+          { "label": "Distinct address rule", "note": "Two objects of the same type never share an address, so same-type empties cannot overlap each other." }
+        ]
+      },
+      {
+        "label": "Bit-fields and ABI",
+        "note": "The parts of layout the standard leaves to the implementation.",
+        "children": [
+          { "label": "Bit-field allocation", "note": "Unit size, straddling and bit order are implementation-defined; no address or sizeof." },
+          { "label": "One memory location", "note": "Adjacent nonzero-width bit-fields form one memory location; a :0 field starts a new one." },
+          { "label": "Vtables are ABI", "note": "Itanium puts the vptr at offset 0 and virtual bases last; the standard never mentions vtables." },
+          { "label": "offsetof limits", "note": "Use on non-standard-layout types is conditionally-supported since C++17." }
+        ]
+      },
+      {
+        "label": "Representations",
+        "note": "Object representation is all sizeof(T) bytes; value representation is the bits that matter.",
+        "children": [
+          { "label": "Padding bits", "note": "Not part of the value; member-wise init leaves them unspecified, zero-initialization clears them." },
+          { "label": "Unique representations", "note": "has_unique_object_representations (C++17) is false with padding and typically for floats." }
+        ]
+      }
+    ]
+  }
+}

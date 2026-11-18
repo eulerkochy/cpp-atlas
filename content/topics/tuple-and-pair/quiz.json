@@ -1,0 +1,140 @@
+{
+  "questions": [
+    {
+      "id": "tp-make-vs-tie",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <tuple>\n#include <cstdio>\n\nint main() {\n  int x = 1;\n  auto a = std::make_tuple(x);\n  auto b = std::tie(x);\n  std::get<0>(a) = 2;\n  std::printf(\"%d \", x);\n  std::get<0>(b) = 3;\n  std::printf(\"%d\\n\", x);\n}",
+      "options": [
+        "`1 3`",
+        "`2 3`",
+        "`1 1`",
+        "`2 2`"
+      ],
+      "answer": 0,
+      "explanation": "`make_tuple` decays and copies its argument, so `a` owns its own `int` and writing to it leaves `x` at 1. `tie` builds a `tuple<int&>`, so writing through `b` changes `x`, giving 3.",
+      "refs": [
+        "[tuple.creation]"
+      ]
+    },
+    {
+      "id": "tp-lexicographic",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <tuple>\n#include <string>\n#include <cstdio>\n\nint main() {\n  using T = std::tuple<int, std::string, int>;\n  T a{1, \"b\", 9};\n  T b{1, \"c\", 0};\n  std::printf(\"%d %d\\n\", a < b, a == b);\n}",
+      "options": [
+        "`0 0`",
+        "`1 1`",
+        "`0 1`",
+        "`1 0`"
+      ],
+      "answer": 3,
+      "explanation": "Tuples compare lexicographically. The first elements are equal, the second elements decide because `\"b\" < \"c\"`, and the trailing `9 > 0` is never consulted. So `a < b` is 1 and `a == b` is 0.",
+      "refs": [
+        "[tuple.rel]"
+      ]
+    },
+    {
+      "id": "tp-tuple-cat-size",
+      "kind": "warmup",
+      "prompt": "What is the value of `std::tuple_size_v<R>` for `R` as defined here?",
+      "code": "#include <tuple>\n#include <utility>\n\nusing R = decltype(std::tuple_cat(std::tuple<int>{}, std::pair<int, int>{}, std::tuple<>{}));\n\nint main() {}",
+      "options": [
+        "2, because the pair counts as one element",
+        "3",
+        "It is ill-formed: `tuple_cat` only accepts tuples",
+        "4"
+      ],
+      "answer": 1,
+      "explanation": "`tuple_cat` accepts tuples and pairs (and arrays) and flattens one level. The result concatenates one element, two elements and zero elements, giving 3. A pair is not kept as a single nested element.",
+      "refs": [
+        "[tuple.creation]"
+      ]
+    },
+    {
+      "id": "tp-forward-as-tuple-type",
+      "kind": "tricky",
+      "prompt": "Which type does `decltype(std::forward_as_tuple(a, 1))` name, given `int a = 0;`?",
+      "options": [
+        "`std::tuple<int, int>`",
+        "`std::tuple<int&, int&&>`",
+        "`std::tuple<int&, const int&>`",
+        "`std::tuple<int&, int&>`"
+      ],
+      "answer": 1,
+      "explanation": "`forward_as_tuple` takes forwarding references and builds a tuple of the deduced types, `Types&&...`. For the lvalue `a` that is `int&` and for the prvalue `1` it is `int&&`. Nothing is copied, which is why storing the result can leave a dangling reference to the temporary.",
+      "refs": [
+        "[tuple.creation]"
+      ]
+    },
+    {
+      "id": "tp-pair-ref-assign",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <utility>\n#include <cstdio>\n\nint main() {\n  int a = 1, b = 2;\n  std::pair<int&, int> p{a, 0};\n  std::pair<int&, int> q{b, 0};\n  p = q;\n  b = 7;\n  std::printf(\"%d %d %d\\n\", a, b, p.first);\n}",
+      "options": [
+        "`1 7 7`, because `p.first` now refers to `b`",
+        "`1 7 1`",
+        "`2 7 2`",
+        "Ill-formed: a pair holding a reference is not assignable"
+      ],
+      "answer": 2,
+      "explanation": "References cannot be rebound, so the pair's assignment operator assigns the referred-to objects: `a = b` copies 2 into `a`. `p.first` still names `a`, so after `b = 7` the output is `2 7 2`. The tempting first option treats the assignment as rebinding.",
+      "refs": [
+        "[pairs]",
+        "[tuple.assign]"
+      ]
+    },
+    {
+      "id": "tp-make-tuple-decay",
+      "kind": "tricky",
+      "prompt": "Which of these `static_assert`s fails?",
+      "code": "#include <tuple>\n#include <functional>\n#include <type_traits>\n\nint a = 0;\nconst int b = 0;\n\nstatic_assert(std::is_same_v<decltype(std::make_tuple(\"hi\")), std::tuple<const char*>>);\nstatic_assert(std::is_same_v<decltype(std::make_tuple(std::ref(a))), std::tuple<int&>>);\nstatic_assert(std::is_same_v<decltype(std::make_tuple(b)), std::tuple<const int>>);\nstatic_assert(std::is_same_v<decltype(std::make_tuple(std::cref(b))), std::tuple<const int&>>);\n\nint main() {}",
+      "options": [
+        "The first: the literal gives `tuple<char[3]>`",
+        "The second: `make_tuple` never produces reference elements",
+        "The third",
+        "The fourth"
+      ],
+      "answer": 2,
+      "explanation": "`make_tuple` stores `decay_t` of each argument, which strips const, so `make_tuple(b)` is `tuple<int>`, not `tuple<const int>`, and the third assertion makes the program ill-formed. The array decays to a pointer, and `reference_wrapper` arguments are unwrapped to references, so the other three assertions hold.",
+      "refs": [
+        "[tuple.creation]"
+      ]
+    },
+    {
+      "id": "tp-spaceship-category",
+      "kind": "standardese",
+      "prompt": "In C++20, what is the type of `std::tuple<int, double>{} <=> std::tuple<int, double>{}`?",
+      "options": [
+        "`std::strong_ordering`, because `int` is compared first",
+        "`std::weak_ordering`",
+        "`std::partial_ordering`",
+        "It is ill-formed: `tuple` has no `operator<=>`"
+      ],
+      "answer": 2,
+      "explanation": "The result of tuple's `operator<=>` is the common comparison category of the element comparisons. `double` compares as `partial_ordering` because of NaN, and the common category of `strong_ordering` and `partial_ordering` is `partial_ordering`. The category does not depend on which element decides at run time.",
+      "refs": [
+        "[tuple.rel]",
+        "[cmp.common]"
+      ]
+    },
+    {
+      "id": "tp-piecewise-emplace",
+      "kind": "standardese",
+      "prompt": "`Pinned` has a constructor `Pinned(int, int)` and a deleted copy constructor. Is the `emplace` call below well-formed?",
+      "code": "#include <map>\n#include <tuple>\n#include <utility>\n\nstruct Pinned {\n  Pinned(int, int) {}\n  Pinned(const Pinned&) = delete;\n};\n\nint main() {\n  std::map<int, Pinned> m;\n  m.emplace(std::piecewise_construct,\n            std::forward_as_tuple(1),\n            std::forward_as_tuple(2, 3));\n}",
+      "options": [
+        "Ill-formed: `emplace` needs a copy or move constructor for `Pinned`",
+        "Well-formed: each member of the pair is built in place from its own tuple of arguments",
+        "Well-formed only if `forward_as_tuple` is replaced by `make_tuple`",
+        "Ill-formed: `piecewise_construct` is only for `unordered_map`"
+      ],
+      "answer": 1,
+      "explanation": "`pair<const int, Pinned>` has a piecewise constructor taking one argument tuple per member. It forwards each tuple's elements to the corresponding member's constructor, so `Pinned` is constructed directly from `(2, 3)` and is never copied or moved. `emplace(1, 2, 3)` would fail because the pair has no such three-argument constructor.",
+      "refs": [
+        "[pairs.pair]"
+      ]
+    }
+  ]
+}

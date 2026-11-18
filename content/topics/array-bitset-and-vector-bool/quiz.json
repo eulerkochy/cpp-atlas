@@ -1,0 +1,143 @@
+{
+  "questions": [
+    {
+      "id": "array-bitset-and-vector-bool-array-partial-init",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <array>\n#include <iostream>\n\nint main() {\n  std::array<int, 4> a{1, 2};\n  std::cout << a[2] << a[3] << '\\n';\n}",
+      "options": [
+        "Unspecified values, because the last two elements are not initialized",
+        "`00`",
+        "Nothing: the initializer has too few elements and the program is ill-formed",
+        "`12`"
+      ],
+      "answer": 1,
+      "explanation": "`std::array` is an aggregate, so aggregate initialization applies: elements without an initializer are value-initialized, which gives zero for `int`. This is the same as for a built-in array. Indeterminate values only appear when the array is declared with no initializer at all, as in `std::array<int, 4> a;`.",
+      "refs": [
+        "[array.overview]",
+        "[dcl.init.aggr]"
+      ]
+    },
+    {
+      "id": "array-bitset-and-vector-bool-bitset-string-order",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <bitset>\n#include <iostream>\n\nint main() {\n  std::bitset<4> b(\"0110\");\n  std::cout << b[1] << b[0] << ' ' << b.to_ulong() << '\\n';\n}",
+      "options": [
+        "`10 6`",
+        "`01 6`",
+        "`10 9`",
+        "`01 9`"
+      ],
+      "answer": 0,
+      "explanation": "The string is read with its rightmost character as bit 0, the way a binary literal is written, so `\"0110\"` has bit 1 and bit 2 set and the value is 6. That makes `b[1]` equal to 1 and `b[0]` equal to 0, printed as `10`. Reading the string left to right as indices 0 to 3 gives the reversed answers.",
+      "refs": [
+        "[bitset.cons]",
+        "[bitset.members]"
+      ]
+    },
+    {
+      "id": "array-bitset-and-vector-bool-proxy-aliasing",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <vector>\n\nint main() {\n  std::vector<bool> v{true, false};\n  auto x = v[0];\n  v[0] = false;\n  std::cout << x << '\\n';\n}",
+      "options": [
+        "`1`, because `auto` copies the element",
+        "Undefined behavior: `v[0]` returns a dangling reference",
+        "`0`",
+        "Ill-formed: `auto` cannot deduce the proxy type"
+      ],
+      "answer": 2,
+      "explanation": "`v[0]` on a non-const `vector<bool>` returns a proxy object of type `vector<bool>::reference`, and `auto` copies the proxy, not the bit. The proxy still refers to element 0 of the vector, which is now false, and it converts to `0` when printed. The proxy would dangle only if the vector were reallocated or destroyed.",
+      "refs": [
+        "[vector.bool]"
+      ]
+    },
+    {
+      "id": "array-bitset-and-vector-bool-range-for-forms",
+      "kind": "tricky",
+      "prompt": "Which loop is ill-formed?",
+      "code": "#include <vector>\n\nvoid f(std::vector<bool>& v) {\n  for (auto b : v) {}          // (1)\n  for (auto& b : v) {}         // (2)\n  for (auto&& b : v) {}        // (3)\n  for (const auto& b : v) {}   // (4)\n}",
+      "options": [
+        "(1)",
+        "(2)",
+        "(3)",
+        "(4)"
+      ],
+      "answer": 1,
+      "explanation": "Dereferencing a `vector<bool>` iterator yields a prvalue proxy, and a non-const lvalue reference cannot bind to a prvalue, so `auto&` in (2) is rejected. By-value `auto` copies the proxy, a forwarding reference binds to the prvalue, and `const auto&` extends its lifetime. Loop (3) is the portable way to write generic code that modifies elements.",
+      "refs": [
+        "[vector.bool]",
+        "[stmt.ranged]"
+      ]
+    },
+    {
+      "id": "array-bitset-and-vector-bool-adjacent-writes",
+      "kind": "tricky",
+      "prompt": "Both threads write different elements of each vector, and the vectors are not resized. Which has a data race?",
+      "code": "#include <thread>\n#include <vector>\n\nvoid f() {\n  std::vector<bool> vb(2);\n  std::vector<char> vc(2);\n  std::thread t1([&] { vb[0] = true; vc[0] = 1; });\n  std::thread t2([&] { vb[1] = true; vc[1] = 1; });\n  t1.join();\n  t2.join();\n}",
+      "options": [
+        "Neither: the threads write different elements",
+        "Both `vb` and `vc`",
+        "Only `vc`",
+        "Only `vb`"
+      ],
+      "answer": 3,
+      "explanation": "The standard lets different elements of a container be modified concurrently, with an explicit exception for `vector<bool>`. Its elements share words, so a write to one bit is a read-modify-write of storage that holds its neighbours, and two such writes race. The `vector<char>` elements are distinct memory locations and are safe. Use `vector<char>` or a vector of atomics, or add a lock, if threads share a boolean vector.",
+      "refs": [
+        "[container.requirements.dataraces]",
+        "[vector.bool]"
+      ]
+    },
+    {
+      "id": "array-bitset-and-vector-bool-proxy-assignment",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <vector>\n\nint main() {\n  std::vector<bool> v{true, false};\n  auto a = v[0];\n  auto b = v[1];\n  a = b;\n  std::cout << v[0] << v[1] << '\\n';\n}",
+      "options": [
+        "`10`, because `a` was rebound to the element `b` refers to",
+        "`00`",
+        "`11`",
+        "`01`"
+      ],
+      "answer": 1,
+      "explanation": "Assigning one `vector<bool>::reference` to another copies the bit it refers to into the bit it refers to, as an assignment of the values would, and does not rebind it. So `a = b` stores false into element 0, which makes both elements false. The tempting `10` treats the proxy like a pointer that can be reseated, but like a real reference it stays attached to its element.",
+      "refs": [
+        "[vector.bool]"
+      ]
+    },
+    {
+      "id": "array-bitset-and-vector-bool-vector-bool-guarantee",
+      "kind": "standardese",
+      "prompt": "Which statement about `std::vector<bool>` does the C++23 standard guarantee?",
+      "options": [
+        "`operator[]` on a non-const `vector<bool>` returns a value of a class type, `vector<bool>::reference`",
+        "`sizeof(std::vector<bool>)` is smaller than `sizeof(std::vector<char>)`",
+        "Each element is stored in exactly one bit",
+        "`v.data()` returns a pointer to the packed words"
+      ],
+      "answer": 0,
+      "explanation": "The standard declares `vector<bool>::reference` as a class with a conversion to `bool`, assignment from `bool` and a `flip` member, and that class is what `operator[]` returns. Space optimization is only the motivation: bit packing is not mandated, no `data()` exists, and no size comparison is promised, although every major implementation packs bits.",
+      "refs": [
+        "[vector.bool]"
+      ]
+    },
+    {
+      "id": "array-bitset-and-vector-bool-bitset-to-ulong",
+      "kind": "standardese",
+      "prompt": "Assume `unsigned long` has 64 bits. What does the standard say happens here?",
+      "code": "#include <bitset>\n\nint main() {\n  std::bitset<100> b;\n  b[70] = true;\n  unsigned long x = b.to_ulong();\n  (void)x;\n}",
+      "options": [
+        "It returns the low bits, ignoring bit 70",
+        "It returns `ULONG_MAX`",
+        "It throws `std::overflow_error`",
+        "Undefined behavior: the value does not fit"
+      ],
+      "answer": 2,
+      "explanation": "`to_ulong` throws `std::overflow_error` if the value cannot be represented as an `unsigned long`, and bit 70 is set, which cannot fit in a 64-bit `unsigned long`. It does not truncate. A bitset of 100 bits with only low bits set converts without any problem, so the check is on the value and not on the template size.",
+      "refs": [
+        "[bitset.members]"
+      ]
+    }
+  ]
+}

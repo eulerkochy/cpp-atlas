@@ -1,0 +1,149 @@
+{
+  "questions": [
+    {
+      "id": "pointers-arrays-and-pointer-arithmetic-address-of-array",
+      "kind": "warmup",
+      "prompt": "What is the type of `p`?",
+      "code": "int a[4] = {};\nauto p = &a;",
+      "options": [
+        "`int*`",
+        "`int**`",
+        "`int (*)[4]`",
+        "`int (&)[4]`"
+      ],
+      "answer": 2,
+      "explanation": "Array-to-pointer conversion is not applied to the operand of unary `&`, so `&a` takes the address of the whole array and has type pointer to array of four `int`. It usually holds the same address as `a` after decay, which is why `int*` is tempting, but `p + 1` steps over all four elements. `int**` would need an object of type `int*` to point to, and there is none.",
+      "refs": [
+        "[conv.array]",
+        "[expr.unary.op]"
+      ]
+    },
+    {
+      "id": "pointers-arrays-and-pointer-arithmetic-nullptr-overload",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nvoid f(int) { std::puts(\"int\"); }\nvoid f(char*) { std::puts(\"char*\"); }\n\nint main() {\n  f(nullptr);\n  f(0);\n}",
+      "options": [
+        "`char*` then `int`",
+        "`int` then `int`",
+        "Ill-formed: `f(nullptr)` is ambiguous",
+        "`int` then `char*`"
+      ],
+      "answer": 0,
+      "explanation": "`nullptr` has type `std::nullptr_t`, which converts to any pointer type but not to `int`, so only `f(char*)` is viable. The literal `0` is an exact match for `f(int)`, while converting it to `char*` would be a null pointer conversion, which ranks lower. That asymmetry is why `nullptr` replaced `0` and `NULL` for null pointers.",
+      "refs": [
+        "[conv.ptr]",
+        "[basic.fundamental]",
+        "[over.ics.rank]"
+      ]
+    },
+    {
+      "id": "pointers-arrays-and-pointer-arithmetic-array-parameter",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nvoid f(int a[10]) {\n  std::printf(\"%d\\n\", sizeof(a) == sizeof(int*));\n}\n\nint main() {\n  int x[10] = {};\n  f(x);\n}",
+      "options": [
+        "`0`, because `a` has type `int[10]`",
+        "`1`",
+        "Ill-formed: `sizeof` cannot be applied to an array parameter",
+        "It depends on the platform"
+      ],
+      "answer": 1,
+      "explanation": "A parameter declared with an array type is adjusted to the corresponding pointer type, so `a` has type `int*` and the bound `10` is ignored. `sizeof(a)` is therefore exactly `sizeof(int*)` on every implementation, and compilers warn about it with `-Wsizeof-array-argument`. To keep the bound, take the array by reference, `int (&a)[10]`, or use `std::span`.",
+      "refs": [
+        "[dcl.fct]",
+        "[expr.sizeof]"
+      ]
+    },
+    {
+      "id": "pointers-arrays-and-pointer-arithmetic-row-overrun",
+      "kind": "tricky",
+      "prompt": "What does the standard say about `p[3]`?",
+      "code": "int read() {\n  int m[2][3] = {{1, 2, 3}, {4, 5, 6}};\n  int* p = &m[0][0];\n  return p[3];\n}",
+      "options": [
+        "It reads `m[1][0]` and returns 4, because rows are contiguous",
+        "Implementation-defined",
+        "Unspecified: it returns 4 or an indeterminate value",
+        "Undefined behavior"
+      ],
+      "answer": 3,
+      "explanation": "`p` points to the first element of `m[0]`, which is an array of three `int`. [expr.add] defines `p + 3` as the past-the-end pointer of that array, and dereferencing a past-the-end pointer is undefined, even though `m[1][0]` occupies that address. The contiguity in the first option is real, which is why the code usually appears to work, but contiguity does not make two arrays into one. Both GCC 16 and Clang 21 reject this function in a constant expression.",
+      "refs": [
+        "[expr.add]",
+        "[dcl.array]"
+      ]
+    },
+    {
+      "id": "pointers-arrays-and-pointer-arithmetic-deduction-decay",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <type_traits>\n\ntemplate <class T> bool by_value(T) { return std::is_array_v<T>; }\ntemplate <class T> bool by_ref(const T&) { return std::is_array_v<T>; }\n\nint main() {\n  int a[3] = {1, 2, 3};\n  std::printf(\"%d%d\\n\", by_value(a), by_ref(a));\n}",
+      "options": [
+        "`11`",
+        "`00`",
+        "`01`",
+        "`10`"
+      ],
+      "answer": 2,
+      "explanation": "When the parameter is not a reference, template argument deduction applies the array-to-pointer conversion to the argument type, so `T` is `int*`. When the parameter is a reference, no decay happens and `T` is deduced as `int[3]`, binding `const int (&)[3]`. That is how `std::size` and `std::begin` recover an array's bound.",
+      "refs": [
+        "[temp.deduct.call]",
+        "[conv.array]"
+      ]
+    },
+    {
+      "id": "pointers-arrays-and-pointer-arithmetic-unrelated-less",
+      "kind": "tricky",
+      "prompt": "In C++23, what does the standard say about the value `cmp()` returns?",
+      "code": "bool cmp() {\n  int a = 0, b = 0;\n  return &a < &b;\n}",
+      "options": [
+        "Undefined behavior, as in C",
+        "It is `true`, because `a` is declared first",
+        "Unspecified",
+        "Implementation-defined, and documented by the compiler"
+      ],
+      "answer": 2,
+      "explanation": "`a` and `b` are separate complete objects, not elements of one array or members of one object, so [expr.rel] requires neither pointer to compare greater than the other. The result is unspecified: the program is valid, but it may be `true` or `false`, and the implementation need not document which. In C the same comparison is undefined, which is the tempting first answer. Declaration order only orders members of the same class object; for an order over arbitrary pointers use `std::less<int*>`.",
+      "refs": [
+        "[expr.rel]",
+        "[comparisons.general]"
+      ]
+    },
+    {
+      "id": "pointers-arrays-and-pointer-arithmetic-invalid-copy",
+      "kind": "standardese",
+      "prompt": "In C++23, what does the standard say about the line that initializes `q`?",
+      "code": "int main() {\n  int* p = new int(1);\n  delete p;\n  int* q = p;\n  (void)q;\n}",
+      "options": [
+        "Well-defined: only dereferencing a dangling pointer is restricted",
+        "Implementation-defined behavior",
+        "Undefined behavior",
+        "Unspecified behavior"
+      ],
+      "answer": 1,
+      "explanation": "After `delete p`, the value of `p` is an invalid pointer value, because the storage it pointed to has reached the end of its duration. [basic.stc.general] makes indirection through an invalid pointer and passing it to a deallocation function undefined, and every other use, including copying it, implementation-defined. The rule exists because some architectures can trap when an invalid address is loaded. Copying was undefined until CWG 1438, so older material gives the third answer.",
+      "refs": [
+        "[basic.stc.general]",
+        "[basic.compound]"
+      ]
+    },
+    {
+      "id": "pointers-arrays-and-pointer-arithmetic-guaranteed-size",
+      "kind": "standardese",
+      "prompt": "Which of these does the C++23 standard guarantee on every conforming implementation?",
+      "options": [
+        "`sizeof(int*) == sizeof(char*)`",
+        "`sizeof(void (*)()) == sizeof(void*)`",
+        "`sizeof(int&) == sizeof(int*)`",
+        "`sizeof(std::nullptr_t) == sizeof(void*)`"
+      ],
+      "answer": 3,
+      "explanation": "[basic.fundamental] states that `sizeof(std::nullptr_t)` equals `sizeof(void*)`. Only `char*` and `void*` are guaranteed to share a representation, so `int*` may differ on word-addressed machines. Function pointers can be larger than object pointers, and converting between them is only conditionally-supported. `sizeof` applied to a reference type yields the size of the referenced type, so `sizeof(int&)` is `sizeof(int)`.",
+      "refs": [
+        "[basic.fundamental]",
+        "[basic.compound]",
+        "[expr.sizeof]"
+      ]
+    }
+  ]
+}

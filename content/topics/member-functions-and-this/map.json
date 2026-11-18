@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "Member functions and this",
+    "note": "A non-static member function takes the object as one extra parameter.",
+    "children": [
+      {
+        "label": "Implicit object parameter",
+        "note": "Overload resolution treats the object as an argument bound to a reference parameter.",
+        "children": [
+          { "label": "cv-qualifiers", "note": "f() const gives the parameter type const X&, so const objects call only const overloads." },
+          { "label": "Rvalue exception", "note": "Without a ref-qualifier, an rvalue may bind to the non-const implicit object parameter." },
+          { "label": "this", "note": "A prvalue pointer to the cv-qualified class, pointing at the object parameter." }
+        ]
+      },
+      {
+        "label": "Ref-qualifiers",
+        "note": "& and && make the object parameter an lvalue or rvalue reference (C++11).",
+        "children": [
+          { "label": "&& accessors", "note": "Let rvalue objects give up their members, as optional::value() && does." },
+          { "label": "*this stays lvalue", "note": "Inside a && function, *this and named members are lvalues; use std::move(*this)." },
+          { "label": "No mixing", "note": "A ref-qualified overload cannot coexist with an unqualified one for the same object type." }
+        ]
+      },
+      {
+        "label": "Explicit object parameter",
+        "note": "C++23 deducing this: the object is the first parameter, written with this in front.",
+        "children": [
+          { "label": "No implicit this", "note": "The body has no this pointer; members are reached as self.member." },
+          { "label": "Static type deduction", "note": "Self deduces from the static type of the object expression, never the dynamic type." },
+          { "label": "Restrictions", "note": "Cannot be static, virtual, or cv- or ref-qualified." },
+          { "label": "Plain function pointer", "note": "&S::f has type R(*)(S&...), not a pointer to member." },
+          { "label": "Recursive lambdas", "note": "[](this auto self, int n) can call self without std::function." }
+        ]
+      },
+      {
+        "label": "Static members",
+        "note": "Belong to the class, with no object parameter and no this.",
+        "children": [
+          { "label": "Static member functions", "note": "No this, no cv- or ref-qualifiers; still callable as obj.f()." },
+          { "label": "Static call operators", "note": "C++23 allows static operator() and static operator[]." },
+          { "label": "Inline static data", "note": "inline static members (C++17) are defined in the class body." },
+          { "label": "constexpr implies inline", "note": "static constexpr data members are inline since C++17; static const ones are not." }
+        ]
+      },
+      {
+        "label": "Class body rules",
+        "note": "Where definitions live and what names they can see.",
+        "children": [
+          { "label": "In-class means inline", "note": "Member functions defined in the class are inline, unless attached to a named module." },
+          { "label": "Complete-class context", "note": "Bodies, default arguments, noexcept and default member initializers see later members." },
+          { "label": "Signatures see backwards", "note": "Return and parameter types only see names declared earlier in the class." }
+        ]
+      },
+      {
+        "label": "this in lambdas",
+        "note": "Lambdas reach members through a captured this.",
+        "children": [
+          { "label": "[this]", "note": "Captures the pointer; the lambda dangles if it outlives the object." },
+          { "label": "[*this]", "note": "C++17: copies the whole object into the closure." },
+          { "label": "[=] deprecation", "note": "Implicit this capture through [=] is deprecated in C++20; write [=, this]." }
+        ]
+      }
+    ]
+  }
+}

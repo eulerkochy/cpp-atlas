@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
-import { UNIQUE_CPPREF_PATHS, UNIQUE_CREF_PATHS } from "@/lib/cppref-index";
+import { listedReferenceEntries, referenceHref } from "@/lib/reference";
+import { SITE } from "@/lib/site";
 import { getAllTopics } from "@/lib/topics";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://cpp-atlas.vercel.app";
+const BASE_URL = SITE.url;
 const STATIC_MODIFIED = "2026-11-18T00:00:00.000Z";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -85,19 +85,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.92,
   }));
 
-  const cppRoutes: MetadataRoute.Sitemap = UNIQUE_CPPREF_PATHS.map((path) => ({
-    url: `${BASE_URL}/w/cpp/${path}`,
-    lastModified: STATIC_MODIFIED,
-    changeFrequency: "monthly",
-    priority: 0.7,
-  }));
-
-  const cRoutes: MetadataRoute.Sitemap = UNIQUE_CREF_PATHS.map((path) => ({
-    url: `${BASE_URL}/w/c/${path}`,
-    lastModified: STATIC_MODIFIED,
-    changeFrequency: "monthly",
-    priority: 0.65,
-  }));
+  // Every listed (non-redirect) page of the imported reference, URL-encoded
+  // the same way the site links to it. The two roots are in coreRoutes.
+  const referenceRoutes = (lang: "cpp" | "c", priority: number) =>
+    listedReferenceEntries(lang)
+      .filter((e) => e.path !== "")
+      .map(
+        (e): MetadataRoute.Sitemap[number] => ({
+          url: `${BASE_URL}${referenceHref(lang, e.path)}`,
+          lastModified: STATIC_MODIFIED,
+          changeFrequency: "monthly",
+          priority,
+        })
+      );
+  const cppRoutes = referenceRoutes("cpp", 0.7);
+  const cRoutes = referenceRoutes("c", 0.65);
 
   return [...coreRoutes, ...topicRoutes, ...cppRoutes, ...cRoutes];
 }

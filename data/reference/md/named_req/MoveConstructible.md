@@ -1,0 +1,70 @@
+# C++ named requirements: MoveConstructible (since C++11)
+
+Source: https://en.cppreference.com/w/cpp/named_req/MoveConstructible
+
+Specifies that an instance of the type can be constructed from an rvalue argument.
+
+## Requirements
+
+The type `T` satisfies *MoveConstructible* if
+
+Given
+
+- `rv`, an rvalue expression of type `T`,
+- `u`, an arbitrary identifier.
+
+The following expressions must be valid and have their specified effects.
+
+| Expression | Post-conditions |
+| --- | --- |
+| `T u = rv;` | The value of `u` is equivalent to the value of `rv` before the initialization. The new value of `rv` is unspecified. |
+| `T(rv)` | The value of `T(rv)` is equivalent to the value of `rv` before the initialization. The new value of `rv` is unspecified. |
+
+## Notes
+
+A class does not have to implement a move constructor to satisfy this type requirement: a copy constructor that takes a `const T&` argument can bind rvalue expressions.
+
+If a *MoveConstructible* class implements a move constructor, it may also implement move semantics to take advantage of the fact that the value of `rv` after construction is unspecified.
+
+Being a *MoveConstructible* class implies `std::is_move_constructible` but not vice versa since `std::is_move_constructible` will only check for the ability to call the constructor with the correct arguments, not a post-condition value.
+
+```cpp
+#include <iostream>
+
+struct S
+{
+    int n;
+    S(int in) : n{in} {}
+    S(S&& other) { n = other.n + 1; }
+};
+static_assert(std::is_move_constructible_v<S>);
+
+int main()
+{
+    S v{1};
+    std::cout << "v.n = " << v.n << '\n';
+    S u = std::move(v);
+
+    // Class `S` doesn't satisfy a MoveConstructible requirement
+    // The value of `u` is NOT equivalent to the value of `v` before the `u` initialization
+    std::cout << "u.n = " << u.n << '\n';
+}
+```
+
+Output:
+
+```text
+v.n = 1
+u.n = 2
+```
+
+## References
+
+- C++23 standard (ISO/IEC 14882:2024):
+
+  - 16.4.4.2 Template argument requirements [utility.arg.requirements]
+
+## See also
+
+- [`is_move_constructible`](https://en.cppreference.com/w/cpp/types/is_move_constructible) (C++11), [`is_trivially_move_constructible`](https://en.cppreference.com/w/cpp/types/is_move_constructible) (C++11), [`is_nothrow_move_constructible`](https://en.cppreference.com/w/cpp/types/is_move_constructible) (C++11): checks if a type can be constructed from an rvalue reference (class template)
+- [`move_constructible`](https://en.cppreference.com/w/cpp/concepts/move_constructible) (C++20): specifies that an object of a type can be move constructed (concept)

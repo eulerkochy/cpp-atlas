@@ -14,7 +14,9 @@ import {
   TopicStudyActions,
   TopicViewSwitcher,
 } from "@/components/TopicViewActions";
+import { JsonLd } from "@/components/JsonLd";
 import { TrackProgressCount } from "@/components/TrackProgressCount";
+import { absoluteUrl, SITE } from "@/lib/site";
 import {
   getAllTopics,
   getDependents,
@@ -51,11 +53,16 @@ export async function generateMetadata({
     description,
     alternates: {
       canonical: `/topics/${topic.slug}`,
+      types: { "text/markdown": `/api/notebook/topic/${topic.slug}` },
     },
     openGraph: {
       title: topic.title,
       description,
       type: "article",
+      url: `/topics/${topic.slug}`,
+      siteName: SITE.name,
+      section: topic.trackTitle,
+      tags: topic.standard,
       images: [
         {
           url: ogImage,
@@ -177,12 +184,23 @@ async function TopicLoader({
                 {topic.cppreference.map((ref) => (
                   <li key={ref.path} className="space-y-0.5">
                     <div className="flex items-start justify-between gap-2">
-                      <Link
-                        href={ref.href}
-                        className="text-sm font-medium text-ink underline decoration-line-strong underline-offset-3 hover:decoration-ink"
-                      >
-                        {ref.title}
-                      </Link>
+                      {ref.local ? (
+                        <Link
+                          href={ref.href}
+                          className="text-sm font-medium text-ink underline decoration-line-strong underline-offset-3 hover:decoration-ink"
+                        >
+                          {ref.title}
+                        </Link>
+                      ) : (
+                        <a
+                          href={ref.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-ink underline decoration-line-strong underline-offset-3 hover:decoration-ink"
+                        >
+                          {ref.title}
+                        </a>
+                      )}
                       <a
                         href={ref.externalUrl}
                         target="_blank"
@@ -194,7 +212,9 @@ async function TopicLoader({
                       </a>
                     </div>
                     <div className="font-mono text-[11px] text-ink-faint [overflow-wrap:anywhere]">
-                      /w/cpp/{ref.path}
+                      {ref.local
+                        ? `/w/cpp/${ref.path}`
+                        : "not in the offline snapshot"}
                     </div>
                   </li>
                 ))}
@@ -305,8 +325,57 @@ async function TopicLoader({
       </div>
     ) : undefined;
 
+  const url = absoluteUrl(`/topics/${topic.slug}`);
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      headline: topic.title,
+      description: topic.summary,
+      url,
+      inLanguage: "en",
+      timeRequired: `PT${topic.minutes}M`,
+      isPartOf: { "@type": "WebSite", name: SITE.name, url: SITE.url },
+      about: topic.standard.map((s) => ({
+        "@type": "Thing",
+        name: `C++ standard ${s}`,
+      })),
+      citation: topic.cppreference.map((l) => ({
+        "@type": "CreativeWork",
+        name: l.title,
+        url: l.local ? absoluteUrl(l.href) : l.href,
+      })),
+    },
+    ...(topic.questions.length
+      ? [
+          {
+            "@context": "https://schema.org",
+            "@type": "Quiz",
+            name: `${topic.title}: quiz`,
+            url: `${url}?view=quiz`,
+            about: topic.title,
+            hasPart: topic.questions.map((q) => ({
+              "@type": "Question",
+              eduQuestionType: "Multiple choice",
+              text: q.prompt,
+              suggestedAnswer: q.options
+                .map((o, i) => ({ "@type": "Answer", text: o, position: i }))
+                .filter((a) => a.position !== q.answer),
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: q.options[q.answer],
+                position: q.answer,
+                answerExplanation: { "@type": "Comment", text: q.explanation },
+              },
+            })),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <>
+      <JsonLd data={jsonLd} />
       <header className="mx-auto max-w-7xl px-4 pt-28 pb-10 sm:px-6 sm:pt-36">
         <nav aria-label="Breadcrumb">
           <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-ink-soft">

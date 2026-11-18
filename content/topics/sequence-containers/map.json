@@ -1,0 +1,108 @@
+{
+  "root": {
+    "label": "Sequence containers",
+    "note": "Five containers that differ in where elements live; guarantees follow from layout.",
+    "children": [
+      {
+        "label": "Layouts",
+        "note": "Storage shape decides complexity, invalidation and exception behavior.",
+        "children": [
+          {
+            "label": "vector",
+            "note": "One contiguous block with spare capacity; data() works."
+          },
+          {
+            "label": "deque",
+            "note": "Fixed-size blocks behind an index; random access but not contiguous."
+          },
+          {
+            "label": "list and forward_list",
+            "note": "One node per element; forward_list has no size() and only _after operations."
+          },
+          {
+            "label": "array",
+            "note": "Elements live inside the object; fixed size, no allocation."
+          }
+        ]
+      },
+      {
+        "label": "Growth and capacity",
+        "note": "Only vector has capacity; the growth factor is unspecified.",
+        "children": [
+          {
+            "label": "push_back amortized O(1)",
+            "note": "Capacity grows geometrically, so appending is amortized constant time."
+          },
+          {
+            "label": "reserve",
+            "note": "Raises capacity without creating elements; later insertions do not reallocate until capacity is exceeded."
+          },
+          {
+            "label": "shrink_to_fit",
+            "note": "A non-binding request to drop spare capacity; the implementation may ignore it."
+          }
+        ]
+      },
+      {
+        "label": "Relocation on growth",
+        "note": "Growth must keep the strong guarantee for copyable types.",
+        "children": [
+          {
+            "label": "move_if_noexcept",
+            "note": "Elements are moved only if their move is noexcept or they cannot be copied."
+          },
+          {
+            "label": "Mark moves noexcept",
+            "note": "A missing noexcept silently turns reallocation into copying."
+          }
+        ]
+      },
+      {
+        "label": "Inserting elements",
+        "note": "Construction in place versus passing a finished object.",
+        "children": [
+          {
+            "label": "emplace_back",
+            "note": "Forwards arguments to a constructor, including explicit ones, and returns a reference since C++17."
+          },
+          {
+            "label": "push_back",
+            "note": "Copies or moves an existing element; cannot use an explicit conversion."
+          },
+          {
+            "label": "insert_range, append_range",
+            "note": "C++23 range members; insert_range returns an iterator, append_range returns void."
+          }
+        ]
+      },
+      {
+        "label": "What stays put",
+        "note": "Which references and iterators survive common operations.",
+        "children": [
+          {
+            "label": "deque end insertion",
+            "note": "Invalidates iterators but not references or pointers to existing elements."
+          },
+          {
+            "label": "list::splice",
+            "note": "Relinks nodes in constant time; iterators stay valid and now belong to the destination."
+          }
+        ]
+      },
+      {
+        "label": "Erasing and choosing",
+        "note": "Removal helpers and a default pick.",
+        "children": [
+          {
+            "label": "erase and erase_if",
+            "note": "C++20 non-member functions replace the erase-remove idiom and return the removed count."
+          },
+          {
+            "label": "Default to vector",
+            "note": "Contiguous memory is cache friendly; switch only for a stated need such as stability or splice."
+          }
+        ]
+      }
+    ]
+  }
+}

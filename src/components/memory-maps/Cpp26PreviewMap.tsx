@@ -1321,7 +1321,7 @@ export function Cpp26PreviewMap() {
                   0 heap allocations
                 </span>
               </div>
-              <pre className="overflow-x-auto rounded-xl border border-line bg-paper-raised p-3 font-mono text-[11px] leading-relaxed text-[#262626]">
+              <pre className="overflow-x-auto rounded-xl border border-line bg-paper-raised p-3 font-mono text-[11px] leading-relaxed text-[var(--code-ink)]">
                 {execStep === 1
                   ? `// Not connected yet: sndr is a pure stack value
 sizeof(sndr) = sizeof(pool) + sizeof(raw); // 0 threads started`

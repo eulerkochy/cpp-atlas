@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "pointers-to-members-call-precedence",
+      "kind": "warmup",
+      "prompt": "Is the initialization of `r` well-formed?",
+      "code": "struct S { int f() { return 1; } };\n\nint main() {\n  S s;\n  int (S::*pf)() = &S::f;\n  int r = s.*pf();\n  return r;\n}",
+      "options": [
+        "Well-formed: it calls `s.f()` and `r` is 1",
+        "Ill-formed: it parses as `s.*(pf())`, and `pf` cannot be called on its own",
+        "Well-formed, but it is undefined behavior because `pf` is called without an object",
+        "Ill-formed: `.*` cannot be used with member functions, only `->*`"
+      ],
+      "answer": 1,
+      "explanation": "The pointer-to-member operators bind more loosely than the function call postfix operator, so `s.*pf()` means `s.*(pf())`. A pointer to member function is not callable by itself, and both GCC and Clang reject the call. The correct spelling is `(s.*pf)()`. Both `.*` and `->*` work with member function pointers; `->*` is for a pointer to the object.",
+      "refs": [
+        "[expr.mptr.oper]",
+        "[expr.call]"
+      ]
+    },
+    {
+      "id": "pointers-to-members-virtual-dispatch",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct B { virtual void f() { std::puts(\"B::f\"); } };\nstruct D : B { void f() override { std::puts(\"D::f\"); } };\n\nint main() {\n  void (B::*pf)() = &B::f;\n  D d;\n  B* bp = &d;\n  (bp->*pf)();\n}",
+      "options": [
+        "`D::f`",
+        "`B::f`, because the pointer was formed from `&B::f`",
+        "Unspecified: it depends on how the ABI encodes virtual member pointers",
+        "Nothing: it is ill-formed to take the address of a virtual function"
+      ],
+      "answer": 0,
+      "explanation": "A pointer to a virtual member function designates the virtual function, not one particular definition. Calling it through an object performs the same dispatch as `bp->f()`, so the final overrider for the dynamic type `D` runs. Naming `B::f` in `&B::f` only forms the pointer; only a qualified call such as `bp->B::f()` suppresses dispatch. The ABI encoding differs between platforms, but the behaviour is specified.",
+      "refs": [
+        "[expr.mptr.oper]",
+        "[class.virtual]",
+        "[expr.call]"
+      ]
+    },
+    {
+      "id": "pointers-to-members-conversion-direction",
+      "kind": "warmup",
+      "prompt": "Which declaration is ill-formed?",
+      "code": "struct B { int x; };\nstruct D : B { int y; };\n\nint D::* p1 = &B::x;                       // #1\nint B::* p2 = &D::y;                       // #2\nint B::* p3 = static_cast<int B::*>(&D::y); // #3",
+      "options": [
+        "#1 only",
+        "#1 and #3",
+        "#2 only",
+        "None"
+      ],
+      "answer": 2,
+      "explanation": "Pointers to members convert in the opposite direction from object pointers. Every member of `B` is a member of `D`, so `int B::*` converts implicitly to `int D::*`, which makes #1 fine. `y` exists only in `D`, so going from `int D::*` to `int B::*` needs a `static_cast`; #3 is well-formed and #2 is ill-formed. Using `p3` on an object that is not really a `D` would be undefined behavior.",
+      "refs": [
+        "[conv.mem]",
+        "[expr.static.cast]"
+      ]
+    },
+    {
+      "id": "pointers-to-members-declaring-class-type",
+      "kind": "tricky",
+      "prompt": "What is `decltype(&D::x)`?",
+      "code": "struct B { int x; };\nstruct D : B {};",
+      "options": [
+        "`int D::*`",
+        "`int*`",
+        "Ill-formed: `x` is not declared in `D`",
+        "`int B::*`"
+      ],
+      "answer": 3,
+      "explanation": "When `&` is applied to a qualified name of a non-static member, the result's class is the class in which the member is declared, not the class named in the qualifier. So `&D::x` has type `int B::*`, which then converts implicitly to `int D::*` if needed. The difference shows up in template argument deduction, where a parameter `int C::*` deduces `C = B`.",
+      "refs": [
+        "[expr.unary.op]",
+        "[conv.mem]"
+      ]
+    },
+    {
+      "id": "pointers-to-members-virtual-base",
+      "kind": "tricky",
+      "prompt": "Is this declaration well-formed?",
+      "code": "struct V { int v; };\nstruct D : virtual V {};\n\nint D::* p = &V::v;",
+      "options": [
+        "Well-formed: base-to-derived member pointer conversion is always implicit",
+        "Ill-formed: the conversion goes through a virtual base",
+        "Well-formed, but using `p` is undefined behavior",
+        "Ill-formed: `V` is an inaccessible base"
+      ],
+      "answer": 1,
+      "explanation": "[conv.mem] forbids the conversion from `T B::*` to `T D::*` when `B` is inaccessible, ambiguous, or a virtual base of `D`. A virtual base can sit at a different offset in each most-derived object, so the pointer could not be adjusted by a fixed amount. The base here is public, so the fourth option names the wrong reason; with a non-virtual base the first option would be right.",
+      "refs": [
+        "[conv.mem]"
+      ]
+    },
+    {
+      "id": "pointers-to-members-invoke-category",
+      "kind": "tricky",
+      "prompt": "Given `struct P { int age; }; P p;`, what is `decltype(std::invoke(&P::age, std::move(p)))`?",
+      "options": [
+        "`int`",
+        "`int&`",
+        "`int&&`",
+        "`const int&`"
+      ],
+      "answer": 2,
+      "explanation": "For a pointer to data member, INVOKE is `t1.*f` when `t1` is an object, and `.*` on a data member gives an xvalue when the object is an xvalue. `std::invoke` returns that expression's type, so the result is `int&&`. With the lvalue `p` it would be `int&`, which is the tempting answer. It is never a copy, so `int` is wrong too, and no `const` is added.",
+      "refs": [
+        "[func.invoke]",
+        "[func.require]",
+        "[expr.mptr.oper]"
+      ]
+    },
+    {
+      "id": "pointers-to-members-dynamic-type",
+      "kind": "standardese",
+      "prompt": "What does the standard say about evaluating `f()`?",
+      "code": "struct B { int b = 0; };\nstruct D1 : B { int d1 = 1; };\nstruct D2 : B { int d2 = 2; };\n\nint f() {\n  int B::* p = static_cast<int B::*>(&D1::d1);\n  D2 d;\n  B& br = d;\n  return br.*p;\n}",
+      "options": [
+        "Undefined behavior",
+        "It returns 1",
+        "Ill-formed: the `static_cast` from `int D1::*` is not allowed",
+        "It returns 2, because `d1` and `d2` have the same offset"
+      ],
+      "answer": 0,
+      "explanation": "The `static_cast` is valid because `B` is a non-virtual, accessible base of `D1`. But [expr.mptr.oper] says that if the dynamic type of the object does not contain the member the pointer refers to, the behavior is undefined. The dynamic type here is `D2`, which has no `d1`. On common ABIs the offset happens to land on `d2`, which is why the last option can appear to work, but that is not a result the standard gives.",
+      "refs": [
+        "[expr.mptr.oper]",
+        "[expr.static.cast]"
+      ]
+    },
+    {
+      "id": "pointers-to-members-std-member-address",
+      "kind": "standardese",
+      "prompt": "What does the C++23 standard say about this declaration?",
+      "code": "#include <string>\n\nauto p = &std::string::size;",
+      "options": [
+        "It is well-formed and portable: `size` is a public member function",
+        "It is ill-formed: library member functions are always overloaded",
+        "Its behavior is unspecified, and it may be ill-formed",
+        "It is undefined behavior only if `p` is called"
+      ],
+      "answer": 2,
+      "explanation": "[namespace.std] says that forming a pointer to member designating a standard library non-static member function makes the behavior of the program unspecified, possibly ill-formed. Implementations may add overloads, default arguments or extra parameters to library members, so the address need not mean the same thing everywhere. GCC and Clang accept it today, which is why the first option is tempting. Use a lambda such as `[](const std::string& s) { return s.size(); }` instead.",
+      "refs": [
+        "[namespace.std]",
+        "[member.functions]"
+      ]
+    }
+  ]
+}

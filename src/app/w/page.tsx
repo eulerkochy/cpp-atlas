@@ -2,13 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  ALL_CPPREF_DOMAINS,
-  ALL_CREF_DOMAINS,
-  C_INDEX_STATS,
-  INDEX_STATS,
-  TOTAL_COMBINED_STATS,
-} from "@/lib/cppref-index";
+import { getDomainsForLang, getIndexStats } from "@/lib/cppref-index";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -18,13 +12,15 @@ export const metadata: Metadata = {
 };
 
 export default function WPortalPage() {
+  const all = getIndexStats("all");
+  const cpp = getIndexStats("cpp");
+  const cStats = getIndexStats("c");
   return (
     <>
       <PageHeader title="The C++ and C reference">
-        All {TOTAL_COMBINED_STATS.totalEntries.toLocaleString("en-US")} indexed
-        entries across{" "}
-        {TOTAL_COMBINED_STATS.uniquePages.toLocaleString("en-US")} pages and{" "}
-        {TOTAL_COMBINED_STATS.domainCount} domains—mapped 1:1 to{" "}
+        All {all.pages.toLocaleString("en-US")} pages across{" "}
+        {all.domainCount} domains, served from an offline snapshot of
+        cppreference.com and mapped 1:1 to{" "}
         <span className="font-mono text-[0.9em] text-ink">/w/cpp/...</span> and{" "}
         <span className="font-mono text-[0.9em] text-ink">/w/c/...</span> so
         every cross-link resolves seamlessly.
@@ -46,14 +42,13 @@ export default function WPortalPage() {
           </h2>
 
           <p className="leading-relaxed text-ink-soft">
-            {INDEX_STATS.uniquePages.toLocaleString("en-US")} unique pages and{" "}
-            {INDEX_STATS.totalEntries.toLocaleString("en-US")} symbols across{" "}
-            {INDEX_STATS.domainCount} domains, layered with interactive memory
+            {cpp.pages.toLocaleString("en-US")} pages across{" "}
+            {cpp.domainCount} domains, layered with interactive memory
             maps and CppCon standard-lawyer quizzes.
           </p>
 
           <ul className="flex flex-wrap gap-1.5">
-            {ALL_CPPREF_DOMAINS.slice(0, 10).map((d) => (
+            {getDomainsForLang("cpp").slice(0, 10).map((d) => (
               <li key={d.slug}>
                 <Link
                   href={`/explore?lang=cpp&domain=${encodeURIComponent(d.name)}`}
@@ -96,14 +91,13 @@ export default function WPortalPage() {
           </h2>
 
           <p className="leading-relaxed text-ink-soft">
-            {C_INDEX_STATS.uniquePages.toLocaleString("en-US")} unique pages and{" "}
-            {C_INDEX_STATS.totalEntries.toLocaleString("en-US")} symbols across{" "}
-            {C_INDEX_STATS.domainCount} domains—resolving every C
+            {cStats.pages.toLocaleString("en-US")} pages across{" "}
+            {cStats.domainCount} domains—resolving every C
             compatibility reference linked from C++ headers.
           </p>
 
           <ul className="flex flex-wrap gap-1.5">
-            {ALL_CREF_DOMAINS.slice(0, 10).map((d) => (
+            {getDomainsForLang("c").slice(0, 10).map((d) => (
               <li key={d.slug}>
                 <Link
                   href={`/explore?lang=c&domain=${encodeURIComponent(d.name)}`}
