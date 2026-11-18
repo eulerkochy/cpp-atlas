@@ -58,7 +58,7 @@ export default function HomePage() {
 
         <div className="relative z-10 mx-auto max-w-3xl px-4 text-center sm:px-6">
           <h1 className="settle-line font-display text-[clamp(1.85rem,4.2vw,2.9rem)] leading-[1.08] font-[450] tracking-[-0.028em] text-ink text-balance">
-            Every corner of C++, mapped to the machine and the standard
+            The C++ reference that explains itself
           </h1>
           <p className="settle-line mx-auto mt-4 max-w-[54ch] text-[1.0625rem] leading-relaxed text-ink/75 text-balance">
             {stats.topics} deep-dive topics across {stats.tracks} tracks, each
