@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HeroExpressionInspector } from "@/components/HeroExpressionInspector";
+import { JsonLd } from "@/components/JsonLd";
 import { SearchPrompt } from "@/components/SearchPrompt";
 import { TrackList } from "@/components/TrackList";
-import { ALL_QUIZZES } from "@/data/companions";
 import { countPagesUnderPrefix, getIndexStats } from "@/lib/cppref-index";
-import { getAllTopics, getTracks } from "@/lib/topics";
+import { SITE } from "@/lib/site";
+import { getSiteStats, siteDescription } from "@/lib/site-stats";
+import { getTracks } from "@/lib/topics";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -25,17 +27,21 @@ const HOME_SECTIONS = [
 export default function HomePage() {
   const cppStats = getIndexStats("cpp");
   const cStats = getIndexStats("c");
+  const stats = getSiteStats();
   const tracks = getTracks();
-  const activeTracks = tracks.filter((t) => t.topics.length > 0);
-  const allTopics = getAllTopics();
-  const topicQuizCount = allTopics.reduce(
-    (sum, t) => sum + t.questions.length,
-    0
-  );
-  const totalQuizCount = ALL_QUIZZES.length + topicQuizCount;
+
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE.name,
+    url: SITE.url,
+    description: siteDescription(stats),
+    inLanguage: "en",
+  };
 
   return (
     <>
+      <JsonLd data={websiteJsonLd} />
       <section className="sunlight relative isolate overflow-hidden pt-28 sm:pt-36">
         <div
           aria-hidden
@@ -51,13 +57,16 @@ export default function HomePage() {
         />
 
         <div className="relative z-10 mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h1 className="settle-line font-display text-[clamp(1.75rem,4vw,2.75rem)] leading-[1.1] font-[450] tracking-[-0.025em] text-ink text-balance">
-            C++ from the inside out: the standard, mapped and tested
+          <h1 className="settle-line font-display text-[clamp(1.85rem,4.2vw,2.9rem)] leading-[1.08] font-[450] tracking-[-0.028em] text-ink text-balance">
+            Every corner of C++, mapped to the machine and the standard
           </h1>
-          <p className="settle-line mx-auto mt-4 max-w-[48ch] text-[1.0625rem] leading-relaxed text-ink/70">
-            Deep dives into value semantics, object lifetime and the memory
-            model. Each study topic pairs a mental model, an interactive map and{" "}
-            {totalQuizCount} standard-lawyer quizzes.
+          <p className="settle-line mx-auto mt-4 max-w-[54ch] text-[1.0625rem] leading-relaxed text-ink/75 text-balance">
+            {stats.topics} deep-dive topics across {stats.tracks} tracks, each
+            pairing a clear mental model with an interactive concept map and
+            quiz. Backed by {stats.traps.toLocaleString("en-US")} clause-cited
+            questions, {stats.simulators} machine simulators, and all{" "}
+            {stats.referencePages.toLocaleString("en-US")} C++ and C reference
+            pages.
           </p>
         </div>
 
@@ -87,12 +96,12 @@ export default function HomePage() {
             Topics
           </h2>
           <p className="mt-4 text-[1.0625rem] leading-relaxed text-ink-soft">
-            {allTopics.length > 0
-              ? `${allTopics.length} study topics across ${activeTracks.length} tracks linking directly into their 1:1 `
-              : "Interactive study tracks layered directly over their 1:1 "}
+            {stats.topics > 0
+              ? `${stats.topics} original articles across ${stats.tracks} tracks, cross-linked 1:1 with `
+              : "Structured study tracks layered directly over "}
             <code className="font-mono text-[0.9em] text-ink">/w/cpp/...</code>{" "}
-            pages. Quiz results are saved in this browser so you can track
-            CppCon talk prep as you go.
+            specifications. Progress, bookmarks, and missed questions stay
+            locally in your browser—no account required.
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-6 text-sm">
             <Link
@@ -140,15 +149,16 @@ export default function HomePage() {
           <div>
             <h2
               id="reference-heading"
-              className="font-display text-[clamp(2.2rem,5vw,3.25rem)] leading-[1.05] font-[450] tracking-[-0.03em] text-ink"
+              className="font-display text-[clamp(2.2rem,5vw,3.25rem)] leading-[1.05] font-[450] tracking-[-0.03em] text-ink text-balance"
             >
-              The whole reference, restyled
+              The complete reference, offline and 1:1
             </h2>
             <p className="mt-4 max-w-[50ch] text-[1.0625rem] leading-relaxed text-ink-soft">
               When a study track is not enough, all{" "}
               {cppStats.pages.toLocaleString("en-US")} C++ pages and{" "}
               {cStats.pages.toLocaleString("en-US")} C pages of
-              cppreference.com are mapped 1:1 at their exact addresses:{" "}
+              cppreference.com are served locally from an offline snapshot at
+              their exact addresses:{" "}
               <code className="font-mono text-[0.9em] text-ink">
                 /w/cpp/container/vector
               </code>{" "}
@@ -216,9 +226,9 @@ export default function HomePage() {
       >
         <h2
           id="views-heading"
-          className="max-w-2xl font-display text-[clamp(2rem,4.5vw,2.75rem)] leading-[1.1] font-[450] tracking-[-0.03em] text-ink"
+          className="max-w-2xl font-display text-[clamp(2rem,4.5vw,2.75rem)] leading-[1.1] font-[450] tracking-[-0.03em] text-ink text-balance"
         >
-          Three ways through every page
+          Read the prose, inspect the map, test the edge cases
         </h2>
         <dl className="mt-12 grid gap-x-12 gap-y-10 border-t border-line pt-10 md:grid-cols-3">
           <div>
@@ -226,10 +236,9 @@ export default function HomePage() {
               Read
             </dt>
             <dd className="mt-3 leading-relaxed text-ink-soft">
-              Study prose followed by the full 1:1 specification in one reading
-              flow, with a scroll-spy outline on the left, clean window-framed
-              code blocks, and Focus mode to dim pre-C++14 deprecations and
-              defect reports.
+              Study prose and 1:1 specifications with a scroll-spy outline,
+              window-framed code blocks with Compiler Explorer links, and Focus
+              mode to dim pre-C++14 deprecations and defect reports.
             </dd>
           </div>
           <div>
@@ -237,9 +246,9 @@ export default function HomePage() {
               Map
             </dt>
             <dd className="mt-3 leading-relaxed text-ink-soft">
-              Every flagship topic renders an interactive simulator or
-              taxonomy; every other page synthesizes a clickable structural map
-              of headers, signatures, and sections.
+              Every study topic includes an interactive concept map, {stats.simulatorTopics} pair
+              with live machine-model simulators, and every reference page
+              synthesizes a structural map of headers and signatures.
             </dd>
           </div>
           <div>
@@ -247,9 +256,9 @@ export default function HomePage() {
               Quiz
             </dt>
             <dd className="mt-3 leading-relaxed text-ink-soft">
-              Questions built around the tempting wrong answer. Every verdict
-              explains the machine model and cites the ISO C++ clause that
-              settles it.
+              {stats.traps.toLocaleString("en-US")} questions built around the
+              tempting wrong answer. Every verdict explains the abstract-machine
+              rule and cites the ISO C++ clause that settles it.
             </dd>
           </div>
         </dl>
@@ -264,22 +273,22 @@ export default function HomePage() {
             id="notebook-heading"
             className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink"
           >
-            Take it into NotebookLM
+            Plain Markdown for NotebookLM &amp; local tools
           </h2>
           <div className="max-w-[60ch] space-y-3 leading-relaxed text-ink-soft">
             <p>
-              Every reference page is also a clean plain Markdown source with
-              its study notes, interactive map summary, and Socratic quiz traps.
-              Paste a{" "}
+              Every topic and reference page is also available as clean plain
+              Markdown with its study notes, concept-map outline, and quiz
+              questions. Paste a{" "}
               <code className="font-mono text-[0.9em] text-ink">/w/cpp/...</code>{" "}
               URL into NotebookLM, download{" "}
               <code className="font-mono text-[0.9em] text-ink">.md</code> from
-              the rail, or bundle topics in the{" "}
+              the rail, or assemble custom bundles in the{" "}
               <Link
                 href="/notebook"
                 className="text-ink underline decoration-line-strong underline-offset-3 hover:decoration-ink"
               >
-                NotebookLM studio
+                Markdown studio
               </Link>
               .
             </p>
@@ -296,9 +305,9 @@ export default function HomePage() {
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- route handler, not a page */}
               <a
                 className="font-mono text-[0.9em] text-ink underline decoration-line-strong underline-offset-3 hover:decoration-ink"
-                href="/api/notebook/language/value_category"
+                href="/api/notebook/cpp/language/value_category"
               >
-                /api/notebook/language/value_category
+                /api/notebook/cpp/language/value_category
               </a>
               , and machine indexes live at{" "}
               <a

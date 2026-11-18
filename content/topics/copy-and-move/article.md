@@ -15,7 +15,7 @@ cppreference:
   - title: "Copy constructors"
     path: "language/copy_constructor"
   - title: "Copy assignment operator"
-    path: "language/copy_assignment"
+    path: "language/as_operator"
   - title: "Move constructors"
     path: "language/move_constructor"
   - title: "Move assignment operator"

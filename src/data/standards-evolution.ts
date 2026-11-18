@@ -764,8 +764,8 @@ int clamp_nonneg(const int value, const int limit)
     if (value < 0) return 0;
     return value > limit ? limit : value;
 }`,
-    topicSlug: "cpp26-contracts-reflection-execution",
-    cpprefPath: "language/contracts",
+    topicSlug: "contracts",
+    cpprefPath: "compiler_support/26",
   },
   {
     id: "cpp26-static-reflection",
@@ -791,8 +791,8 @@ consteval std::size_t member_count() {
 }
 
 static_assert(member_count() == 2);`,
-    topicSlug: "cpp26-contracts-reflection-execution",
-    cpprefPath: "language/operator_reflection",
+    topicSlug: "reflection",
+    cpprefPath: "compiler_support/26",
   },
   {
     id: "cpp26-erroneous-behavior",
@@ -815,7 +815,7 @@ std::byte raw_scratch() {
     page[0] = std::byte{0x42};
     return page[0];
 }`,
-    topicSlug: "cpp26-contracts-reflection-execution",
+    topicSlug: "erroneous-behaviour-and-cpp26-language-changes",
     cpprefPath: "language/attributes/indeterminate",
   },
   {
@@ -840,7 +840,7 @@ int run_async_graph(std::execution::scheduler auto sched) {
     auto [res] = std::this_thread::sync_wait(std::move(work)).value();
     return res;
 }`,
-    topicSlug: "cpp26-contracts-reflection-execution",
+    topicSlug: "senders-and-receivers",
     cpprefPath: "execution",
   },
   {
@@ -860,7 +860,7 @@ int build_inline_batch() {
     batch.push_back(20);
     return batch.front() + batch.back();
 }`,
-    topicSlug: "containers-and-iterator-invalidation",
+    topicSlug: "inplace-vector-and-new-containers",
     cpprefPath: "container/inplace_vector",
   },
   {
@@ -881,7 +881,7 @@ int apply_twice(std::function_ref<int(int)> fn, int x) {
 int test_callback() {
     return apply_twice([](int v) { return v + 3; }, 10);
 }`,
-    topicSlug: "lambdas",
+    topicSlug: "callable-wrappers",
     cpprefPath: "utility/functional/function_ref",
   },
 ];

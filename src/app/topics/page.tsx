@@ -2,18 +2,42 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { TopicsExplorerClient } from "@/components/TopicsExplorerClient";
-import { getAllTopics, getTracks } from "@/lib/topics";
+import { buildOgImageUrl, SITE } from "@/lib/site";
+import { getSiteStats } from "@/lib/site-stats";
+import { getTracks } from "@/lib/topics";
 
-export const metadata: Metadata = {
-  title: "Topics",
-  description:
-    "Structured C++ study tracks from translation units and value semantics to the memory model, coroutines, ranges, and C++26.",
-};
+export function generateMetadata(): Metadata {
+  const stats = getSiteStats();
+  const title = "Study Topics";
+  const description = `${stats.topics} deep-dive C++ study topics across ${stats.tracks} tracks, from translation units and value categories to atomics, coroutines, ranges, and C++26.`;
+  const ogImage = buildOgImageUrl({
+    title: `${stats.topics} C++ Study Topics`,
+    kicker: `${stats.tracks} Structured Tracks`,
+    meta: `${stats.traps.toLocaleString("en-US")} clause-cited questions / ${stats.simulators} simulators`,
+  });
+  return {
+    title,
+    description,
+    alternates: { canonical: "/topics" },
+    openGraph: {
+      title,
+      description,
+      url: "/topics",
+      siteName: SITE.name,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: `${title} — ${SITE.name}` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
+}
 
 export default function TopicsPage() {
   const tracks = getTracks();
-  const activeTracks = tracks.filter((t) => t.topics.length > 0);
-  const topics = getAllTopics();
+  const stats = getSiteStats();
   const clientTracks = tracks.map((track) => ({
     ...track,
     topics: track.topics.map((topic) => ({
@@ -26,9 +50,9 @@ export default function TopicsPage() {
     <>
       <PageHeader title="Topics">
         <p>
-          {topics.length > 0
-            ? `${topics.length} deep-dive topics organized across ${activeTracks.length} study tracks. Each topic pairs prose, an interactive concept map, and a standard-lawyer quiz.`
-            : "Structured C++ study tracks pairing original prose, interactive concept maps, and standard-lawyer quizzes."}
+          {stats.topics > 0
+            ? `${stats.topics} deep-dive articles organized across ${stats.tracks} study tracks. Each topic pairs original prose, an interactive concept map, and a clause-cited quiz.`
+            : "Structured C++ study tracks pairing original prose, interactive concept maps, and clause-cited quizzes."}
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
           <Link

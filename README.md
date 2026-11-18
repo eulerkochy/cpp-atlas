@@ -1,13 +1,15 @@
-# C++ Atlas — cppreference, offline, with a study layer
+# C++ Atlas — Every corner of C++, mapped to the machine and the standard
 
-A sunlit, calm study layer over an **offline copy of `en.cppreference.com`**, built with Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4, and `shadcn/ui`. Every reference page is imported from the cppreference offline archive and prerendered at build time: nothing is fetched from cppreference.com at request or build time.
+Live at **[cpp-atlas.vercel.app](https://cpp-atlas.vercel.app)**.
+
+A calm, high-signal study layer over an **offline 1:1 copy of `en.cppreference.com`**, built with Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4, and `shadcn/ui`. Every reference page is imported from the cppreference offline archive and prerendered at build time: nothing is fetched from cppreference.com at request or build time.
 
 ## What C++ Atlas includes
 
-- **Study Topics across 13 Tracks (`/topics` & `/topics/[slug]`):** 115 deep dives pairing mental models, concept maps, Compiler Explorer code links, and standard-lawyer quizzes (Read / Map / Quiz views). Topic "Further reading" links point at the offline `/w/cpp/...` pages.
+- **Study Topics across 13 Tracks (`/topics` & `/topics/[slug]`):** 115 deep dives pairing mental models, concept maps, Compiler Explorer code links, and clause-cited quizzes (Read / Map / Quiz views). Topic "Further reading" links point directly at the offline `/w/cpp/...` pages.
 - **Curriculum Prerequisite DAG & Concept Maps (`/maps`).**
-- **11 Machine-Model Simulators** mounted on study topics and on the matching reference pages.
-- **Standardese Traps (`/quiz`):** every topic question plus the CppCon traps, with **Missed** spaced review, bookmarks, and browser progress persistence.
+- **11 Machine-Model Simulators** mounted across 33 study topics and on the matching reference pages.
+- **Standardese Quiz (`/quiz`):** 876 clause-cited questions across every topic and reference companion, with **Missed** spaced review, shareable `#trap-` deep links, bookmarks, and browser progress persistence.
 - **Study Desk (`/study`):** completed topics, reviewed reference pages, missed traps, bookmarks, `cpp-atlas-progress.json` export/import.
 - **C++11–C++26 Evolution Timeline (`/standards`).**
 - **Offline C++ and C reference (`/w/cpp/...`, `/w/c/...`, `/w`, `/explore`):** 5,971 C++ pages and 616 C pages from the cppreference snapshot of 9 February 2025, with breadcrumbs, "In this section", an on-this-page rail, standards chips, Compiler Explorer buttons on examples, and **Focus Mode** to dim pre-C++11/14 rows and defect reports. Links between C and C++ pages stay inside the site. Unknown paths are real 404s and cppreference redirect pages are real 308 redirects; the legacy `/cpp/...` and `/c/...` addresses redirect to `/w/...`.

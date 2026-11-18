@@ -3,13 +3,40 @@ import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { buttonVariants } from "@/components/ui/button";
 import { getDomainsForLang, getIndexStats } from "@/lib/cppref-index";
+import { buildOgImageUrl, SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "cppreference Portal (/w)",
-  description:
-    "Unified 1:1 index portal to both C++ (/w/cpp) and C (/w/c) specifications on en.cppreference.com.",
-};
+export function generateMetadata(): Metadata {
+  const all = getIndexStats("all");
+  const cpp = getIndexStats("cpp");
+  const cStats = getIndexStats("c");
+  const title = "C++ & C Reference (/w)";
+  const description = `Offline 1:1 portal to ${cpp.pages.toLocaleString("en-US")} C++ (/w/cpp) and ${cStats.pages.toLocaleString("en-US")} C (/w/c) specification pages from cppreference.com.`;
+  const ogImage = buildOgImageUrl({
+    title: "Offline C++ & C Reference",
+    kicker: `${all.pages.toLocaleString("en-US")} Pages`,
+    meta: `${cpp.pages.toLocaleString("en-US")} C++ (/w/cpp) + ${cStats.pages.toLocaleString("en-US")} C (/w/c)`,
+    sub: "C++98 to C++26 & C89 to C23",
+  });
+  return {
+    title,
+    description,
+    alternates: { canonical: "/w" },
+    openGraph: {
+      title,
+      description,
+      url: "/w",
+      siteName: SITE.name,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: `${title} — ${SITE.name}` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
+}
 
 export default function WPortalPage() {
   const all = getIndexStats("all");
@@ -43,8 +70,8 @@ export default function WPortalPage() {
 
           <p className="leading-relaxed text-ink-soft">
             {cpp.pages.toLocaleString("en-US")} pages across{" "}
-            {cpp.domainCount} domains, layered with interactive memory
-            maps and CppCon standard-lawyer quizzes.
+            {cpp.domainCount} domains, layered with study cross-links,
+            interactive simulators, and clause-cited quizzes.
           </p>
 
           <ul className="flex flex-wrap gap-1.5">

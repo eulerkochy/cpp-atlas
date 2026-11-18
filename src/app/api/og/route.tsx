@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { SITE } from "@/lib/site";
 
 function clampText(
   raw: string | null,
@@ -13,13 +14,18 @@ function clampText(
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const title = clampText(searchParams.get("title"), "C++ Atlas", 90);
+  const title = clampText(searchParams.get("title"), SITE.name, 90);
   const kicker = clampText(
     searchParams.get("kicker"),
     "C++ Study & Reference",
     48
   );
-  const meta = clampText(searchParams.get("meta"), "/w/cpp", 70);
+  const meta = clampText(searchParams.get("meta"), "/w/cpp", 72);
+  const footerNote = clampText(
+    searchParams.get("sub"),
+    "Read / Map / Quiz",
+    40
+  );
 
   const titleFontSize =
     title.length > 58 ? 44 : title.length > 34 ? 54 : 62;
@@ -125,7 +131,7 @@ export async function GET(request: Request) {
                     color: "rgba(0, 0, 0, 0.58)",
                   }}
                 >
-                  cpp-atlas.dev
+                  {SITE.host}
                 </div>
               </div>
 
@@ -136,7 +142,7 @@ export async function GET(request: Request) {
                   color: "rgba(0, 0, 0, 0.56)",
                 }}
               >
-                en.cppreference.com 1:1
+                Offline 1:1 cppreference
               </div>
             </div>
 
@@ -169,7 +175,7 @@ export async function GET(request: Request) {
                     letterSpacing: "-0.01em",
                   }}
                 >
-                  C++ Atlas
+                  {SITE.name}
                 </div>
                 <div
                   style={{
@@ -234,7 +240,7 @@ export async function GET(request: Request) {
                     color: "rgba(0, 0, 0, 0.56)",
                   }}
                 >
-                  Mapped &amp; verified 1:1
+                  {footerNote}
                 </div>
               </div>
             </div>

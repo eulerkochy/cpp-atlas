@@ -16,9 +16,9 @@ export function GET() {
   const lines: string[] = [
     "# C++ Atlas",
     "",
-    `> ${topics.length} structured C++ study topics paired with a full 1:1 indexed companion to en.cppreference.com covering ${stats.pages} pages (${cpp.pages} C++, ${cStats.pages} C) across ${stats.domainCount} C++ and C domains, served from an offline snapshot of cppreference.com (CC-BY-SA 3.0 / GFDL).`,
+    `> ${topics.length} structured C++ study topics paired with an offline 1:1 copy of en.cppreference.com covering ${stats.pages} pages (${cpp.pages} C++, ${cStats.pages} C) across ${stats.domainCount} domains (CC-BY-SA 3.0 / GFDL).`,
     "",
-    "## Gemini Notebook / NotebookLM Audio Overview Ingestion",
+    "## Plain Markdown & NotebookLM Ingestion",
     "",
     `- Complete study guide (all topics combined): ${BASE_URL}/api/notebook/topics-all`,
     "- Every `/topics/<slug>` exposes clean Markdown (with concept map outline and quiz traps) at `/api/notebook/topic/<slug>`.",
@@ -64,8 +64,8 @@ export function GET() {
     `- Root C++ Reference: ${BASE_URL}/w/cpp`,
     `- Root C Reference: ${BASE_URL}/w/c`,
     `- Full Directory: ${BASE_URL}/explore`,
-    `- Standardese Quiz Arena: ${BASE_URL}/quiz`,
-    `- NotebookLM Podcast Studio: ${BASE_URL}/notebook`,
+    `- Standardese Quiz: ${BASE_URL}/quiz`,
+    `- Markdown & NotebookLM Studio: ${BASE_URL}/notebook`,
     `- Full XML Sitemap (${stats.pages + topics.length + 11} URLs): ${BASE_URL}/sitemap.xml`,
     "",
   ];

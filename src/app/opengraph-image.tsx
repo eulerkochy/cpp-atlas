@@ -1,7 +1,9 @@
 import { ImageResponse } from "next/og";
+import { SITE } from "@/lib/site";
 import { getSiteStats } from "@/lib/site-stats";
 
-export const alt = "C++ Atlas — Every cppreference Page Mapped 1:1";
+export const alt =
+  "C++ Atlas — Visual C++ Study Topics, Memory Simulators & Offline Reference";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -9,11 +11,15 @@ export default function OpenGraphImage() {
   const stats = getSiteStats();
   const STATS = [
     { value: String(stats.topics), label: "Study topics", wide: false },
-    { value: String(stats.simulators), label: "Memory simulators", wide: false },
-    { value: String(stats.traps), label: "Standardese traps", wide: false },
+    { value: String(stats.simulators), label: "Machine simulators", wide: false },
+    {
+      value: stats.traps.toLocaleString("en-US"),
+      label: "Clause-cited traps",
+      wide: false,
+    },
     {
       value: stats.referencePages.toLocaleString("en-US"),
-      label: "1:1 /w/cpp & /w/c pages",
+      label: "Offline /w/cpp & /w/c pages",
       wide: true,
     },
   ] as const;
@@ -44,14 +50,14 @@ export default function OpenGraphImage() {
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            padding: "44px 56px 50px",
+            padding: "42px 56px 48px",
           }}
         >
           <div
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: 24,
+              gap: 18,
             }}
           >
             <div
@@ -82,18 +88,18 @@ export default function OpenGraphImage() {
                     letterSpacing: "-0.015em",
                   }}
                 >
-                  C++ Atlas
+                  {SITE.name}
                 </div>
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    fontSize: 21,
-                    color: "rgba(0, 0, 0, 0.6)",
+                    fontSize: 20,
+                    color: "rgba(0, 0, 0, 0.62)",
                     letterSpacing: "-0.01em",
                   }}
                 >
-                  en.cppreference.com 1:1
+                  {stats.tracks} tracks, C++11 to C++26
                 </div>
               </div>
 
@@ -109,22 +115,42 @@ export default function OpenGraphImage() {
                   color: "#000000",
                 }}
               >
-                C++11 to C++26
+                Offline 1:1 cppreference
               </div>
             </div>
 
             <div
               style={{
                 display: "flex",
-                fontSize: 58,
-                fontWeight: 600,
-                lineHeight: 1.08,
-                letterSpacing: "-0.03em",
-                color: "#000000",
-                maxWidth: 960,
+                flexDirection: "column",
+                gap: 10,
               }}
             >
-              Every cppreference page, mapped &amp; tested
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 54,
+                  fontWeight: 600,
+                  lineHeight: 1.07,
+                  letterSpacing: "-0.03em",
+                  color: "#000000",
+                  maxWidth: 1020,
+                }}
+              >
+                Every corner of C++, mapped to the machine &amp; the standard
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 22,
+                  lineHeight: 1.35,
+                  color: "rgba(0, 0, 0, 0.66)",
+                  maxWidth: 980,
+                }}
+              >
+                Deep-dive prose, interactive concept maps, live memory layouts,
+                and Compiler Explorer links.
+              </div>
             </div>
           </div>
 
@@ -199,7 +225,7 @@ export default function OpenGraphImage() {
                     color: "rgba(0, 0, 0, 0.6)",
                   }}
                 >
-                  cpp-atlas.dev
+                  {SITE.host}
                 </div>
               </div>
 
@@ -210,7 +236,7 @@ export default function OpenGraphImage() {
                   color: "rgba(0, 0, 0, 0.56)",
                 }}
               >
-                Sunlit Study &amp; Reference
+                Read / Map / Quiz
               </div>
             </div>
 

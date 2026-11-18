@@ -9,6 +9,8 @@ export interface SiteStats {
   /** Topic quiz questions plus the reference companions' traps. */
   traps: number;
   simulators: number;
+  /** Number of topics paired with an interactive simulator. */
+  simulatorTopics: number;
   /** Listed C++ and C reference pages in the offline snapshot. */
   referencePages: number;
 }
@@ -22,10 +24,15 @@ export function getSiteStats(): SiteStats {
     traps:
       ALL_QUIZZES.length + topics.reduce((sum, t) => sum + t.questions.length, 0),
     simulators: MEMORY_MAP_KINDS.length,
+    simulatorTopics: topics.filter((t) => Boolean(t.simulator)).length,
     referencePages: getIndexStats("all").pages,
   };
 }
 
+export function siteTitle(stats: SiteStats = getSiteStats()): string {
+  return `C++ Atlas — ${stats.topics} Visual C++ Study Topics, Simulators & Offline Reference`;
+}
+
 export function siteDescription(stats: SiteStats = getSiteStats()): string {
-  return `${stats.topics} visual C++ study topics, ${stats.simulators} interactive memory and layout simulators, ${stats.traps} ISO standardese traps, and all ${stats.referencePages.toLocaleString("en-US")} pages of cppreference.com, served offline and mapped 1:1.`;
+  return `${stats.topics} C++ study topics across ${stats.tracks} tracks, ${stats.simulators} interactive memory and layout simulators, ${stats.traps.toLocaleString("en-US")} clause-cited quiz questions, and all ${stats.referencePages.toLocaleString("en-US")} C++ and C pages of cppreference.com, served offline and mapped 1:1.`;
 }

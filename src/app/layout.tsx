@@ -6,7 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { ProgressProvider } from "@/components/ProgressProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SITE } from "@/lib/site";
-import { getSiteStats, siteDescription } from "@/lib/site-stats";
+import { getSiteStats, siteDescription, siteTitle } from "@/lib/site-stats";
 import "./globals.css";
 import "./cppref.css";
 
@@ -29,34 +29,55 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
-const SITE_TITLE = "C++ Atlas — Every cppreference Page Mapped 1:1";
-
 export function generateMetadata(): Metadata {
-  const description = siteDescription();
+  const stats = getSiteStats();
+  const defaultTitle = siteTitle(stats);
+  const description = siteDescription(stats);
   return {
     metadataBase: new URL(SITE.url),
     title: {
-      default: SITE_TITLE,
+      default: defaultTitle,
       template: `%s | ${SITE.name}`,
     },
     description,
     applicationName: SITE.name,
+    keywords: [
+      "C++",
+      "C++20",
+      "C++23",
+      "C++26",
+      "cppreference",
+      "C++ memory model",
+      "value categories",
+      "coroutines",
+      "templates",
+      "ISO C++",
+    ],
     robots: {
       index: true,
       follow: true,
     },
     openGraph: {
-      title: SITE_TITLE,
+      title: defaultTitle,
       description,
       siteName: SITE.name,
       type: "website",
       url: "/",
       locale: "en",
+      images: [
+        {
+          url: "/opengraph-image",
+          width: 1200,
+          height: 630,
+          alt: defaultTitle,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
-      title: SITE_TITLE,
+      title: defaultTitle,
       description,
+      images: ["/opengraph-image"],
     },
   };
 }

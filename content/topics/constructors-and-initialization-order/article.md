@@ -12,7 +12,7 @@ standard:
   - "[dcl.init.aggr]"
 cppreference:
   - title: "Constructors and member initializer lists"
-    path: "language/constructor"
+    path: "language/initializer_list"
   - title: "Default constructors"
     path: "language/default_constructor"
   - title: "Converting constructor"

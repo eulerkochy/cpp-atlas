@@ -16,7 +16,7 @@ import {
 } from "@/components/TopicViewActions";
 import { JsonLd } from "@/components/JsonLd";
 import { TrackProgressCount } from "@/components/TrackProgressCount";
-import { absoluteUrl, SITE } from "@/lib/site";
+import { absoluteUrl, buildOgImageUrl, SITE } from "@/lib/site";
 import {
   getAllTopics,
   getDependents,
@@ -46,7 +46,12 @@ export async function generateMetadata({
   const description =
     topic.summary ||
     `${topic.title} — ${topic.trackTitle} study topic on C++ Atlas.`;
-  const ogImage = `/api/og?title=${encodeURIComponent(topic.title)}&kicker=${encodeURIComponent(topic.trackTitle)}&meta=${encodeURIComponent(`${topic.minutes} min read / ${topic.questions.length} traps`)}`;
+  const metaBadge = `${topic.minutes} min read / ${topic.questions.length} questions${topic.simulator ? " / Simulator" : ""}`;
+  const ogImage = buildOgImageUrl({
+    title: topic.title,
+    kicker: topic.trackTitle,
+    meta: metaBadge,
+  });
 
   return {
     title: topic.title,

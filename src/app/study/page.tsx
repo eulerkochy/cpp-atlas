@@ -6,14 +6,40 @@ import {
   type StudyQuizMeta,
 } from "@/components/StudyDeskClient";
 import { ALL_QUIZZES } from "@/data/companions";
+import { buildOgImageUrl, SITE } from "@/lib/site";
+import { getSiteStats } from "@/lib/site-stats";
 import { getAllTopics, getTracks } from "@/lib/topics";
 import type { TrackWithTopics } from "@/types/topics";
 
-export const metadata: Metadata = {
-  title: "Study Desk",
-  description:
-    "Track completed C++ topics, standard-lawyer quiz mastery, missed traps, saved reference pages, and portable JSON progress backups.",
-};
+export function generateMetadata(): Metadata {
+  const stats = getSiteStats();
+  const title = "Study Desk";
+  const description = `Track progress across ${stats.topics} C++ study topics and ${stats.traps.toLocaleString("en-US")} clause-cited questions locally in your browser, with portable JSON backup.`;
+  const ogImage = buildOgImageUrl({
+    title: "Study Desk & Mastery Tracker",
+    kicker: "Local Browser Progress",
+    meta: `${stats.topics} topics / ${stats.traps.toLocaleString("en-US")} questions / JSON backup`,
+    sub: "No account required",
+  });
+  return {
+    title,
+    description,
+    alternates: { canonical: "/study" },
+    openGraph: {
+      title,
+      description,
+      url: "/study",
+      siteName: SITE.name,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: `${title} — ${SITE.name}` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
+}
 
 export default function StudyPage() {
   const rawTracks = getTracks();

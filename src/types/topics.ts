@@ -112,23 +112,56 @@ export interface TopicNeighbours {
 }
 
 export const SIMULATOR_BY_TOPIC: Record<string, SimulatorKind> = {
+  // Value categories & initialization
   "value-categories": "value-categories",
   "copy-elision": "value-categories",
+  "reference-binding-and-temporaries": "value-categories",
+  // Object lifetime, aliasing & dynamic storage
   "object-lifetime-and-storage": "object-lifetime",
+  "dynamic-allocation-new-and-delete": "object-lifetime",
+  "strict-aliasing-and-ub": "object-lifetime",
+  "strict-aliasing-and-undefined-behavior": "object-lifetime",
+  // Memory model, atomics & lock-free concurrency
   "atomics-and-memory-ordering": "memory-model",
+  "lock-free-programming-and-aba": "memory-model",
+  "hazard-pointers-and-rcu": "memory-model",
+  // Move semantics & perfect forwarding
   "forwarding-references-and-perfect-forwarding": "move-and-forwarding",
   "copy-and-move": "move-and-forwarding",
+  // Templates, SFINAE & C++20 concepts
   "sfinae-and-concepts": "templates-and-concepts",
+  "sfinae": "templates-and-concepts",
+  "concepts-and-constraints": "templates-and-concepts",
+  // Coroutines & generators
   "coroutines": "coroutine-frame",
+  "coroutine-library-and-generators": "coroutine-frame",
+  // Polymorphic vtables, object layout & deducing this
   "inheritance-and-virtual-functions": "vtable-layout",
+  "multiple-and-virtual-inheritance": "vtable-layout",
+  "object-layout-and-alignment": "vtable-layout",
   "crtp-and-deducing-this": "vtable-layout",
+  // Containers, SSO, views & invalidation
   "containers-and-iterator-invalidation": "container-invalidation",
+  "iterator-invalidation": "container-invalidation",
+  "sequence-containers": "container-invalidation",
   "strings-views-and-spans": "container-invalidation",
+  "strings-and-string-view": "container-invalidation",
+  "span-and-mdspan": "container-invalidation",
+  // Smart pointers, RAII & allocators
   "smart-pointers-and-allocators": "smart-pointers",
+  "smart-pointers": "smart-pointers",
+  "allocators-and-pmr": "smart-pointers",
   "raii-and-resource-management": "smart-pointers",
+  // Overload resolution, operators & ADL
   "overload-resolution": "overload-lookup",
+  "operator-overloading": "overload-lookup",
   "name-lookup-and-adl": "overload-lookup",
+  "dependent-names-and-two-phase-lookup": "overload-lookup",
+  // C++26 contracts, static reflection & senders/receivers
   "cpp26-contracts-reflection-execution": "cpp26-preview",
+  "contracts": "cpp26-preview",
+  "reflection": "cpp26-preview",
+  "senders-and-receivers": "cpp26-preview",
 };
 
 export function getSimulatorForTopic(slug: string): SimulatorKind | undefined {

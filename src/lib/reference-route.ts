@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
+import { getCompanionForPath } from "@/data/companions";
 import { REFERENCE_SNAPSHOT, resolveReferencePage } from "@/lib/cppref-engine";
 import { getIndexStats } from "@/lib/cppref-index";
 import {
   prerenderedReferenceEntries,
   referenceHref,
 } from "@/lib/reference";
-import { SITE } from "@/lib/site";
+import { buildOgImageUrl, SITE } from "@/lib/site";
 import type { CppRefPageData, ReferenceLang } from "@/types/cpp";
 
 /*
@@ -38,10 +39,6 @@ export function loadReferencePage(
   return resolved.page;
 }
 
-function ogImage(title: string, kicker: string, meta: string): string {
-  return `/api/og?title=${encodeURIComponent(title)}&kicker=${encodeURIComponent(kicker)}&meta=${encodeURIComponent(meta)}`;
-}
-
 export function referenceMetadata(
   lang: ReferenceLang,
   slug: string[] | undefined
@@ -55,7 +52,14 @@ export function referenceMetadata(
     ? `An offline, restyled copy of all ${getIndexStats(lang).pages.toLocaleString("en-US")} ${name} pages of cppreference.com, with outlines, memory maps and quizzes.`
     : page.summary || `${page.title}: ${name} reference${page.domain ? ` (${page.domain})` : ""}.`;
   const kicker = page.domain ?? `${name} Reference`;
-  const image = ogImage(title, kicker, url);
+  const hasCompanion =
+    lang === "cpp" && Boolean(getCompanionForPath(page.pagePath));
+  const image = buildOgImageUrl({
+    title,
+    kicker,
+    meta: url,
+    sub: hasCompanion ? "Read / Simulator / Quiz" : `Offline ${name} reference`,
+  });
   const markdown = `/api/notebook/${lang}${url.slice(`/w/${lang}`.length)}`;
 
   return {

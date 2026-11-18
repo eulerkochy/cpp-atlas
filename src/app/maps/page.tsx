@@ -4,16 +4,43 @@ import { CurriculumGraph } from "@/components/CurriculumGraph";
 import { MapPreview } from "@/components/MapPreview";
 import { PageHeader } from "@/components/PageHeader";
 import { countMapStats } from "@/lib/map-layout";
+import { buildOgImageUrl, SITE } from "@/lib/site";
+import { getSiteStats } from "@/lib/site-stats";
 import { getTracks } from "@/lib/topics";
 
-export const metadata: Metadata = {
-  title: "Maps",
-  description:
-    "Interactive concept maps for every C++ topic, showing structural hierarchies and key language guarantees at a glance.",
-};
+export function generateMetadata(): Metadata {
+  const stats = getSiteStats();
+  const title = "Concept Maps & Simulators";
+  const description = `${stats.topics} interactive C++ concept maps, a prerequisite dependency graph, and ${stats.simulators} live machine-model simulators across ${stats.tracks} tracks.`;
+  const ogImage = buildOgImageUrl({
+    title: "Concept Maps & Prerequisite Graph",
+    kicker: `${stats.topics} Visual Maps`,
+    meta: `${stats.simulators} machine simulators across ${stats.simulatorTopics} topics`,
+    sub: "DAG / Concept maps / Simulators",
+  });
+  return {
+    title,
+    description,
+    alternates: { canonical: "/maps" },
+    openGraph: {
+      title,
+      description,
+      url: "/maps",
+      siteName: SITE.name,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: `${title} — ${SITE.name}` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
+}
 
 export default function MapsPage() {
   const rawTracks = getTracks();
+  const siteStats = getSiteStats();
   const allTopicSummaries = rawTracks.flatMap((track) =>
     track.topics.map((topic) => ({ ...topic, map: null }))
   );
@@ -35,8 +62,8 @@ export default function MapsPage() {
       <PageHeader title="Maps">
         <p>
           {totalMaps > 0
-            ? `${totalMaps} interactive concept maps across ${tracks.length} tracks. Select any card to explore branches, notes, and simulators.`
-            : "Interactive concept maps for every study topic."}
+            ? `${totalMaps} interactive concept maps across ${tracks.length} tracks, paired with ${siteStats.simulators} live machine-model simulators across ${siteStats.simulatorTopics} topics. Trace the prerequisite graph or open any map directly.`
+            : "Interactive concept maps and machine-model simulators for every study topic."}
         </p>
       </PageHeader>
 

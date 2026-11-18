@@ -12,15 +12,37 @@ import {
   getEntriesForLangDomain,
   getIndexStats,
 } from "@/lib/cppref-index";
+import { buildOgImageUrl, SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import type { ReferenceLang } from "@/types/cpp";
 
 export function generateMetadata(): Metadata {
   const all = getIndexStats("all");
+  const title = "C++ & C Reference Directory";
+  const description = `Browse all ${all.pages.toLocaleString("en-US")} offline C++ and C reference pages across ${all.domainCount} domains, mapped 1:1 to en.cppreference.com.`;
+  const ogImage = buildOgImageUrl({
+    title: `${all.pages.toLocaleString("en-US")} C++ & C Reference Pages`,
+    kicker: `${all.domainCount} Domains`,
+    meta: "Offline 1:1 /w/cpp & /w/c directory",
+    sub: "Complete reference index",
+  });
   return {
-    title: "Complete C++ & C Directory",
-    description: `Browse all ${all.pages.toLocaleString("en-US")} C++ and C reference pages across ${all.domainCount} domains, with 1:1 correspondence to en.cppreference.com.`,
+    title,
+    description,
     alternates: { canonical: "/explore" },
+    openGraph: {
+      title,
+      description,
+      url: "/explore",
+      siteName: SITE.name,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: `${title} — ${SITE.name}` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
   };
 }
 
