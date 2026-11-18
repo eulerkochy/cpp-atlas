@@ -1,0 +1,151 @@
+{
+  "questions": [
+    {
+      "id": "type-traits-and-metaprogramming-const-ref",
+      "kind": "warmup",
+      "prompt": "Which of these `static_assert`s fails?",
+      "code": "#include <type_traits>\n\nstatic_assert(std::is_const_v<const int>);                                   // #1\nstatic_assert(std::is_const_v<const int&>);                                  // #2\nstatic_assert(std::is_same_v<std::remove_cvref_t<const int&>, int>);         // #3\nstatic_assert(std::is_same_v<std::remove_reference_t<const int&>, const int>); // #4",
+      "options": [
+        "#1",
+        "#3",
+        "#2",
+        "#4",
+        "None of them"
+      ],
+      "answer": 2,
+      "explanation": "A reference type is never cv-qualified: the `const` in `const int&` belongs to the referred-to type, so `is_const_v<const int&>` is false, so #2 fails and makes the program ill-formed. The same reasoning means `remove_const_t<const int&>` is unchanged. #3 and #4 hold because they remove the reference first, which is why `remove_cvref_t` exists.",
+      "refs": [
+        "[meta.unary.prop]",
+        "[dcl.ref]"
+      ]
+    },
+    {
+      "id": "type-traits-and-metaprogramming-explicit-ctor",
+      "kind": "warmup",
+      "prompt": "What are the values of `A` and `B`?",
+      "code": "#include <type_traits>\n\nstruct Id { explicit Id(int); };\n\nconstexpr bool A = std::is_constructible_v<Id, int>;\nconstexpr bool B = std::is_convertible_v<int, Id>;",
+      "options": [
+        "`A` is true, `B` is true",
+        "`A` is false, `B` is false",
+        "`A` is false, `B` is true",
+        "`A` is true, `B` is false"
+      ],
+      "answer": 3,
+      "explanation": "`is_constructible<Id, int>` asks whether `Id t(std::declval<int>());` is well-formed, which is direct-initialization, so the explicit constructor is usable and `A` is true. `is_convertible<int, Id>` asks whether a function returning `Id` can `return` an `int`, which is copy-initialization and ignores explicit constructors, so `B` is false. Treating the two traits as synonyms is the usual mistake.",
+      "refs": [
+        "[meta.unary.prop]",
+        "[meta.rel]",
+        "[dcl.init.general]"
+      ]
+    },
+    {
+      "id": "type-traits-and-metaprogramming-decay-array",
+      "kind": "warmup",
+      "prompt": "What type is `D`?",
+      "code": "#include <type_traits>\n\nusing D = std::decay_t<const int (&)[3]>;",
+      "options": [
+        "`int*`",
+        "`const int*`",
+        "`int[3]`",
+        "`const int[3]`"
+      ],
+      "answer": 1,
+      "explanation": "`decay` first removes the reference, leaving `const int[3]`, and then applies array-to-pointer conversion, giving a pointer to the element type `const int`. The `const` is not top-level on a pointer to const, so it survives. `int[3]` is what `remove_cvref_t` would give, since it keeps arrays as arrays.",
+      "refs": [
+        "[meta.trans.other]",
+        "[conv.array]"
+      ]
+    },
+    {
+      "id": "type-traits-and-metaprogramming-trivially-copyable",
+      "kind": "tricky",
+      "prompt": "What are the values of `C` and `T`?",
+      "code": "#include <type_traits>\n\nstruct Init {\n  Init() {}\n  int x;\n};\n\nconstexpr bool C = std::is_trivially_copyable_v<Init>;\nconstexpr bool T = std::is_trivial_v<Init>;",
+      "options": [
+        "`C` is true, `T` is false",
+        "Both are true",
+        "Both are false",
+        "`C` is false, `T` is true"
+      ],
+      "answer": 0,
+      "explanation": "Trivially copyable only looks at copy and move operations and the destructor, all of which are implicitly declared and trivial here, so `C` is true and `memcpy` is a valid way to copy an `Init`. A trivial class must also have a trivial default constructor, and `Init()` is user-provided, so `T` is false. A user-written constructor does not stop byte-wise copying.",
+      "refs": [
+        "[class.prop]",
+        "[meta.unary.prop]"
+      ]
+    },
+    {
+      "id": "type-traits-and-metaprogramming-conjunction-lazy",
+      "kind": "tricky",
+      "prompt": "Which declaration makes the program ill-formed?",
+      "code": "#include <type_traits>\n\ntemplate<class T> struct Expensive {\n  static_assert(sizeof(T) == 0, \"must not be instantiated\");\n  static constexpr bool value = true;\n};\n\ntemplate<class... Ts> constexpr bool all = (Ts::value && ...);\n\nconstexpr bool p = std::conjunction_v<std::is_integral<float>, Expensive<int>>; // #1\nconstexpr bool q = all<std::is_integral<float>, Expensive<int>>;              // #2",
+      "options": [
+        "Neither: both short-circuit after `is_integral<float>`",
+        "Only #1",
+        "Both",
+        "Only #2"
+      ],
+      "answer": 3,
+      "explanation": "`conjunction` inherits from the first argument whose `value` is false and never asks later arguments for `::value`, so `Expensive<int>` is not instantiated in #1. The fold in #2 names `Expensive<int>::value`, and naming a member of a class template specialization instantiates the class, firing its `static_assert`, so #2 is ill-formed; the `&&` never gets a chance to short-circuit. Short-circuiting the evaluation is not the same as short-circuiting instantiation.",
+      "refs": [
+        "[meta.logical]",
+        "[temp.inst]"
+      ]
+    },
+    {
+      "id": "type-traits-and-metaprogramming-constexpr-if-nontemplate",
+      "kind": "tricky",
+      "prompt": "In C++23, which of these functions is well-formed?",
+      "code": "#include <type_traits>\n\nvoid f() {\n  if constexpr (sizeof(int) == 0) { static_assert(false); }\n}\n\ntemplate<class T> void g() {\n  if constexpr (sizeof(T) == 0) { static_assert(false); }\n}",
+      "options": [
+        "Both",
+        "Only `f`",
+        "Only `g`",
+        "Neither, because `static_assert(false)` is always ill-formed"
+      ],
+      "answer": 2,
+      "explanation": "Discarding a branch of `if constexpr` only prevents instantiation, and only templates are instantiated. C++23 (P2593) changed `static_assert` so that inside a template definition it is evaluated on instantiation, which makes `g` fine. `f` is not a template, so its discarded branch is checked like ordinary code and the failing `static_assert` makes `f` ill-formed. The last option describes the rule before P2593, which compilers now apply retroactively.",
+      "refs": [
+        "[stmt.if]",
+        "[dcl.pre]"
+      ]
+    },
+    {
+      "id": "type-traits-and-metaprogramming-specialize-std",
+      "kind": "standardese",
+      "prompt": "What does the C++23 standard say about this program?",
+      "code": "#include <type_traits>\n\nstruct Fixed {};\n\ntemplate<>\nstruct std::is_integral<Fixed> : std::true_type {};\n\nint main() { return std::is_integral_v<Fixed>; }",
+      "options": [
+        "It is well-formed and returns 1",
+        "Ill-formed: `is_integral` is declared `final`",
+        "Implementation-defined",
+        "Undefined behavior"
+      ],
+      "answer": 3,
+      "explanation": "[meta.type.synop] makes adding a specialization for any type trait template undefined behavior unless the trait's specification allows it, and only `common_type` and `basic_common_reference` do. Specializing a standard template for a program-defined type is allowed in general by [namespace.std], which makes the first option tempting, but the traits subclause overrides that. In practice GCC with libstdc++ accepts this, while Clang with libc++ rejects it.",
+      "refs": [
+        "[meta.type.synop]",
+        "[namespace.std]"
+      ]
+    },
+    {
+      "id": "type-traits-and-metaprogramming-declval-odr",
+      "kind": "standardese",
+      "prompt": "Which use of `std::declval` is ill-formed?",
+      "code": "#include <utility>\n\nstruct NoDefault { NoDefault(int); int get() const; };\n\nusing A = decltype(std::declval<NoDefault>().get());       // #1\nconstexpr auto B = sizeof(std::declval<NoDefault>());      // #2\nconstexpr bool C = noexcept(std::declval<NoDefault>().get()); // #3\nint D = std::declval<NoDefault>().get();                 // #4",
+      "options": [
+        "#1, because `NoDefault` has no default constructor",
+        "#4 only",
+        "#2 and #4",
+        "None of them; `declval` merely returns an rvalue reference"
+      ],
+      "answer": 1,
+      "explanation": "The operands of `decltype`, `sizeof` and `noexcept` are unevaluated, so `declval` is not odr-used there and any type, constructible or not, is fine. #4 is an evaluated expression, which odr-uses `declval`, and [declval] makes that ill-formed; both libstdc++ and libc++ diagnose it with a `static_assert`. `sizeof` is a common doubt, but it is as unevaluated as `decltype`.",
+      "refs": [
+        "[declval]",
+        "[expr.context]",
+        "[basic.def.odr]"
+      ]
+    }
+  ]
+}

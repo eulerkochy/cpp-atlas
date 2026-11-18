@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "senders-and-receivers-lazy",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, what does this program print?",
+      "code": "#include <execution>\n#include <cstdio>\n\nnamespace ex = std::execution;\n\nint main() {\n  auto work = ex::just() | ex::then([] { std::puts(\"A\"); });\n  std::puts(\"B\");\n  (void)work;\n}",
+      "options": [
+        "`A` then `B`",
+        "`B` only",
+        "`B` then `A`",
+        "Either order, because `then` runs on an unspecified thread"
+      ],
+      "answer": 1,
+      "explanation": "Senders are lazy. `just() | then(f)` only builds a description of the work, and `f` runs only after the sender is connected to a receiver and the operation state is started. Nothing here does that, because there is no `sync_wait`, `spawn`, or `co_await`. So only `B` is printed, and `work` is destroyed without ever running. This is the main difference from `std::async`, which starts work immediately.",
+      "refs": [
+        "[exec.async.ops]",
+        "[exec.then]"
+      ]
+    },
+    {
+      "id": "senders-and-receivers-sync-wait-type",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, what is the type of `r`?",
+      "code": "#include <execution>\n\nauto r = std::this_thread::sync_wait(std::execution::just(1, 2.0));",
+      "options": [
+        "`std::optional<std::tuple<int, double>>`",
+        "`std::tuple<int, double>`",
+        "`std::variant<std::tuple<int, double>>`",
+        "`std::expected<std::tuple<int, double>, std::exception_ptr>`"
+      ],
+      "answer": 0,
+      "explanation": "`sync_wait` returns `optional` of a tuple of the decayed value types of the sender's single value completion. The tuple holds all values, because a value completion can carry any number of arguments. The optional is empty when the sender completes with `set_stopped`, and errors are thrown rather than returned, so there is no `expected`. The `variant` form is what `sync_wait_with_variant` returns.",
+      "refs": [
+        "[exec.sync.wait]",
+        "[exec.just]"
+      ]
+    },
+    {
+      "id": "senders-and-receivers-stopped-result",
+      "kind": "warmup",
+      "prompt": "A sender has completion signatures `set_value_t(int)`, `set_error_t(std::error_code)` and `set_stopped_t()`. At run time it completes with `set_stopped`. What does `std::this_thread::sync_wait` do?",
+      "options": [
+        "It throws `std::system_error`",
+        "It calls `std::terminate`",
+        "It returns an empty `std::optional`",
+        "It blocks forever, because no value ever arrives"
+      ],
+      "answer": 2,
+      "explanation": "The stopped channel means that the work was cancelled, which is not an error, so `sync_wait` reports it as a disengaged `optional`. Throwing `std::system_error` is what happens on the error channel when the error is a `std::error_code`. Every started operation completes exactly once, so `sync_wait` always returns or throws.",
+      "refs": [
+        "[exec.sync.wait]",
+        "[exec.async.ops]"
+      ]
+    },
+    {
+      "id": "senders-and-receivers-then-returns-sender",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, what is true of `r`?",
+      "code": "#include <execution>\n\nnamespace ex = std::execution;\n\nauto r = std::this_thread::sync_wait(\n    ex::just() | ex::then([] { return ex::just(42); }));",
+      "options": [
+        "It is an `optional<tuple<int>>` holding `42`",
+        "It is ill-formed: the callable given to `then` may not return a sender",
+        "It is an `optional` holding a tuple whose element is the sender returned by the lambda, and the value 42 is never produced",
+        "Undefined behavior: the inner sender is destroyed without being started"
+      ],
+      "answer": 2,
+      "explanation": "`then` sends whatever its callable returns as a value, and a sender is just an object, so the result is a tuple holding a `just(42)` sender that nobody connects or starts. Destroying a sender that was never connected is fine, so there is no undefined behaviour. To run the returned sender and forward its completion, use `let_value`, which turns the same code into an `optional<tuple<int>>` holding 42.",
+      "refs": [
+        "[exec.then]",
+        "[exec.let]"
+      ]
+    },
+    {
+      "id": "senders-and-receivers-sync-wait-stopped-only",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, what happens with this code?",
+      "code": "#include <execution>\n\nint main() {\n  auto r = std::this_thread::sync_wait(std::execution::just_stopped());\n  return r.has_value();\n}",
+      "options": [
+        "It is ill-formed: `sync_wait` mandates exactly one value completion signature, and `just_stopped()` has none",
+        "It returns 0, because `r` is an empty optional",
+        "It throws `std::system_error` with `errc::operation_canceled`",
+        "Undefined behavior: a stopped completion has no value to store"
+      ],
+      "answer": 0,
+      "explanation": "`sync_wait` needs a single value completion signature to name its `optional<tuple<...>>` return type. `just_stopped()` has only `set_stopped_t()`, so the result type is ill-formed and the call violates a Mandates element. The empty-optional answer would be correct for a sender that may complete with a value but stops at run time. The same rule rejects a sender with two value signatures, which needs `sync_wait_with_variant`.",
+      "refs": [
+        "[exec.sync.wait]",
+        "[exec.just]"
+      ]
+    },
+    {
+      "id": "senders-and-receivers-where-continuation-runs",
+      "kind": "tricky",
+      "prompt": "`pool` is a scheduler for a thread pool whose threads are all distinct from the calling thread. In `std::this_thread::sync_wait(X | std::execution::then(f))`, which choice of `X` makes `f` run on the thread that called `sync_wait`?",
+      "options": [
+        "`std::execution::starts_on(pool, std::execution::just())`",
+        "`std::execution::just() | std::execution::continues_on(pool)`",
+        "`std::execution::schedule(pool)`",
+        "`std::execution::on(pool, std::execution::just())`"
+      ],
+      "answer": 3,
+      "explanation": "`on(sch, sndr)` starts `sndr` on `sch` and, when it completes, transfers execution back to the resource the `on` sender was started on. Under `sync_wait`, that is the `run_loop` driven by the waiting thread. `starts_on` begins on the pool and leaves the completion there. `continues_on(pool)` and `schedule(pool)` both complete on the pool, so `f` runs on a pool thread in all three cases.",
+      "refs": [
+        "[exec.on]",
+        "[exec.starts.on]",
+        "[exec.continues.on]",
+        "[exec.sync.wait]"
+      ]
+    },
+    {
+      "id": "senders-and-receivers-opstate-lifetime",
+      "kind": "standardese",
+      "prompt": "A program connects a library sender to a receiver, calls `start` on the operation state, and then lets the operation state go out of scope before any completion function has been called. Under the C++26 draft, what is the status of this program?",
+      "options": [
+        "The operation is cancelled, and the receiver gets `set_stopped`",
+        "Undefined behavior",
+        "The destructor blocks until the operation completes",
+        "It is ill-formed"
+      ],
+      "answer": 1,
+      "explanation": "[exec.opstate.general] says that if an operation state object is destroyed during the lifetime of its asynchronous operation, the behaviour is undefined. The operation state is where the running work keeps its data, so nothing is cancelled and nothing waits. It is not ill-formed, because the compiler cannot know when the operation will complete. What is ill-formed is copying or moving an operation state created from a library-provided sender.",
+      "refs": [
+        "[exec.opstate.general]",
+        "[exec.async.ops]"
+      ]
+    },
+    {
+      "id": "senders-and-receivers-removed-algorithm",
+      "kind": "standardese",
+      "prompt": "Which of these names is NOT declared in namespace `std::execution` by N5050, the final C++26 draft?",
+      "options": [
+        "`ensure_started`",
+        "`counting_scope`",
+        "`spawn_future`",
+        "`stopped_as_optional`"
+      ],
+      "answer": 0,
+      "explanation": "P3187R1 removed `ensure_started` and `start_detached`, because they let work escape without anyone waiting for it, which breaks structured concurrency. Their role is taken by async scopes from P3149: `counting_scope`, `spawn` and `spawn_future`. `stopped_as_optional` is a standard adaptor that turns a stopped completion into an empty optional value. Reference implementations such as stdexec still offer `ensure_started` as an extension, which is why it may look familiar.",
+      "refs": [
+        "[execution.syn]",
+        "[exec.counting.scopes]",
+        "[exec.spawn.future]",
+        "[exec.stopped.opt]"
+      ]
+    }
+  ]
+}

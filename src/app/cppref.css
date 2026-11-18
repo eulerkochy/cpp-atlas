@@ -14,12 +14,9 @@
 
 .cppref {
   /* Same palette as highlightCppCode in src/lib/cpp-highlight.ts. */
-  --code-ink: #262626;
-  --code-blue: #2c5684;
-  --code-green: #4f7a55;
-  --code-soft: #6b6b6b;
   --code-size: 0.84rem;
   --panel-shadow: 0 14px 40px -22px rgb(120 80 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.04);
+  --tint: 1;
 
   font-size: 1.0625rem;
   line-height: 1.72;
@@ -494,7 +491,7 @@
   width: 10px;
   height: 10px;
   border-radius: 9999px;
-  background: rgb(0 0 0 / 0.12);
+  background: var(--line-strong);
 }
 
 .cppref .cppref-code-name {
@@ -519,7 +516,7 @@
 }
 
 .cppref .cppref-copy:hover {
-  background: rgb(0 0 0 / 0.05);
+  background: var(--line);
   color: var(--ink);
 }
 
@@ -594,7 +591,7 @@
 /* ------------------------------------------------------------------ */
 
 .cppref .kw1 {
-  color: #000;
+  color: var(--ink);
   font-weight: 600;
 }
 
@@ -761,9 +758,9 @@
   margin-right: 0.75rem;
   vertical-align: -1px;
   background:
-    radial-gradient(circle at 5px 5px, rgb(0 0 0 / 0.12) 5px, transparent 5.5px),
-    radial-gradient(circle at 21px 5px, rgb(0 0 0 / 0.12) 5px, transparent 5.5px),
-    radial-gradient(circle at 37px 5px, rgb(0 0 0 / 0.12) 5px, transparent 5.5px);
+    radial-gradient(circle at 5px 5px, var(--line-strong) 5px, transparent 5.5px),
+    radial-gradient(circle at 21px 5px, var(--line-strong) 5px, transparent 5.5px),
+    radial-gradient(circle at 37px 5px, var(--line-strong) 5px, transparent 5.5px);
 }
 
 .cppref table.t-dcl-begin:not(:has(> tbody:first-of-type > tr.t-dsc-header:first-child))::before {
@@ -1273,12 +1270,12 @@
 /* Compiler support. */
 .cppref :is(td, th).table-yes {
   background: var(--right-wash);
-  color: #1d4f34;
+  color: color-mix(in oklab, var(--right) 70%, var(--ink));
 }
 
 .cppref :is(td, th).table-no {
   background: var(--wrong-wash);
-  color: #7a2a1e;
+  color: color-mix(in oklab, var(--wrong) 70%, var(--ink));
 }
 
 .cppref :is(td, th):is(.table-maybe, .table-partial) {
@@ -1335,16 +1332,16 @@
 .cppref [data-bg] {
   min-width: 1.5rem;
 }
-.cppref [data-bg="bcbcff"] { background: color-mix(in oklab, #bcbcff 55%, var(--paper-raised)); }
-.cppref [data-bg="bcffbc"] { background: color-mix(in oklab, #bcffbc 55%, var(--paper-raised)); }
-.cppref [data-bg="ff9966"] { background: color-mix(in oklab, #ff9966 45%, var(--paper-raised)); }
-.cppref [data-bg="b0b0d0"] { background: color-mix(in oklab, #b0b0d0 50%, var(--paper-raised)); }
-.cppref [data-bg="b0d0b0"] { background: color-mix(in oklab, #b0d0b0 50%, var(--paper-raised)); }
-.cppref [data-bg="ffdb99"] { background: color-mix(in oklab, #ffdb99 55%, var(--paper-raised)); }
-.cppref [data-bg="e09080"] { background: color-mix(in oklab, #e09080 45%, var(--paper-raised)); }
-.cppref [data-bg="ffeebc"] { background: color-mix(in oklab, #ffeebc 60%, var(--paper-raised)); }
-.cppref [data-bg="e0a020"] { background: color-mix(in oklab, #e0a020 40%, var(--paper-raised)); }
-.cppref [data-bg="eeddab"] { background: color-mix(in oklab, #eeddab 55%, var(--paper-raised)); }
+.cppref [data-bg="bcbcff"] { background: color-mix(in oklab, #bcbcff calc(55% * var(--tint)), var(--paper-raised)); }
+.cppref [data-bg="bcffbc"] { background: color-mix(in oklab, #bcffbc calc(55% * var(--tint)), var(--paper-raised)); }
+.cppref [data-bg="ff9966"] { background: color-mix(in oklab, #ff9966 calc(45% * var(--tint)), var(--paper-raised)); }
+.cppref [data-bg="b0b0d0"] { background: color-mix(in oklab, #b0b0d0 calc(50% * var(--tint)), var(--paper-raised)); }
+.cppref [data-bg="b0d0b0"] { background: color-mix(in oklab, #b0d0b0 calc(50% * var(--tint)), var(--paper-raised)); }
+.cppref [data-bg="ffdb99"] { background: color-mix(in oklab, #ffdb99 calc(55% * var(--tint)), var(--paper-raised)); }
+.cppref [data-bg="e09080"] { background: color-mix(in oklab, #e09080 calc(45% * var(--tint)), var(--paper-raised)); }
+.cppref [data-bg="ffeebc"] { background: color-mix(in oklab, #ffeebc calc(60% * var(--tint)), var(--paper-raised)); }
+.cppref [data-bg="e0a020"] { background: color-mix(in oklab, #e0a020 calc(40% * var(--tint)), var(--paper-raised)); }
+.cppref [data-bg="eeddab"] { background: color-mix(in oklab, #eeddab calc(55% * var(--tint)), var(--paper-raised)); }
 
 /* "Possible implementation" (eq-fun-cpp-table): a stack of code windows. */
 .cppref table.eq-fun-cpp-table {
@@ -1673,4 +1670,10 @@
 
 .cppref.cppref-focus-mode :is(.t-until-cxx11, .t-until-cxx14, [data-section="defect-reports"]):is(:hover, :focus-within) {
   opacity: 1;
+}
+
+/* Night: softer panel shadow, and the wiki's pastel cell tints mixed in thinly. */
+.dark .cppref {
+  --panel-shadow: 0 14px 40px -22px rgb(0 4 16 / 0.8), 0 1px 3px rgb(0 0 0 / 0.3);
+  --tint: 0.42;
 }

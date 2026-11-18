@@ -1,0 +1,62 @@
+{
+  "root": {
+    "label": "Aggregates",
+    "note": "Types initialized element by element, with no constructor in charge.",
+    "children": [
+      {
+        "label": "Definition by version",
+        "note": "Arrays always qualify; the class rules changed in every standard since C++11.",
+        "children": [
+          { "label": "C++14", "note": "Default member initializers no longer disqualify a class." },
+          { "label": "C++17", "note": "Public non-virtual bases allowed; explicit or inherited constructors disqualify." },
+          { "label": "C++20", "note": "Any user-declared constructor, even = default or = delete, disqualifies." },
+          { "label": "Never disqualifying", "note": "Member functions, statics, a user-declared destructor and assignment operators." }
+        ]
+      },
+      {
+        "label": "Aggregate initialization",
+        "note": "Elements, bases first, are copy-initialized in order from the list.",
+        "children": [
+          { "label": "Omitted elements", "note": "Use the default member initializer, otherwise are initialized from {}." },
+          { "label": "No narrowing", "note": "Braced aggregate initialization rejects narrowing conversions." },
+          { "label": "Unions", "note": "Without a designator only the first member is initialized." },
+          { "label": "Brace elision", "note": "Inner braces may be dropped; {{1,2},{3,4}} fails for std::array<P,2>." }
+        ]
+      },
+      {
+        "label": "Base classes (C++17)",
+        "note": "Each public base is an element initialized before the data members.",
+        "children": [
+          { "label": "Derived{{1}, 2}", "note": "The base gets its own braces, or brace elision fills it." },
+          { "label": "Protected base ctor", "note": "Derived{} is ill-formed since C++17: the base is initialized from outside." }
+        ]
+      },
+      {
+        "label": "Designated (C++20)",
+        "note": "Name members with .x = value, a deliberately narrow subset of C.",
+        "children": [
+          { "label": "Declaration order", "note": "Designators must follow member order, unlike C." },
+          { "label": "All or none", "note": "Designated and positional clauses cannot be mixed." },
+          { "label": "No nesting or indices", "note": "No .a.b, no [2] = x, and bases cannot be named." },
+          { "label": "Union member choice", "note": "A single designator picks the union's active member." }
+        ]
+      },
+      {
+        "label": "Parentheses (C++20)",
+        "note": "T(args...) aggregate-initializes when no constructor is viable.",
+        "children": [
+          { "label": "Library construction", "note": "make_unique<P>(1, 2) and emplace_back(1, 2) now work for aggregates." },
+          { "label": "Narrowing allowed", "note": "N n(2.5) compiles and truncates, while N n{2.5} is ill-formed." },
+          { "label": "No lifetime extension", "note": "A temporary bound to a reference member dies at the end of the declaration." }
+        ]
+      },
+      {
+        "label": "CTAD for aggregates",
+        "note": "C++20 synthesizes a deduction candidate from the element types.",
+        "children": [
+          { "label": "No guide needed", "note": "Pair p{1, 2.0} deduces Pair<int, double> without a deduction guide." }
+        ]
+      }
+    ]
+  }
+}

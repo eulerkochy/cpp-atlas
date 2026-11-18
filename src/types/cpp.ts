@@ -2,18 +2,21 @@ export type ValueCategoryKind = "lvalue" | "xvalue" | "prvalue";
 
 export type ReferenceLang = "cpp" | "c";
 
-export type MemoryMapKind =
-  | "value-categories"
-  | "memory-model"
-  | "object-lifetime"
-  | "move-and-forwarding"
-  | "templates-and-concepts"
-  | "coroutine-frame"
-  | "vtable-layout"
-  | "container-invalidation"
-  | "smart-pointers"
-  | "overload-lookup"
-  | "cpp26-preview";
+export const MEMORY_MAP_KINDS = [
+  "value-categories",
+  "memory-model",
+  "object-lifetime",
+  "move-and-forwarding",
+  "templates-and-concepts",
+  "coroutine-frame",
+  "vtable-layout",
+  "container-invalidation",
+  "smart-pointers",
+  "overload-lookup",
+  "cpp26-preview",
+] as const;
+
+export type MemoryMapKind = (typeof MEMORY_MAP_KINDS)[number];
 
 export type TrapLevel = "subtle" | "standard-lawyer" | "cppcon-stage";
 
@@ -52,15 +55,33 @@ export interface PageInsights {
   hasExample: boolean;
 }
 
+export interface CppRefCrumb {
+  path: string;
+  title: string;
+}
+
+/** A reference page as the views consume it (built from the imported page data). */
 export interface CppRefPageData {
   lang: ReferenceLang;
+  /** Wiki path below /w/<lang>/; "" for the root page. */
   pagePath: string;
   title: string;
+  /** Title with cppreference markup (the greyed "std::vector<T>::" prefix). */
+  titleHtml: string;
+  /** Plain-text lead of the page, at most 240 characters. */
+  summary: string;
+  kind: "page" | "index";
   bodyHtml: string;
   headings: CppRefHeading[];
+  /** Revision marks on the page, oldest first ("C++11", "C++20" / "C99"). */
   cppStandards: string[];
+  /** Ancestors from the root down, excluding the page itself. */
+  breadcrumbs: CppRefCrumb[];
+  /** Direct children in the reference tree. */
+  children: CppRefCrumb[];
   originalUrl: string;
   domain: string | null;
+  wordCount: number;
   insights: PageInsights;
 }
 

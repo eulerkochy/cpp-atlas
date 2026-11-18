@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "iterator-categories-and-concepts-deque-contiguous",
+      "kind": "warmup",
+      "prompt": "In C++23, which of these `static_assert`s fails?",
+      "code": "#include <deque>\n#include <forward_list>\n#include <iterator>\n#include <list>\n#include <vector>\n\nstatic_assert(std::contiguous_iterator<std::vector<int>::iterator>);   // A\nstatic_assert(std::contiguous_iterator<std::deque<int>::iterator>);    // B\nstatic_assert(std::bidirectional_iterator<std::list<int>::iterator>);  // C\nstatic_assert(std::forward_iterator<std::forward_list<int>::iterator>); // D",
+      "options": [
+        "A: `vector` iterators are only random-access",
+        "B",
+        "C: `list` iterators are only forward",
+        "None of them fails"
+      ],
+      "answer": 1,
+      "explanation": "A false `static_assert` makes the program ill-formed, so line B fails to compile. A `deque` supports constant-time indexing, so its iterators are random-access, but its elements live in separately allocated blocks and are not adjacent in memory, so it is not contiguous. `vector` iterators model `std::contiguous_iterator`, the C++20 concept for elements adjacent in memory. `list` is doubly linked and bidirectional, and `forward_list` is forward.",
+      "refs": [
+        "[iterator.concept.contiguous]",
+        "[deque.overview]",
+        "[vector.overview]"
+      ]
+    },
+    {
+      "id": "iterator-categories-and-concepts-iter-value-const",
+      "kind": "warmup",
+      "prompt": "What is `std::iter_value_t<const int*>`?",
+      "options": [
+        "`const int`",
+        "`const int&`",
+        "`int`",
+        "`int&`"
+      ],
+      "answer": 2,
+      "explanation": "The value type is the type of an object you could copy the element into, so cv-qualification is removed: `std::indirectly_readable_traits<const int*>` gives `int`. The reference type, `std::iter_reference_t<const int*>`, is `const int&`, which is the type that keeps the constness. Confusing the two is the usual mistake.",
+      "refs": [
+        "[readable.traits]",
+        "[iterator.assoc.types]"
+      ]
+    },
+    {
+      "id": "iterator-categories-and-concepts-list-distance",
+      "kind": "warmup",
+      "prompt": "For a `std::list<int>` with *n* elements, what does the standard specify as the complexity of `std::distance(l.begin(), l.end())`?",
+      "options": [
+        "Constant, because `std::list::size()` is constant since C++11",
+        "Linear in *n*",
+        "Logarithmic in *n*",
+        "Unspecified"
+      ],
+      "answer": 1,
+      "explanation": "`std::distance` is constant time only for random-access iterators, and it is linear otherwise. A list iterator is bidirectional, so `distance` must increment from `begin` to `end`. `std::list` does store its size, which makes `l.size()` constant time, but `distance` only sees two iterators and cannot reach the container.",
+      "refs": [
+        "[iterator.operations]",
+        "[list.overview]"
+      ]
+    },
+    {
+      "id": "iterator-categories-and-concepts-transform-category",
+      "kind": "tricky",
+      "prompt": "In C++23, which pair of results is correct for `TI`?",
+      "code": "#include <iterator>\n#include <ranges>\n#include <vector>\n\nstd::vector<int> v{1, 2, 3};\nauto t = v | std::views::transform([](int x) { return x * 2; });\nusing TI = std::ranges::iterator_t<decltype(t)>;\n\nconstexpr bool ra = std::random_access_iterator<TI>;\nusing Cat = std::iterator_traits<TI>::iterator_category;",
+      "options": [
+        "`ra` is `true`; `Cat` is `std::random_access_iterator_tag`",
+        "`ra` is `false`; `Cat` is `std::input_iterator_tag`",
+        "`ra` is `true`; `Cat` is `std::input_iterator_tag`",
+        "`ra` is `false`; `Cat` is `std::random_access_iterator_tag`"
+      ],
+      "answer": 2,
+      "explanation": "The transform iterator takes its `iterator_concept` from the underlying `vector` iterator, so it models `std::random_access_iterator`: the C++20 concepts do not require `*it` to return a reference. Its `iterator_category` is computed separately under the legacy rules, and because the lambda returns `int` by value, `*it` is a prvalue and cannot meet the Cpp17ForwardIterator reference requirement. The category is therefore `std::input_iterator_tag`. Assuming both reports agree is the trap.",
+      "refs": [
+        "[range.transform.iterator]",
+        "[iterator.concept.random.access]",
+        "[forward.iterators]"
+      ]
+    },
+    {
+      "id": "iterator-categories-and-concepts-move-only-input",
+      "kind": "tricky",
+      "prompt": "In C++23, does `Gen` model `std::input_iterator`?",
+      "code": "#include <cstddef>\n#include <iterator>\n\nstruct Gen {\n  using difference_type = std::ptrdiff_t;\n  using value_type = int;\n  int n = 0;\n  Gen() = default;\n  Gen(Gen&&) = default;\n  Gen& operator=(Gen&&) = default;\n  int operator*() const { return n; }\n  Gen& operator++() { ++n; return *this; }\n  void operator++(int) { ++n; }\n};\n\nconstexpr bool b = std::input_iterator<Gen>;",
+      "options": [
+        "No: an input iterator must be copyable",
+        "No: an input iterator must support `==`",
+        "No: postfix `++` must return the iterator",
+        "Yes"
+      ],
+      "answer": 3,
+      "explanation": "C++20 deliberately weakened the input-iterator requirements. `std::input_iterator` needs `std::weakly_incrementable` (movable, a signed `difference_type`, pre- and postfix `++` with postfix allowed to return anything), `std::indirectly_readable`, and an iterator concept derived from `input_iterator_tag`, which here comes from the `random_access_iterator_tag` fallback for the primary `iterator_traits` template. Copyability and `==` belong to the legacy Cpp17InputIterator requirements, which is where all three tempting answers come from.",
+      "refs": [
+        "[iterator.concept.input]",
+        "[iterator.concept.winc]",
+        "[iterator.concepts.general]"
+      ]
+    },
+    {
+      "id": "iterator-categories-and-concepts-vector-bool",
+      "kind": "tricky",
+      "prompt": "In C++23, which statement about `std::vector<bool>::iterator` is guaranteed?",
+      "options": [
+        "It models `std::random_access_iterator` but not `std::contiguous_iterator`",
+        "It models `std::contiguous_iterator`, because `vector` storage is contiguous",
+        "It models only `std::input_iterator`, because `*it` is a proxy",
+        "It does not model `std::input_iterator`, because the proxy is not `bool&`"
+      ],
+      "answer": 0,
+      "explanation": "The C++20 concepts accept proxy references: `std::indirectly_readable` only needs a common reference between the proxy and `bool&`, which exists, and nothing above it demands a language reference. So the iterator is random-access. It cannot be contiguous, because `std::contiguous_iterator` requires `iter_reference_t` to be an lvalue reference and the elements are bits, not addressable `bool` objects. The input-only answer is the verdict of the legacy Cpp17ForwardIterator rules, not the concepts.",
+      "refs": [
+        "[vector.bool]",
+        "[iterator.concept.random.access]",
+        "[iterator.concept.contiguous]"
+      ]
+    },
+    {
+      "id": "iterator-categories-and-concepts-forward-reference",
+      "kind": "standardese",
+      "prompt": "Which of these is required by the Cpp17ForwardIterator requirements but **not** by the `std::forward_iterator` concept?",
+      "options": [
+        "The multi-pass guarantee",
+        "Default construction",
+        "That `reference` is `T&` or `const T&`, where `T` is the value type",
+        "Equality comparison between two iterators of the same type"
+      ],
+      "answer": 2,
+      "explanation": "[forward.iterators] requires the legacy `reference` type to be a language reference to the value type, which is what proxy iterators cannot satisfy. `std::forward_iterator` refines `std::input_iterator` with `std::incrementable` and `std::sentinel_for<I, I>`, which bring in default construction, equality comparison and copyability, and [iterator.concept.forward] states the multi-pass guarantee as a semantic requirement. So the other three are required by both.",
+      "refs": [
+        "[forward.iterators]",
+        "[iterator.concept.forward]"
+      ]
+    },
+    {
+      "id": "iterator-categories-and-concepts-pointer-concept",
+      "kind": "standardese",
+      "prompt": "How does `std::contiguous_iterator<int*>` learn that a pointer is contiguous?",
+      "options": [
+        "`std::iterator_traits<int*>::iterator_category` is `std::contiguous_iterator_tag`",
+        "`std::iterator_traits<int*>::iterator_concept` is `std::contiguous_iterator_tag`",
+        "The `ITER_CONCEPT` fallback assumes `std::contiguous_iterator_tag` for pointers",
+        "The concept special-cases pointer types with `std::is_pointer_v`"
+      ],
+      "answer": 1,
+      "explanation": "The specialization `iterator_traits<T*>` defines `iterator_concept` as `contiguous_iterator_tag` while keeping `iterator_category` as `random_access_iterator_tag`, so old code that switches on the category is unaffected. `ITER_CONCEPT` reads `iterator_concept` first. The fallback for a missing tag is `random_access_iterator_tag`, and it applies only when `iterator_traits` is the primary template, which is not the case for pointers.",
+      "refs": [
+        "[iterator.traits]",
+        "[iterator.concepts.general]",
+        "[iterator.concept.contiguous]"
+      ]
+    }
+  ]
+}

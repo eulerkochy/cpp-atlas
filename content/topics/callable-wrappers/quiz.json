@@ -1,0 +1,141 @@
+{
+  "questions": [
+    {
+      "id": "cw-empty-function",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <functional>\n#include <cstdio>\n\nint main() {\n  std::function<int(int)> f;\n  try {\n    std::printf(\"%d\\n\", f(1));\n  } catch (const std::bad_function_call&) {\n    std::puts(\"empty\");\n  }\n}",
+      "options": [
+        "`0`",
+        "Undefined behavior: the wrapper holds no target",
+        "`empty`",
+        "It does not compile: `f` has no initializer"
+      ],
+      "answer": 2,
+      "explanation": "Calling an empty `std::function` throws `std::bad_function_call`, so the handler prints `empty`. The tempting alternative, undefined behavior, is the rule for the newer `move_only_function` and `copyable_function`, which deliberately do not check.",
+      "refs": [
+        "[func.wrap.func.inv]"
+      ]
+    },
+    {
+      "id": "cw-function-move-only",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed in C++23?",
+      "code": "#include <functional>\n#include <memory>\n\nint main() {\n  auto p = std::make_unique<int>(1);\n  std::function<void()> f = [p = std::move(p)] {};\n}",
+      "options": [
+        "No: the target of a `std::function` must be copy constructible",
+        "Yes: the lambda is moved into the wrapper",
+        "Yes, but copying `f` later throws",
+        "Yes: only `std::bind` requires copyable callables"
+      ],
+      "answer": 0,
+      "explanation": "`std::function` is itself copyable, so it requires its target to be copy constructible, and a closure holding a `unique_ptr` is not, so the program is ill-formed. The wrapper to use is `std::move_only_function`, added in C++23.",
+      "refs": [
+        "[func.wrap.func.con]"
+      ]
+    },
+    {
+      "id": "cw-bind-placeholders",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <functional>\n#include <cstdio>\n\nint sub(int a, int b) { return a - b; }\n\nint main() {\n  using namespace std::placeholders;\n  auto g = std::bind(sub, _2, _1);\n  std::printf(\"%d\\n\", g(1, 10));\n}",
+      "options": [
+        "`-9`",
+        "`1`",
+        "It does not compile: `g` is called with the arguments in the wrong order",
+        "`9`"
+      ],
+      "answer": 3,
+      "explanation": "`_1` and `_2` name the first and second argument of the call to `g`. Here the bound call is `sub(_2, _1)`, which with arguments `(1, 10)` is `sub(10, 1)`, giving 9. The placeholders choose which call argument goes where; they are not positions in `sub`.",
+      "refs": [
+        "[func.bind.place]"
+      ]
+    },
+    {
+      "id": "cw-const-hole",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <functional>\n#include <cstdio>\n\nint main() {\n  std::function<int()> f = [n = 0]() mutable { return ++n; };\n  const auto& cf = f;\n  int a = cf();\n  int b = cf();\n  std::printf(\"%d %d\\n\", a, b);\n}",
+      "options": [
+        "`1 1`: a const wrapper calls a copy of the lambda",
+        "`1 2`",
+        "Ill-formed: a `mutable` lambda cannot be called through a const `function`",
+        "Undefined behavior: the lambda is modified through a const object"
+      ],
+      "answer": 1,
+      "explanation": "`std::function::operator()` is a const member function, but it calls the stored callable as a non-const lvalue. The mutable lambda therefore updates its own state on each call and the output is `1 2`. This is the const-correctness hole that `move_only_function<int() const>` and `copyable_function<int() const>` close by refusing such a target.",
+      "refs": [
+        "[func.wrap.func.inv]"
+      ]
+    },
+    {
+      "id": "cw-bind-copies",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <functional>\n#include <cstdio>\n\nint sub(int a, int b) { return a - b; }\n\nint main() {\n  int x = 1;\n  auto v = std::bind(sub, x, 0);\n  auto r = std::bind(sub, std::ref(x), 0);\n  x = 5;\n  std::printf(\"%d %d\\n\", v(), r());\n}",
+      "options": [
+        "`1 5`",
+        "`5 5`",
+        "`1 1`",
+        "`5 1`"
+      ],
+      "answer": 0,
+      "explanation": "`std::bind` stores a decayed copy of each bound argument made at the time of the `bind` call, so `v` holds 1 regardless of later changes to `x`. Wrapping the argument in `std::ref` stores a `reference_wrapper`, which is unwrapped on the call, so `r` sees 5.",
+      "refs": [
+        "[func.bind.bind]"
+      ]
+    },
+    {
+      "id": "cw-refwrapper-rebind",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <functional>\n#include <cstdio>\n\nint main() {\n  int a = 1, b = 2;\n  std::reference_wrapper<int> r = a;\n  r = b;\n  r.get() = 7;\n  std::printf(\"%d %d\\n\", a, b);\n}",
+      "options": [
+        "`2 2`",
+        "`7 2`",
+        "`1 7`",
+        "`2 7`"
+      ],
+      "answer": 2,
+      "explanation": "Unlike a built-in reference, assigning to a `reference_wrapper` rebinds it, so `r = b` makes `r` refer to `b` and leaves `a` untouched. The next statement writes 7 through `r` into `b`, so the output is `1 7`. The tempting `2 7` reads the assignment as copying the value into `a`.",
+      "refs": [
+        "[refwrap.assign]"
+      ]
+    },
+    {
+      "id": "cw-mof-const-signature",
+      "kind": "standardese",
+      "prompt": "Is this program well-formed in C++23?",
+      "code": "#include <functional>\n\nint main() {\n  std::move_only_function<int() const> f = [n = 0]() mutable { return ++n; };\n}",
+      "options": [
+        "Yes: the wrapper copies the lambda and calls the copy",
+        "Yes: `mutable` lambdas are exempt from the check",
+        "Yes, and calling `f` is undefined behavior",
+        "No: the target must be invocable as a const object"
+      ],
+      "answer": 3,
+      "explanation": "In `move_only_function<R(Args...) cv ref noexcept>` the qualifiers describe how the wrapper calls its target, and the constructor is constrained so the target must be invocable that way. A `mutable` lambda has a non-const call operator, so it cannot be called as `const`, the constructor is not viable, and the program is ill-formed. `std::function` would accept the same lambda.",
+      "refs": [
+        "[func.wrap.move.ctor]"
+      ]
+    },
+    {
+      "id": "cw-invoke-result",
+      "kind": "standardese",
+      "prompt": "Given `struct S { int val; };`, which of these `static_assert`s fails in C++23?",
+      "code": "#include <functional>\n#include <type_traits>\n\nstruct S { int val; };\nusing std::is_same_v;\nusing std::invoke_result_t;\n\nstatic_assert(is_same_v<invoke_result_t<int S::*, S&>, int&>);\nstatic_assert(is_same_v<invoke_result_t<int S::*, const S&>, const int&>);\nstatic_assert(is_same_v<invoke_result_t<int S::*, S>, int>);\nstatic_assert(is_same_v<invoke_result_t<int S::*, std::reference_wrapper<S>>, int&>);\n\nint main() {}",
+      "options": [
+        "The first: a data member pointer cannot be invoked",
+        "The third: invoking on an rvalue `S` yields `int&&`, not `int`",
+        "The second: constness is dropped",
+        "The fourth: `reference_wrapper` is not an object of class `S`"
+      ],
+      "answer": 1,
+      "explanation": "INVOKE for a pointer to data member returns an expression whose value category follows the object: an lvalue object gives an lvalue, a const lvalue gives a const lvalue, and an rvalue object gives an xvalue, so the type is `int&&` and the third `static_assert` is ill-formed. A `reference_wrapper` argument is unwrapped by INVOKE, so the fourth assertion holds.",
+      "refs": [
+        "[func.require]",
+        "[func.invoke]"
+      ]
+    }
+  ]
+}

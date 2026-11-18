@@ -1,0 +1,140 @@
+{
+  "questions": [
+    {
+      "id": "lock-free-failure-release",
+      "kind": "warmup",
+      "prompt": "What is the behavior of calling `try_set`?",
+      "code": "#include <atomic>\n\nstd::atomic<int> a{0};\n\nbool try_set(int expected) {\n  return a.compare_exchange_strong(expected, 1,\n                                   std::memory_order_acq_rel,\n                                   std::memory_order_release);\n}",
+      "options": [
+        "Well-defined: the failure order is silently strengthened to `acquire`",
+        "Ill-formed: the compiler must reject the failure order",
+        "Undefined behavior: the failure order may not be `release` or `acq_rel`",
+        "Well-defined: a failed CAS performs a release store of the old value"
+      ],
+      "answer": 2,
+      "explanation": "A failed compare-exchange is just a load, so a release failure order makes no sense, and the standard makes `failure` being `release` or `acq_rel` a precondition violation, which is undefined behavior. It is not ill-formed: the orders are ordinary function arguments, and GCC only warns with `-Winvalid-memory-model`. Some implementations happen to strengthen the order, but nothing guarantees it.",
+      "refs": [
+        "[atomics.types.operations]"
+      ]
+    },
+    {
+      "id": "lock-free-guaranteed-type",
+      "kind": "warmup",
+      "prompt": "Which of these types does the standard guarantee to be lock-free on every implementation?",
+      "options": [
+        "`std::atomic<bool>`",
+        "`std::atomic_flag`",
+        "`std::atomic<int>`",
+        "`std::atomic<void*>`"
+      ],
+      "answer": 1,
+      "explanation": "`std::atomic_flag` is the only one of these guaranteed lock-free; it is the primitive from which an implementation can build locks for everything else. `std::atomic<int>`, `std::atomic<bool>` and `std::atomic<void*>` are lock-free on every mainstream platform, but the standard leaves it to the implementation, which is why `is_always_lock_free` and the `ATOMIC_..._LOCK_FREE` macros exist. C++20's `atomic_signed_lock_free` aliases are the other guaranteed option.",
+      "refs": [
+        "[atomics.flag]",
+        "[atomics.lockfree]"
+      ]
+    },
+    {
+      "id": "lock-free-aba-outcome",
+      "kind": "warmup",
+      "prompt": "Nodes are recycled through a free list instead of deleted, and `next` is atomic so that reusing a node is not a data race. Thread T1 runs `pop` on the stack `A -> B -> C`, reads `old = A` and `old->next == B`, and is preempted before its CAS. Thread T2 pops A, pops B, then pushes the recycled A, so the stack is `A -> C`. What happens when T1 resumes and its CAS runs?",
+      "code": "#include <atomic>\n\nstruct Node { int value; std::atomic<Node*> next; };\nstd::atomic<Node*> head;\n\nNode* pop() {                              // assumes the stack is not empty\n  Node* old = head.load(std::memory_order_acquire);\n  Node* next = old->next.load();           // T1 is preempted here\n  head.compare_exchange_strong(old, next);\n  return old;\n}",
+      "options": [
+        "The CAS fails because the stack changed, and T1 retries",
+        "The CAS succeeds and makes the removed node B the head, losing C",
+        "The CAS succeeds and correctly leaves `C` as the head",
+        "The CAS blocks until T2's operations are complete"
+      ],
+      "answer": 1,
+      "explanation": "A compare-and-swap compares only the bits of the head pointer, and the head holds A again, so T1's CAS succeeds and installs its stale `next`, B, as the new head. B was popped and C is no longer reachable. This is the ABA problem: the value went from A to something else and back to A, and the CAS cannot tell. A version tag or a reclamation scheme that prevents reuse is needed to fix it.",
+      "refs": [
+        "[atomics.types.operations]"
+      ]
+    },
+    {
+      "id": "lock-free-adjacent-ints",
+      "kind": "tricky",
+      "prompt": "Two threads run at the same time, one calling `left()` and the other `right()`, with no synchronization. What does the standard say?",
+      "code": "struct Counters {\n  int a = 0;\n  int b = 0;    // almost certainly on the same cache line as a\n};\n\nCounters c;\n\nvoid left()  { for (int i = 0; i < 1000000; ++i) ++c.a; }\nvoid right() { for (int i = 0; i < 1000000; ++i) ++c.b; }",
+      "options": [
+        "It is a data race, so the behavior is undefined",
+        "It is not a data race, but each counter may lose increments to the other thread",
+        "It is not a data race; sharing a cache line can only affect performance",
+        "It is implementation-defined, depending on the cache line size"
+      ],
+      "answer": 2,
+      "explanation": "`a` and `b` are separate memory locations, so the two threads never access the same location and there is no data race. Each thread's counter ends at exactly one million. Sharing a cache line causes false sharing, which can make both loops much slower, but the memory model is defined in terms of memory locations, not cache lines. Adjacent bit-fields would be different, because they share one memory location.",
+      "refs": [
+        "[intro.memory]",
+        "[intro.races]"
+      ]
+    },
+    {
+      "id": "lock-free-failure-stronger",
+      "kind": "tricky",
+      "prompt": "In C++17 and later, is this call well-defined?",
+      "code": "#include <atomic>\n\nstd::atomic<int> state{0};\n\nbool claim(int expected) {\n  return state.compare_exchange_strong(expected, 1,\n                                       std::memory_order_relaxed,\n                                       std::memory_order_acquire);\n}",
+      "options": [
+        "Yes: since C++17 the failure order may be stronger than the success order",
+        "No: the failure order may never be stronger than the success order",
+        "No: `relaxed` is not allowed as a success order for compare-exchange",
+        "It is well-defined only for `compare_exchange_weak`"
+      ],
+      "answer": 0,
+      "explanation": "Before C++17, the failure order could not be stronger than the success order. P0418, adopted for C++17, removed that rule, so the only remaining restriction is that failure is not `release` or `acq_rel`. GCC 16 still emits a `-Winvalid-memory-model` warning that reflects the old rule, which makes the second option tempting, but the call is valid.",
+      "refs": [
+        "[atomics.types.operations]"
+      ]
+    },
+    {
+      "id": "lock-free-cas-progress",
+      "kind": "tricky",
+      "prompt": "Assuming `std::atomic<Node*>` is lock-free and only `push` and `pop` operations that each succeed with one CAS touch `head`, which progress guarantee does this `push` provide?",
+      "code": "#include <atomic>\n\nstruct Node { int value; Node* next; };\nstd::atomic<Node*> head{nullptr};\n\nvoid push(Node* n) {\n  n->next = head.load(std::memory_order_relaxed);\n  while (!head.compare_exchange_strong(n->next, n,\n                                       std::memory_order_release,\n                                       std::memory_order_relaxed)) {\n  }\n}",
+      "options": [
+        "Wait-free: every call finishes in a bounded number of steps",
+        "Blocking: a preempted thread can stop all others",
+        "Lock-free but not wait-free: some thread always finishes, but one thread can keep losing",
+        "Not even obstruction-free"
+      ],
+      "answer": 2,
+      "explanation": "A strong CAS fails only because another thread changed `head`, which means another push or pop succeeded, so the system as a whole always makes progress. Nothing bounds how often one particular thread loses, so a thread can starve, which rules out wait-free. No thread ever waits for another to release anything, so it is not blocking. Whether the hardware CAS itself always lets someone win is the implementation's lock-free promise, which the standard only encourages.",
+      "refs": [
+        "[intro.progress]"
+      ]
+    },
+    {
+      "id": "lock-free-standard-progress",
+      "kind": "standardese",
+      "prompt": "What does [intro.progress] *require* of executions of lock-free atomic operations?",
+      "options": [
+        "Every lock-free execution completes in a bounded number of steps",
+        "If only one thread is not blocked in a standard library function, its lock-free execution completes; that one of several concurrent executions completes is only encouraged",
+        "At least one of several concurrent lock-free executions must complete",
+        "Nothing: lock-freedom is a non-normative note"
+      ],
+      "answer": 1,
+      "explanation": "The normative requirement is the obstruction-free property: a lock-free execution in the only thread that is not blocked shall complete. The stronger property that at least one of several concurrent lock-free executions completes is stated with *should*, because load-linked and store-conditional hardware can let threads repeatedly invalidate each other. The first option is wait-freedom, which the standard never promises.",
+      "refs": [
+        "[intro.progress]"
+      ]
+    },
+    {
+      "id": "lock-free-weak-failure",
+      "kind": "standardese",
+      "prompt": "`ok` is `false` after this call. What does the standard guarantee about `e`?",
+      "code": "#include <atomic>\n\nstd::atomic<int> a{5};\n\nvoid f() {\n  int e = 5;\n  bool ok = a.compare_exchange_weak(e, 6);\n  (void)ok;\n}",
+      "options": [
+        "`e` is unchanged, because a failed CAS writes nothing",
+        "`e` holds the value read from `a`, which may still be 5 if the failure was spurious",
+        "`e` holds a value different from 5",
+        "`e` is indeterminate"
+      ],
+      "answer": 1,
+      "explanation": "On failure, compare-exchange atomically loads the current value into `expected`. `compare_exchange_weak` may also fail spuriously even when the values were equal, so `e` can still be 5. Only `compare_exchange_strong` guarantees that a failure means the values really differed, which is what the third option assumes. That is why `weak` belongs inside a retry loop.",
+      "refs": [
+        "[atomics.types.operations]"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "three-way-comparison-no-eq-from-spaceship",
+      "kind": "warmup",
+      "prompt": "In C++23, is this program well-formed?",
+      "code": "#include <compare>\n\nstruct P {\n  int x;\n  auto operator<=>(const P& o) const { return x <=> o.x; }\n};\n\nint main() {\n  P a{1}, b{1};\n  return a == b;\n}",
+      "options": [
+        "Well-formed: `a == b` is rewritten as `(a <=> b) == 0`",
+        "Well-formed: a user-declared `operator<=>` implicitly declares `operator==`",
+        "Ill-formed: there is no `operator==` for `P`",
+        "Ill-formed: `operator<=>` with a deduced return type must be defaulted"
+      ],
+      "answer": 2,
+      "explanation": "Equality is never rewritten in terms of `<=>`; the rewritten candidates for `==` are only reversed `operator==` functions. An `operator==` is implicitly declared only when `operator<=>` is *defaulted* and no `operator==` is declared, and this one is hand-written. A deduced `auto` return type is fine on a user-written `<=>`.",
+      "refs": [
+        "[over.match.oper]",
+        "[class.compare.default]"
+      ]
+    },
+    {
+      "id": "three-way-comparison-rewritten-ne",
+      "kind": "warmup",
+      "prompt": "In C++20 and later, what does `main` return?",
+      "code": "struct Q {\n  int x;\n  bool operator==(const Q&) const = default;\n};\n\nint main() {\n  Q a{1}, b{2};\n  return a != b;\n}",
+      "options": [
+        "0",
+        "Nothing: ill-formed, because `Q` has no `operator!=`",
+        "Nothing: ill-formed, because `!=` needs a defaulted `operator<=>`",
+        "1"
+      ],
+      "answer": 3,
+      "explanation": "Since C++20, `a != b` considers the rewritten candidate `!(a == b)`. The defaulted `operator==` compares `x` memberwise, giving false, so `a != b` is true and `main` returns 1. In C++17 this would have been ill-formed, which is the tempting answer; `operator<=>` plays no part in `!=`.",
+      "refs": [
+        "[over.match.oper]",
+        "[class.eq]"
+      ]
+    },
+    {
+      "id": "three-way-comparison-nan-unordered",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <compare>\n#include <cstdio>\n#include <cmath>\n\nint main() {\n  double n = std::nan(\"\");\n  auto r = n <=> 1.0;\n  std::printf(\"%d %d %d %d\\n\", r < 0, r == 0, r > 0,\n              r == std::partial_ordering::unordered);\n}",
+      "options": [
+        "`0 0 1 0`",
+        "`0 0 0 1`",
+        "`1 0 0 0`",
+        "Nothing: `<=>` on a NaN is undefined behavior"
+      ],
+      "answer": 1,
+      "explanation": "Built-in `<=>` on floating-point operands yields `std::partial_ordering`, and when either operand is a NaN the result is `unordered`. An unordered value compares false against literal zero with every relational operator and with `==`, so the first three are 0 and only the comparison with `unordered` is 1. There is no undefined behaviour; partial ordering exists precisely to represent this case.",
+      "refs": [
+        "[expr.spaceship]",
+        "[cmp.partialord]"
+      ]
+    },
+    {
+      "id": "three-way-comparison-mixed-sign",
+      "kind": "tricky",
+      "prompt": "In C++23, what happens with this declaration?",
+      "code": "#include <compare>\n\nauto r = -1 <=> 1u;",
+      "options": [
+        "It is ill-formed",
+        "`r` is `std::strong_ordering::less`",
+        "`r` is `std::strong_ordering::greater`, because `-1` converts to a large unsigned value",
+        "`r` is `std::weak_ordering::less`"
+      ],
+      "answer": 0,
+      "explanation": "For arithmetic operands, `<=>` applies the usual arithmetic conversions, and [expr.spaceship] makes the program ill-formed if a narrowing conversion is needed, other than integral to floating point. Converting `-1` to `unsigned int` is narrowing. The third option is what `-1 < 1u` effectively does, which is exactly the trap `<=>` was designed to reject.",
+      "refs": [
+        "[expr.spaceship]",
+        "[dcl.init.list]"
+      ]
+    },
+    {
+      "id": "three-way-comparison-auto-deleted",
+      "kind": "tricky",
+      "prompt": "Is this program well-formed?",
+      "code": "#include <compare>\n\nstruct Legacy {\n  int v;\n  bool operator<(const Legacy& o) const { return v < o.v; }\n  bool operator==(const Legacy& o) const { return v == o.v; }\n};\n\nstruct W {\n  Legacy l;\n  auto operator<=>(const W&) const = default;\n};\n\nint main() {\n  W a{{1}}, b{{2}};\n  return a < b;\n}",
+      "options": [
+        "Well-formed: the defaulted `<=>` synthesizes a result from `<` and `==`",
+        "Well-formed: `a < b` falls back to `Legacy::operator<` directly",
+        "Ill-formed: the defaulted `operator<=>` is defined as deleted, and `a < b` uses it",
+        "Ill-formed: a class without `<=>` cannot be a member of a class that defaults `<=>`"
+      ],
+      "answer": 2,
+      "explanation": "With a deduced `auto` return type, a defaulted `operator<=>` needs `<=>` on every member; `Legacy` has none, so the function is defined as deleted. Declaring the class is fine, but `a < b` selects the deleted function through the rewritten candidate. The fallback to `==` and `<` only happens when the return type is named, such as `std::weak_ordering`, which is why the first option is tempting.",
+      "refs": [
+        "[class.spaceship]",
+        "[class.compare.default]"
+      ]
+    },
+    {
+      "id": "three-way-comparison-deduced-category",
+      "kind": "tricky",
+      "prompt": "What is `decltype(M{} <=> M{})`?",
+      "code": "#include <compare>\n\nstruct M {\n  int i;\n  double d;\n  auto operator<=>(const M&) const = default;\n};",
+      "options": [
+        "`std::strong_ordering`, from the first member",
+        "`std::weak_ordering`",
+        "`std::partial_ordering`",
+        "`auto`; the type is not fixed until the comparison is evaluated"
+      ],
+      "answer": 2,
+      "explanation": "A defaulted `operator<=>` with an `auto` return type returns the common comparison category of its member comparisons. `int <=> int` is `std::strong_ordering` and `double <=> double` is `std::partial_ordering`, and the common category is the weakest, `std::partial_ordering`. The first member does not decide the type, even though it is compared first.",
+      "refs": [
+        "[class.spaceship]",
+        "[cmp.common]"
+      ]
+    },
+    {
+      "id": "three-way-comparison-category-conversion",
+      "kind": "standardese",
+      "prompt": "Which of these declarations is ill-formed?",
+      "options": [
+        "`std::partial_ordering p = std::strong_ordering::less;`",
+        "`std::weak_ordering w = std::strong_ordering::equal;`",
+        "`std::partial_ordering q = std::weak_ordering::greater;`",
+        "`std::strong_ordering s = std::weak_ordering::equivalent;`"
+      ],
+      "answer": 3,
+      "explanation": "The comparison category types convert implicitly only towards weaker guarantees: `strong_ordering` to `weak_ordering` and `partial_ordering`, and `weak_ordering` to `partial_ordering`. Turning a weak ordering into a strong one would claim that equivalent values are interchangeable, so no conversion exists. The other three are all permitted widenings.",
+      "refs": [
+        "[cmp.categories]",
+        "[cmp.weakord]",
+        "[cmp.strongord]"
+      ]
+    },
+    {
+      "id": "three-way-comparison-reversed-synth",
+      "kind": "standardese",
+      "prompt": "Only one comparison function exists. Which expression does the compiler evaluate for `42 < s`, and what is printed?",
+      "code": "#include <compare>\n#include <cstdio>\n\nstruct S {\n  int v;\n  std::strong_ordering operator<=>(int x) const {\n    std::puts(\"member\");\n    return v <=> x;\n  }\n};\n\nint main() {\n  S s{5};\n  std::printf(\"%d\\n\", 42 < s);\n}",
+      "options": [
+        "`(42 <=> s) < 0`; prints `member` then `0`",
+        "`0 < (s <=> 42)`; prints `member` then `0`",
+        "`0 < (s <=> 42)`; prints `member` then `1`",
+        "None: the program is ill-formed because `int` has no `operator<=>(S)`"
+      ],
+      "answer": 1,
+      "explanation": "For `x < y`, [over.match.oper] adds the rewritten candidate `(x <=> y) < 0` and the reversed candidate `0 < (y <=> x)`. Only the reversed form matches the member, so `42 < s` becomes `0 < (s <=> 42)`. Since 5 is less than 42, `s <=> 42` is `less`, and `0 < less` is false, so it prints `member` and `0`. The third option forgets that the reversal also flips which side of zero the result is tested on.",
+      "refs": [
+        "[over.match.oper]",
+        "[expr.spaceship]"
+      ]
+    }
+  ]
+}

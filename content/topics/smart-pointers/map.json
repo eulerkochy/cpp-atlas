@@ -1,0 +1,66 @@
+{
+  "root": {
+    "label": "Smart pointers",
+    "note": "unique_ptr owns alone, shared_ptr counts owners in a control block, weak_ptr observes.",
+    "children": [
+      {
+        "label": "unique_ptr",
+        "note": "Move-only single owner; the deleter is part of the type.",
+        "children": [
+          { "label": "Moved-from is null", "note": "The standard guarantees a moved-from unique_ptr holds nullptr." },
+          { "label": "Deleter size", "note": "Empty deleters cost nothing in practice; a function pointer deleter is stored. No size is guaranteed." },
+          { "label": "unique_ptr<T[]>", "note": "Calls delete[], offers operator[], and rejects derived-to-base conversions." },
+          { "label": "Pimpl destructor", "note": "Declare ~Widget in the header and define it where Impl is complete." }
+        ]
+      },
+      {
+        "label": "shared_ptr",
+        "note": "An object pointer plus a control block pointer; the two need not agree.",
+        "children": [
+          { "label": "Control block", "note": "Holds strong count, weak count, deleter and allocator." },
+          { "label": "Deleter from ctor type", "note": "shared_ptr<Base>(new Derived) deletes a Derived*, even without a virtual destructor." },
+          { "label": "make_shared", "note": "One allocation; the object's memory stays until the last weak_ptr is gone." },
+          { "label": "Aliasing constructor", "note": "Shares one object's ownership while pointing at another, such as a member." }
+        ]
+      },
+      {
+        "label": "Thread safety",
+        "note": "Only the reference counts are synchronized.",
+        "children": [
+          { "label": "Distinct copies", "note": "Different shared_ptr objects sharing a block may be used concurrently." },
+          { "label": "One shared object", "note": "Reading and assigning the same shared_ptr from two threads is a data race." },
+          { "label": "atomic<shared_ptr> (C++20)", "note": "Replaces the deprecated atomic_load free functions, removed in C++26." }
+        ]
+      },
+      {
+        "label": "weak_ptr",
+        "note": "Points at the control block without keeping the object alive.",
+        "children": [
+          { "label": "Breaking cycles", "note": "Make back edges weak so strong counts can reach zero." },
+          { "label": "lock()", "note": "Atomically yields an owner or an empty shared_ptr; expired() is only a hint." },
+          { "label": "shared_from_this", "note": "Needs an existing owner; throws bad_weak_ptr since C++17, UB before." },
+          { "label": "weak_from_this (C++17)", "note": "Returns an empty weak_ptr instead of throwing when unowned." }
+        ]
+      },
+      {
+        "label": "Interfaces",
+        "note": "The parameter type states what happens to ownership.",
+        "children": [
+          { "label": "T& or T*", "note": "Use without ownership; prefer these when the callee only reads or writes the object." },
+          { "label": "unique_ptr by value", "note": "A sink: the callee takes ownership and the caller must move." },
+          { "label": "out_ptr (C++23)", "note": "Resets at construction, stores the T** result at the end of the full-expression." },
+          { "label": "inout_ptr (C++23)", "note": "Releases the old pointer into the call; not usable with shared_ptr." }
+        ]
+      },
+      {
+        "label": "Double ownership",
+        "note": "Two owners that do not know about each other delete twice.",
+        "children": [
+          { "label": "Two from one raw", "note": "Each shared_ptr built from the same raw pointer makes its own control block." },
+          { "label": "shared_ptr(this)", "note": "Creates a second control block; use enable_shared_from_this." },
+          { "label": "Wrapping get()", "note": "A new owner of p.get() deletes what p will delete again." }
+        ]
+      }
+    ]
+  }
+}

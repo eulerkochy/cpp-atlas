@@ -1,0 +1,120 @@
+{
+  "root": {
+    "label": "Associative and unordered",
+    "note": "Sorted trees driven by a comparator versus hash tables driven by hash and equality.",
+    "children": [
+      {
+        "label": "Ordered containers",
+        "note": "set, map and multi versions are sorted, node based and logarithmic.",
+        "children": [
+          {
+            "label": "Strict weak ordering",
+            "note": "Compare must make comp(x, x) false; a violation such as less_equal is undefined behavior."
+          },
+          {
+            "label": "Equivalence not equality",
+            "note": "Two keys are the same key when neither compares less than the other."
+          },
+          {
+            "label": "Range queries",
+            "note": "lower_bound, upper_bound and equal_range exploit the sort order."
+          }
+        ]
+      },
+      {
+        "label": "Unordered containers",
+        "note": "Hash tables: constant average cost, linear worst case, unspecified order.",
+        "children": [
+          {
+            "label": "Buckets and load factor",
+            "note": "Load factor is size over bucket count; max_load_factor defaults to 1.0."
+          },
+          {
+            "label": "Rehash",
+            "note": "Growing the bucket count redistributes elements and invalidates iterators, not references."
+          },
+          {
+            "label": "reserve(n)",
+            "note": "Equals rehash(ceil(n / max_load_factor())); it avoids rehashing up to n elements."
+          }
+        ]
+      },
+      {
+        "label": "Keys and hashing",
+        "note": "Rules the container cannot check for you.",
+        "children": [
+          {
+            "label": "Const keys",
+            "note": "The element type is pair<const K, V>, because changing a key would break the structure."
+          },
+          {
+            "label": "Equal keys, equal hashes",
+            "note": "If the equality predicate holds, the hashes must match, or behavior is undefined."
+          },
+          {
+            "label": "Specializing std::hash",
+            "note": "Allowed for your own types; std::hash has no pair or tuple specialization."
+          }
+        ]
+      },
+      {
+        "label": "Insertion functions",
+        "note": "They differ in overwrite behavior and in when they construct.",
+        "children": [
+          {
+            "label": "operator[]",
+            "note": "Inserts a value-initialized element if missing; needs a default constructor; absent on const maps."
+          },
+          {
+            "label": "at and find",
+            "note": "at throws std::out_of_range for a missing key; find returns end and changes nothing."
+          },
+          {
+            "label": "insert and emplace",
+            "note": "Never overwrite; emplace may build a node before discovering the key exists."
+          },
+          {
+            "label": "try_emplace",
+            "note": "C++17: leaves its arguments untouched when the key already exists."
+          },
+          {
+            "label": "insert_or_assign",
+            "note": "C++17: always ends with the new value and needs no default constructor."
+          }
+        ]
+      },
+      {
+        "label": "Multi containers",
+        "note": "Equivalent keys are allowed.",
+        "children": [
+          {
+            "label": "Insertion order kept",
+            "note": "A new element goes at the upper end of its equivalent range."
+          },
+          {
+            "label": "erase(key)",
+            "note": "Removes every equivalent element and returns the count; erase by iterator removes one."
+          },
+          {
+            "label": "No operator[] or at",
+            "note": "A key may map to several values, so key-based access is not offered."
+          }
+        ]
+      },
+      {
+        "label": "Stability and choice",
+        "note": "Node storage gives stable addresses; choose by needs.",
+        "children": [
+          {
+            "label": "Stable addresses",
+            "note": "Elements never move while in the container, so references and pointers survive insertion."
+          },
+          {
+            "label": "contains",
+            "note": "C++20 membership test returning bool on all eight containers."
+          }
+        ]
+      }
+    ]
+  }
+}

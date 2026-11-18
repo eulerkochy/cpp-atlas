@@ -1,0 +1,62 @@
+{
+  "root": {
+    "label": "Exceptions and stack unwinding",
+    "note": "Throw creates an object, the search finds a handler, unwinding destroys locals on the way.",
+    "children": [
+      {
+        "label": "Exception object",
+        "note": "Copy-initialized from the throw operand, with the operand's static type.",
+        "children": [
+          { "label": "Static type", "note": "Throwing through a Base& throws a sliced Base; arrays decay, so throw \"abc\" throws const char*." },
+          { "label": "Unspecified storage", "note": "Allocated in an unspecified way, never by the global allocation functions." },
+          { "label": "Lifetime", "note": "Lives until the last handler exits without rethrowing and the last exception_ptr to it is gone." },
+          { "label": "Type requirements", "note": "Complete, not abstract, and copyable from a const lvalue since CWG 1863." }
+        ]
+      },
+      {
+        "label": "Handler matching",
+        "note": "Handlers are tried in order of appearance; the first match wins.",
+        "children": [
+          { "label": "Allowed matches", "note": "Same type, unambiguous public base, pointer or qualification conversion, nullptr_t to pointer." },
+          { "label": "No other conversions", "note": "No promotions, arithmetic or user-defined conversions: catch (long) misses an int." },
+          { "label": "catch (...) last", "note": "A catch-all that is not the last handler makes the program ill-formed." },
+          { "label": "Catch by reference", "note": "By value copies and slices; by reference sees the dynamic type and can modify the object." }
+        ]
+      },
+      {
+        "label": "Rethrowing",
+        "note": "Two spellings with very different effects.",
+        "children": [
+          { "label": "throw;", "note": "Rethrows the same exception object, keeping its dynamic type; terminates if none is active." },
+          { "label": "throw e;", "note": "Creates a new exception object of e's static type, slicing derived exceptions." }
+        ]
+      },
+      {
+        "label": "Stack unwinding",
+        "note": "Automatic objects since the try block are destroyed in reverse order of construction.",
+        "children": [
+          { "label": "Failing constructor", "note": "Built subobjects are destroyed; the object's own destructor never runs." },
+          { "label": "Function-try-block", "note": "Catches initializer exceptions; a constructor's handler always rethrows at its end." },
+          { "label": "uncaught_exceptions", "note": "Counts exceptions thrown but not yet caught; lets scope guards detect unwinding." }
+        ]
+      },
+      {
+        "label": "std::terminate",
+        "note": "Called when exception handling itself cannot continue.",
+        "children": [
+          { "label": "No handler", "note": "Whether the stack is unwound first is implementation-defined; GCC and Clang do not unwind." },
+          { "label": "noexcept violated", "note": "An exception leaving a non-throwing function, including a default destructor." },
+          { "label": "Throw during unwinding", "note": "A destructor run by unwinding that exits via an exception terminates the program." }
+        ]
+      },
+      {
+        "label": "Transporting exceptions",
+        "note": "Library tools to store, move and chain exceptions.",
+        "children": [
+          { "label": "exception_ptr", "note": "current_exception captures, rethrow_exception throws again, even on another thread." },
+          { "label": "nested_exception", "note": "throw_with_nested attaches the current exception; rethrow_if_nested recovers it." }
+        ]
+      }
+    ]
+  }
+}

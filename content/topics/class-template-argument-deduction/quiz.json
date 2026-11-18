@@ -1,0 +1,150 @@
+{
+  "questions": [
+    {
+      "id": "class-template-argument-deduction-copy-not-wrap",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <vector>\n\nint main() {\n  std::vector<int> other{1, 2, 3};\n  std::vector v{other};\n  std::printf(\"%zu\\n\", v.size());\n}",
+      "options": [
+        "`1`, because `v` is a `std::vector<std::vector<int>>`",
+        "`3`",
+        "Nothing: ill-formed, the deduction is ambiguous",
+        "`0`"
+      ],
+      "answer": 1,
+      "explanation": "When a braced list has a single element whose type is a specialization of the class template being deduced, the initializer-list phase is skipped, so the copy deduction candidate `vector(vector<T>) -> vector<T>` wins with `T = int`. `v` is a copy of `other` with three elements. Wrapping was the result before P0702 fixed it for C++17, and it is what you get with two elements, `std::vector v{other, other}`.",
+      "refs": [
+        "[over.match.class.deduct]",
+        "[over.match.list]"
+      ]
+    },
+    {
+      "id": "class-template-argument-deduction-pair-decays",
+      "kind": "warmup",
+      "prompt": "What is the type of `p.second`?",
+      "code": "#include <utility>\n\nstd::pair p{1, \"hi\"};",
+      "options": [
+        "`const char[3]`",
+        "`std::string`",
+        "`const char (&)[3]`",
+        "`const char*`"
+      ],
+      "answer": 3,
+      "explanation": "`std::pair` has the deduction guide `pair(T1, T2) -> pair<T1, T2>`, which takes its parameters by value. Deducing a by-value parameter from an array argument decays it, so `T2` is `const char*` and `p` is `std::pair<int, const char*>`. An array type is tempting because the constructor taking `const T2&` would preserve it, but the guide is what decides the type here.",
+      "refs": [
+        "[pairs.pair]",
+        "[temp.deduct.call]",
+        "[over.match.class.deduct]"
+      ]
+    },
+    {
+      "id": "class-template-argument-deduction-no-partial",
+      "kind": "warmup",
+      "prompt": "Is this declaration well-formed?",
+      "code": "#include <utility>\n\nstd::pair<int> p{1, 2.0};",
+      "options": [
+        "Ill-formed: `std::pair` needs two template arguments, and CTAD is all or nothing",
+        "Well-formed: `p` is `std::pair<int, double>`",
+        "Well-formed: `p` is `std::pair<int, int>`, and 2.0 is narrowed",
+        "Ill-formed only because of narrowing"
+      ],
+      "answer": 0,
+      "explanation": "Class template argument deduction happens only when the template name appears with no argument list at all. Once `<int>` is written, the name refers to `std::pair<int>`, which is an invalid template-id because the second parameter has no default. There is no partial deduction; use `std::pair<int, double>`, `std::pair p{1, 2.0}`, or a factory function.",
+      "refs": [
+        "[dcl.type.class.deduct]",
+        "[temp.arg]"
+      ]
+    },
+    {
+      "id": "class-template-argument-deduction-iterator-braces",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <string>\n#include <vector>\n\nint main() {\n  std::string s = \"hello\";\n  std::vector v{s.begin(), s.end()};\n  std::vector w(s.begin(), s.end());\n  std::printf(\"%zu %zu\\n\", v.size(), w.size());\n}",
+      "options": [
+        "`5 5`",
+        "`2 2`",
+        "`2 5`",
+        "Nothing: `v` is ill-formed because iterators are not characters"
+      ],
+      "answer": 2,
+      "explanation": "With braces, initializer-list constructors are tried first, so `std::vector(std::initializer_list<T>)` deduces `T = std::string::iterator`, and `v` holds the two iterators. The single-element copy rule does not apply because there are two elements. With parentheses there is no initializer-list phase, and the iterator-pair guide deduces `std::vector<char>` with five characters.",
+      "refs": [
+        "[over.match.class.deduct]",
+        "[over.match.list]",
+        "[vector.overview]"
+      ]
+    },
+    {
+      "id": "class-template-argument-deduction-class-param-rvalue-ref",
+      "kind": "tricky",
+      "prompt": "Is this program well-formed?",
+      "code": "template <class T>\nstruct Holder {\n  Holder(T&&) {}\n};\n\nint main() {\n  int i = 0;\n  Holder h(i);\n}",
+      "options": [
+        "Well-formed: `T&&` is a forwarding reference, so `h` is `Holder<int&>`",
+        "Ill-formed: `T&&` names a class template parameter, so it is not a forwarding reference and cannot bind `i`",
+        "Well-formed: `h` is `Holder<int>`, initialized from a copy of `i`",
+        "Ill-formed: a class template cannot be deduced from a reference parameter"
+      ],
+      "answer": 1,
+      "explanation": "The implicit guide is `template <class T> Holder(T&&) -> Holder<T>`, but [temp.deduct.call] excludes a class template parameter from being a forwarding reference during CTAD. So `T` deduces as `int` from the lvalue, the guide's parameter is `int&&`, and it cannot bind to `i`. Without this rule `Holder<int&>` would be deduced, which is the tempting answer and would usually not be what the class author meant. A user-defined guide with its own `template <class U> Holder(U&&)` parameter does forward.",
+      "refs": [
+        "[temp.deduct.call]",
+        "[over.match.class.deduct]"
+      ]
+    },
+    {
+      "id": "class-template-argument-deduction-explicit-guide-copy-init",
+      "kind": "tricky",
+      "prompt": "What is the type of `b`?",
+      "code": "#include <string>\n\ntemplate <class T> struct Box { Box(T) {} };\nexplicit Box(const char*) -> Box<std::string>;\n\nBox a(\"hi\");\nBox b = \"hi\";",
+      "options": [
+        "`Box<std::string>`, the same as `a`",
+        "`Box<const char*>`",
+        "`Box<const char[3]>`",
+        "Ill-formed: an explicit guide cannot be used in copy-initialization"
+      ],
+      "answer": 1,
+      "explanation": "In copy-initialization that is not list-initialization, explicit candidates are not considered, so the guide is ignored for `b`. That leaves the implicit guide from `Box(T)`, which takes `T` by value and decays the array: `Box<const char*>`. For the direct-initialization of `a`, the guide and the constructor's implicit guide match equally well, and the tie goes to the guide, which is both user-defined and a non-template, so `a` is `Box<std::string>`. Only copy-list-initialization, `Box c = {\"hi\"};`, would be ill-formed, because there an explicit candidate is considered and then rejected.",
+      "refs": [
+        "[over.match.class.deduct]",
+        "[temp.deduct.guide]",
+        "[over.match.copy]"
+      ]
+    },
+    {
+      "id": "class-template-argument-deduction-aggregate-deduction",
+      "kind": "standardese",
+      "prompt": "In C++20, which of these declarations are well-formed?",
+      "code": "template <class T> struct Agg { T a; T b; };\n\nAgg x{1, 2};     // #1\nAgg y(1, 2);     // #2\nAgg z{1, 2.0};   // #3",
+      "options": [
+        "None: an aggregate needs a user-defined deduction guide",
+        "Only #1",
+        "All three, with `z` deduced as `Agg<double>`",
+        "#1 and #2"
+      ],
+      "answer": 3,
+      "explanation": "C++20 adds an aggregate deduction candidate formed from the aggregate's element types and the initializer's elements, used for braced and for parenthesized aggregate initialization, so #1 and #2 deduce `Agg<int>`. In #3 the candidate is `template <class T> Agg(T, T)`, and deducing `T` from `int` and `double` conflicts, so deduction fails and #3 is ill-formed; no common type is computed. \"None\" is the C++17 answer, when aggregates needed explicit guides.",
+      "refs": [
+        "[over.match.class.deduct]",
+        "[dcl.init.aggr]"
+      ]
+    },
+    {
+      "id": "class-template-argument-deduction-data-member",
+      "kind": "standardese",
+      "prompt": "Is this class definition well-formed?",
+      "code": "#include <vector>\n\nstruct S {\n  std::vector v{1, 2};\n};",
+      "options": [
+        "Well-formed: `v` is `std::vector<int>`",
+        "Well-formed: `v` is `std::vector<std::initializer_list<int>>`",
+        "Ill-formed: a deduced class type cannot be the type of a non-static data member",
+        "Ill-formed: a default member initializer cannot use braces with CTAD, but `= {1, 2}` would work"
+      ],
+      "answer": 2,
+      "explanation": "[dcl.type.class.deduct] allows a placeholder for a deduced class type only in an initializing declaration of a variable, a functional cast, a `new` expression, and the type of a non-type template parameter. A non-static data member is none of these, whatever form its default member initializer takes, so you must write `std::vector<int>`. A `static inline` data member is a variable, so CTAD would work there.",
+      "refs": [
+        "[dcl.type.class.deduct]"
+      ]
+    }
+  ]
+}

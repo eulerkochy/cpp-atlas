@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "algorithms-remove-size",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <algorithm>\n#include <cstdio>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3, 2, 5};\n  auto it = std::remove(v.begin(), v.end(), 2);\n  std::printf(\"%zu %td\\n\", v.size(), it - v.begin());\n}",
+      "options": [
+        "`3 3`",
+        "`5 3`",
+        "`5 5`",
+        "`3 5`"
+      ],
+      "answer": 1,
+      "explanation": "`std::remove` only sees iterators, so it cannot change the vector's size. It moves the three kept elements, `1 3 5`, to the front and returns an iterator to the new logical end, three elements in. The size stays 5 until you call `v.erase(it, v.end())`, which is the erase-remove idiom; `3 3` is what you get after that call.",
+      "refs": [
+        "[alg.remove]"
+      ]
+    },
+    {
+      "id": "algorithms-unique-adjacent",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <algorithm>\n#include <cstdio>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 1, 2, 1, 1};\n  v.erase(std::unique(v.begin(), v.end()), v.end());\n  std::printf(\"%zu\\n\", v.size());\n}",
+      "options": [
+        "`2`",
+        "`5`",
+        "`1`",
+        "`3`"
+      ],
+      "answer": 3,
+      "explanation": "`std::unique` removes all but the first element of each run of consecutive equal elements. The runs are `1 1`, `2` and `1 1`, so the result is `1 2 1`, of size 3. Removing every duplicate, giving `2`, would require sorting first, because `unique` never compares elements that are not adjacent.",
+      "refs": [
+        "[alg.unique]"
+      ]
+    },
+    {
+      "id": "algorithms-ranges-sort-list",
+      "kind": "warmup",
+      "prompt": "Which call fails to compile?",
+      "code": "#include <algorithm>\n#include <deque>\n#include <list>\n#include <vector>\n\nvoid f(std::vector<int>& v, std::list<int>& l, std::deque<int>& d) {\n  std::sort(v.begin(), v.end());         // A\n  l.sort();                              // B\n  std::ranges::sort(l);                  // C\n  std::stable_sort(d.begin(), d.end());  // D\n}",
+      "options": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "answer": 2,
+      "explanation": "`std::ranges::sort` requires a `random_access_range` whose iterators are `std::sortable`, and a list iterator is only bidirectional, so the constraint fails and the call does not compile. The member `list::sort` exists precisely because the generic algorithm cannot handle lists. `deque` iterators are random-access, so `std::stable_sort` on a deque is fine.",
+      "refs": [
+        "[alg.sort]",
+        "[sort]",
+        "[list.ops]"
+      ]
+    },
+    {
+      "id": "algorithms-stateful-predicate",
+      "kind": "tricky",
+      "prompt": "What does the C++23 standard guarantee about which elements this removes?",
+      "code": "#include <algorithm>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3, 4, 5, 6, 7, 8, 9};\n  auto third = [n = 0](int) mutable { return ++n == 3; };\n  v.erase(std::remove_if(v.begin(), v.end(), third), v.end());\n}",
+      "options": [
+        "Exactly the third element, `3`",
+        "The elements `3` and `6`",
+        "Nothing specific: the algorithm may copy the predicate, so the count can restart in a copy",
+        "Nothing: the program is ill-formed because the predicate is not `const`-callable"
+      ],
+      "answer": 2,
+      "explanation": "[algorithms.requirements] lets algorithms copy function objects freely unless stated otherwise, and the counter lives inside the lambda. libstdc++ passes a copy to an internal `find_if`, which counts to 3, and then continues with the original whose count starts again, so it removes `3` and `6`; libc++ removes only `3`. Both are conforming, so neither concrete answer is guaranteed. Keep the counter outside the lambda and capture it by reference if you need it.",
+      "refs": [
+        "[algorithms.requirements]",
+        "[alg.remove]"
+      ]
+    },
+    {
+      "id": "algorithms-copy-overlap",
+      "kind": "tricky",
+      "prompt": "What is the result of this call?",
+      "code": "#include <algorithm>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3, 4, 5};\n  std::copy(v.begin(), v.begin() + 3, v.begin() + 1);\n}",
+      "options": [
+        "`v` becomes `1 1 2 3 5`",
+        "`v` becomes `1 1 1 1 5`",
+        "Undefined behavior",
+        "Ill-formed: source and destination must be different containers"
+      ],
+      "answer": 2,
+      "explanation": "`std::copy` has the precondition that the destination start is not in `[first, last)`, and `v.begin() + 1` is. Violating a precondition is undefined behavior, so neither the naive forward-loop result `1 1 1 1` nor the `memmove`-like result `1 1 2 3` is promised. Compilers accept the call, since overlap is a run-time property. `std::copy_backward(v.begin(), v.begin() + 3, v.begin() + 4)` is the correct call and gives `1 1 2 3 5`.",
+      "refs": [
+        "[alg.copy]",
+        "[res.on.required]"
+      ]
+    },
+    {
+      "id": "algorithms-lower-bound-partitioned",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <algorithm>\n#include <cstdio>\n#include <vector>\n\nint main() {\n  std::vector<int> v{3, 1, 2, 5, 9, 7};\n  auto it = std::lower_bound(v.begin(), v.end(), 5);\n  std::printf(\"%td\\n\", it - v.begin());\n}",
+      "options": [
+        "Undefined behavior, because `v` is not sorted",
+        "`3`",
+        "`6`",
+        "`0`"
+      ],
+      "answer": 1,
+      "explanation": "`lower_bound` does not require a sorted range, only one partitioned with respect to `e < 5`: every element for which that is true must come before every element for which it is false. Here `3 1 2` are less than 5 and `5 9 7` are not, so the precondition holds and the result is the first element not less than 5, at index 3. Searching for 4 or 8 in the same vector would violate the precondition.",
+      "refs": [
+        "[lower.bound]",
+        "[alg.binary.search.general]"
+      ]
+    },
+    {
+      "id": "algorithms-remove-tail-state",
+      "kind": "standardese",
+      "prompt": "After `auto r = std::remove(v.begin(), v.end(), x);` on a `std::vector<std::string>`, what does the standard say about the elements in `[r, v.end())`?",
+      "options": [
+        "They are copies of the removed elements, in their original order",
+        "They have a valid but unspecified state",
+        "Accessing them is undefined behavior",
+        "They are value-initialized, so each is an empty string"
+      ],
+      "answer": 1,
+      "explanation": "[alg.remove] notes that each element in the leftover tail has a valid but unspecified state, because the algorithm may have moved from it while shifting kept elements forward. They are still live objects, so destroying, assigning or even reading them is fine; you just cannot rely on their values. They are not reset to empty and need not hold the removed values.",
+      "refs": [
+        "[alg.remove]",
+        "[defns.valid]"
+      ]
+    },
+    {
+      "id": "algorithms-transform-in-place",
+      "kind": "standardese",
+      "prompt": "Is this call well-defined?",
+      "code": "#include <algorithm>\n#include <vector>\n\nvoid scale(std::vector<int>& v) {\n  std::transform(v.begin(), v.end(), v.begin(), [](int x) { return x * 10; });\n}",
+      "options": [
+        "Yes: `transform` explicitly allows the output to be the same as an input",
+        "No: like `std::copy`, the destination must not lie within the source range",
+        "Only if `v.size()` is at most one",
+        "Unspecified: it depends on whether the implementation vectorises"
+      ],
+      "answer": 0,
+      "explanation": "[alg.transform] has a remark that the result iterator may equal the first or second input iterator, so an exact in-place transform is allowed. `std::copy` has no such remark and forbids a destination start inside the source, which is why the second option is tempting. Partial overlap, such as writing to `v.begin() + 1`, is still not permitted for `transform`.",
+      "refs": [
+        "[alg.transform]",
+        "[alg.copy]"
+      ]
+    }
+  ]
+}

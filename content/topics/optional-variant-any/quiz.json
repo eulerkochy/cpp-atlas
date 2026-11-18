@@ -1,0 +1,140 @@
+{
+  "questions": [
+    {
+      "id": "ova-optional-bool",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <optional>\n#include <cstdio>\n\nint main() {\n  std::optional<bool> flag = false;\n  if (flag) std::puts(\"A\");\n  if (flag.value()) std::puts(\"B\");\n}",
+      "options": [
+        "Nothing",
+        "`A`",
+        "`B`",
+        "`A` then `B`"
+      ],
+      "answer": 1,
+      "explanation": "The contextual conversion of an `optional` to `bool` reports whether it is engaged, and `flag` holds a value, so `A` is printed. `value()` returns the contained `false`, so `B` is not printed. The tempting answer is nothing, from reading `if (flag)` as testing the boolean inside.",
+      "refs": [
+        "[optional.observe]"
+      ]
+    },
+    {
+      "id": "ova-value-throws",
+      "kind": "warmup",
+      "prompt": "Which statement about an empty `std::optional<int> o;` is correct?",
+      "options": [
+        "`o.value()` throws `std::bad_optional_access`, while `*o` is undefined behavior",
+        "Both `o.value()` and `*o` throw `std::bad_optional_access`",
+        "`*o` returns a value-initialized `int`, and `o.value()` throws",
+        "Both `o.value()` and `*o` are undefined behavior"
+      ],
+      "answer": 0,
+      "explanation": "`operator*` has the precondition that the optional contains a value, so calling it on an empty optional is undefined behavior. `value()` is the checked accessor and throws `bad_optional_access`. Neither returns a default value; `value_or` is the accessor for that.",
+      "refs": [
+        "[optional.observe]"
+      ]
+    },
+    {
+      "id": "ova-variant-default",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <variant>\n#include <string>\n#include <cstdio>\n\nint main() {\n  std::variant<std::string, int> v;\n  std::printf(\"%zu %zu\\n\", v.index(), std::get<0>(v).size());\n}",
+      "options": [
+        "`0 0`",
+        "`1 0`",
+        "It throws `std::bad_variant_access`",
+        "Undefined behavior: the variant is uninitialized"
+      ],
+      "answer": 0,
+      "explanation": "A default-constructed variant holds a value-initialized first alternative, here an empty `std::string`, so the index is 0 and the size is 0. It is never empty and never holds an indeterminate `int` instead. If the first alternative were not default constructible, the variant would not be either.",
+      "refs": [
+        "[variant.ctor]"
+      ]
+    },
+    {
+      "id": "ova-nullopt-compare",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <optional>\n#include <cstdio>\n\nint main() {\n  std::optional<int> n;\n  std::printf(\"%d%d%d\\n\", n < -1, n == 0, n > 0);\n}",
+      "options": [
+        "`000`, because comparing an empty optional is always false",
+        "`100`",
+        "`110`",
+        "Undefined behavior: `n` is empty"
+      ],
+      "answer": 1,
+      "explanation": "An empty optional compares less than any value of `T`, so `n < -1` is true. `n == 0` is false because there is no value to equal 0, and `n > 0` is false because an empty optional is never greater than a value. The comparison operators do not dereference, so there is no undefined behavior.",
+      "refs": [
+        "[optional.comp.with.t]"
+      ]
+    },
+    {
+      "id": "ova-variant-bool-string",
+      "kind": "tricky",
+      "prompt": "In C++20 mode, with a library that implements the P0608R3 and P1957R2 changes to the converting constructor, what does this print?",
+      "code": "#include <variant>\n#include <string>\n#include <cstdio>\n\nint main() {\n  std::variant<bool, std::string> v = \"hello\";\n  std::printf(\"%zu\\n\", v.index());\n}",
+      "options": [
+        "`0`, because the array-to-pointer-to-bool conversion is a standard conversion",
+        "Ill-formed: the call is ambiguous",
+        "`1`",
+        "It throws `std::bad_variant_access`"
+      ],
+      "answer": 2,
+      "explanation": "The converting constructor ignores alternatives that would need a narrowing conversion, and a pointer-to-bool conversion counts as narrowing. That leaves only `std::string`, so the index is 1. Before those changes `bool` won, because a standard conversion beats a user-defined one, which is the tempting answer.",
+      "refs": [
+        "[variant.ctor]"
+      ]
+    },
+    {
+      "id": "ova-any-const-char",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <any>\n#include <string>\n#include <cstdio>\n\nint main() {\n  std::any a = \"hello\";\n  try {\n    std::string s = std::any_cast<std::string>(a);\n    std::puts(s.c_str());\n  } catch (const std::bad_any_cast&) {\n    std::puts(\"bad\");\n  }\n}",
+      "options": [
+        "`hello`",
+        "`bad`",
+        "Ill-formed: `any` cannot hold a string literal",
+        "Undefined behavior: the cast reinterprets a `const char*`"
+      ],
+      "answer": 1,
+      "explanation": "An `any` stores the decayed type of its initializer, so `a` holds a `const char*`, not a `std::string`. `any_cast` requires an exact type match and performs no conversion, so it throws `bad_any_cast`. The cast `any_cast<const char*>(a)` would succeed.",
+      "refs": [
+        "[any.cons]",
+        "[any.nonmembers]"
+      ]
+    },
+    {
+      "id": "ova-variant-duplicate",
+      "kind": "standardese",
+      "prompt": "Is this program well-formed in C++23?",
+      "code": "#include <variant>\n\nint main() {\n  std::variant<int, int> v = 5;\n  (void)v;\n}",
+      "options": [
+        "Yes; it holds alternative 0",
+        "Yes; it holds alternative 1, the last match",
+        "No: the converting constructor is not viable because no single alternative is selected",
+        "Yes, but the behavior is undefined when the variant is read"
+      ],
+      "answer": 2,
+      "explanation": "The converting constructor selects an alternative by overload resolution over `F(int)` twice, which is ambiguous, so the constructor does not participate and the initialization is ill-formed. There is no tie-break by position. To pick an alternative explicitly use `std::in_place_index<0>`.",
+      "refs": [
+        "[variant.ctor]"
+      ]
+    },
+    {
+      "id": "ova-any-move-only",
+      "kind": "standardese",
+      "prompt": "Is this program well-formed in C++23?",
+      "code": "#include <any>\n#include <memory>\n\nint main() {\n  std::any a = std::make_unique<int>(1);\n  (void)a;\n}",
+      "options": [
+        "Yes; the `any` is simply not copyable",
+        "Yes; it holds a copy of the pointee",
+        "No: the decayed type must be copy constructible",
+        "Yes, but copying `a` later throws `bad_any_cast`"
+      ],
+      "answer": 2,
+      "explanation": "The converting constructor of `any` only participates when the decayed type is copy constructible, because the `any` itself must be copyable for whatever it holds. `unique_ptr<int>` is not, so no constructor is viable and the program is ill-formed. A move-only payload is rejected even if you never copy the `any`.",
+      "refs": [
+        "[any.cons]"
+      ]
+    }
+  ]
+}

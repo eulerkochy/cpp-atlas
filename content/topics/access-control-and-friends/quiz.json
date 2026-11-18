@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "access-control-and-friends-private-overload",
+      "kind": "warmup",
+      "prompt": "Is the definition of `g` well-formed?",
+      "code": "struct S {\n  void f(int);\nprivate:\n  void f(double);\n};\n\nvoid g(S& s) { s.f(1.0); }",
+      "options": [
+        "Well-formed: `f(double)` is private, so `f(int)` is called after converting `1.0`",
+        "Ill-formed: overload resolution selects the private `f(double)`",
+        "Ill-formed: the call is ambiguous between the two overloads",
+        "Undefined behavior: a private member function is called from outside the class"
+      ],
+      "answer": 1,
+      "explanation": "Access is checked after overload resolution. `f(double)` is an exact match and wins; then the compiler finds it is private in this context and the program is ill-formed. Access never removes a candidate, so the first option, which is what many people expect, describes a rule C++ does not have. There is no ambiguity because the exact match beats the floating-integral conversion.",
+      "refs": [
+        "[over.match.general]",
+        "[class.access.general]"
+      ]
+    },
+    {
+      "id": "access-control-and-friends-not-inherited",
+      "kind": "warmup",
+      "prompt": "Which member function is ill-formed?",
+      "code": "class A { int secret = 1; friend class B; };\n\nclass B {\npublic:\n  int f(A& a) { return a.secret; }\n};\n\nclass C : public B {\npublic:\n  int g(A& a) { return a.secret; }\n};",
+      "options": [
+        "Neither: `C` inherits `B`'s friendship",
+        "Only `B::f`, because a friend class must be declared before `A`",
+        "Both, because `secret` is private",
+        "Only `C::g`"
+      ],
+      "answer": 3,
+      "explanation": "Friendship is not inherited: `A` granted access to `B`, and a class derived from `B` gets none of it, so `C::g` is ill-formed. `B::f` is fine because `B`'s member functions have the same access as `A`'s own members, and a friend declaration may name a class that is declared later. The tempting first option treats friendship like a member that a derived class inherits, which it is not.",
+      "refs": [
+        "[class.friend]"
+      ]
+    },
+    {
+      "id": "access-control-and-friends-private-override",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct B { virtual void f() { std::puts(\"B\"); } };\nclass D : public B { void f() override { std::puts(\"D\"); } };\n\nint main() {\n  D d;\n  B& b = d;\n  b.f();\n}",
+      "options": [
+        "`B`, because `D::f` is private and cannot be called",
+        "`D`",
+        "Nothing: the program is ill-formed because an override may not be less accessible",
+        "Undefined behavior"
+      ],
+      "answer": 1,
+      "explanation": "Access for a virtual call is checked on the name in the call expression, using the static type: `b.f()` names `B::f`, which is public. The call then dispatches to the final overrider, `D::f`, and prints `D`. An override may have any access; only `d.f()` would be ill-formed. Access never changes which function a virtual call reaches.",
+      "refs": [
+        "[class.access.virt]",
+        "[class.virtual]"
+      ]
+    },
+    {
+      "id": "access-control-and-friends-protected-through-base",
+      "kind": "tricky",
+      "prompt": "Which member function of `Derived` is ill-formed?",
+      "code": "struct Base { protected: int x = 0; };\n\nstruct Derived : Base {\n  int a()            { return x; }\n  int b(Derived& d)  { return d.x; }\n  int c(Base& o)     { return o.x; }\n};",
+      "options": [
+        "Only `c`",
+        "Only `b`, because `d` might be a different object",
+        "`b` and `c`, since both access another object's protected member",
+        "None of them"
+      ],
+      "answer": 0,
+      "explanation": "A protected non-static member of `Base` may be used in `Derived` only through an object expression of type `Derived` or a class derived from it. `a` uses `this->x` and `b` uses a `Derived&`, so both are fine, even though `d` is another object. `c` goes through a plain `Base&`, which might be a sibling class's object, so the extra protected check makes it ill-formed.",
+      "refs": [
+        "[class.protected]"
+      ]
+    },
+    {
+      "id": "access-control-and-friends-injected-name",
+      "kind": "tricky",
+      "prompt": "Is the definition of `C::f` well-formed?",
+      "code": "struct A {};\nstruct B : private A {};\n\nstruct C : B {\n  void f() { A a; (void)a; }\n};",
+      "options": [
+        "Well-formed: `A` is a public namespace-scope struct",
+        "Ill-formed: a class cannot use a type that its base inherits privately",
+        "Ill-formed: `A` finds the injected-class-name inherited through `B`, which is private",
+        "Well-formed, but `a` has type `B::A`, a distinct type"
+      ],
+      "answer": 2,
+      "explanation": "Every class has its own name injected into its scope as a member. Unqualified lookup inside `C` searches `C`'s bases before the namespace, so `A` finds `A`'s injected-class-name as a member of `B`, where it is private because `B` inherits `A` privately. Writing `::A a;` finds the namespace-scope name and is well-formed, which shows the second option is wrong: the type itself is usable, only that spelling is not.",
+      "refs": [
+        "[class.pre]",
+        "[class.access.base]",
+        "[class.member.lookup]"
+      ]
+    },
+    {
+      "id": "access-control-and-friends-hidden-friend",
+      "kind": "tricky",
+      "prompt": "Which calls in `main` are well-formed?",
+      "code": "namespace n {\nstruct V {\n  int v;\n  friend void show(V) {}\n};\n}\n\nint main() {\n  n::V a{1};\n  show(a);     // #1\n  n::show(a);  // #2\n}",
+      "options": [
+        "Only #1",
+        "Both: `show` is a member of namespace `n`",
+        "Only #2",
+        "Neither: a friend defined in a class is a member function of that class"
+      ],
+      "answer": 0,
+      "explanation": "A friend function first declared in a class is a member of the enclosing namespace, but it is not visible to ordinary or qualified lookup; only argument-dependent lookup finds it, through the associated class `V`. So #1 works and #2 is ill-formed. The second option is half right: `show` really does belong to `n`, it just cannot be named that way until it is also declared at namespace scope.",
+      "refs": [
+        "[class.friend]",
+        "[basic.lookup.argdep]"
+      ]
+    },
+    {
+      "id": "access-control-and-friends-explicit-instantiation",
+      "kind": "standardese",
+      "prompt": "In C++23, what does this program do?",
+      "code": "#include <cstdio>\n\nclass Vault { int gold = 7; };\n\ntemplate<int Vault::* P>\nstruct Thief { friend int Vault::* steal() { return P; } };\n\nint Vault::* steal();\ntemplate struct Thief<&Vault::gold>;\n\nint main() { Vault v; std::printf(\"%d\\n\", v.*steal()); }",
+      "options": [
+        "Ill-formed: `&Vault::gold` names a private member",
+        "Undefined behavior: private members may not be read from outside",
+        "Ill-formed: a friend function cannot be defined in a class template",
+        "It prints `7`"
+      ],
+      "answer": 3,
+      "explanation": "The usual access checking rules do not apply to names in the declaration of an explicit instantiation, so `&Vault::gold` is allowed as a template argument there. Instantiating `Thief` defines the friend `steal`, which returns that pointer to member, and `v.*steal()` reads `gold`. The first option would be right for an ordinary use such as `Thief<&Vault::gold> t;`. Access is a compile-time rule about names, so nothing here is undefined.",
+      "refs": [
+        "[temp.spec.general]",
+        "[temp.explicit]",
+        "[class.friend]"
+      ]
+    },
+    {
+      "id": "access-control-and-friends-nested",
+      "kind": "standardese",
+      "prompt": "Which member function is ill-formed?",
+      "code": "class Outer {\n  int x = 0;\n  class Inner {\n    int y = 0;\n  public:\n    int get(Outer& o) { return o.x; }\n  };\npublic:\n  int peek(Inner& i) { return i.y; }\n};",
+      "options": [
+        "Only `Inner::get`: a nested class has no special access to its enclosing class",
+        "Only `Outer::peek`",
+        "Both",
+        "Neither: enclosing and nested classes are implicitly friends of each other"
+      ],
+      "answer": 1,
+      "explanation": "A nested class is a member of its enclosing class and, since C++11 (CWG 45), has the same access as any other member, so `Inner::get` may read `Outer::x`. The relationship is one-way: [class.access.nest] gives the enclosing class no special access to the nested class's members, so `peek` cannot read `Inner::y` and is ill-formed. The first option describes the C++98 wording, which compilers no longer follow.",
+      "refs": [
+        "[class.access.nest]",
+        "[class.access.general]"
+      ]
+    }
+  ]
+}

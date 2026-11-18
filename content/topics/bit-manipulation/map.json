@@ -1,0 +1,116 @@
+{
+  "root": {
+    "label": "Bit manipulation",
+    "note": "The bit header counts and rotates by exact type width; shifts and promotion are where the surprises live.",
+    "children": [
+      {
+        "label": "Counting and rotating",
+        "note": "These functions take unsigned types only and use the width of the exact type, with no promotion to int.",
+        "children": [
+          {
+            "label": "popcount",
+            "note": "Counts the set bits of an unsigned integer."
+          },
+          {
+            "label": "countl_zero, countr_zero",
+            "note": "Count leading or trailing zeros in the width of the argument type; countl_zero(uint8_t{1}) is 7."
+          },
+          {
+            "label": "rotl and rotr",
+            "note": "Rotate within the type width; any count is allowed and a negative count reverses direction."
+          }
+        ]
+      },
+      {
+        "label": "Power-of-two helpers",
+        "note": "has_single_bit, bit_width, bit_floor and bit_ceil describe a value's relation to powers of two.",
+        "children": [
+          {
+            "label": "has_single_bit",
+            "note": "True only for powers of two, so false for zero."
+          },
+          {
+            "label": "bit_floor, bit_width",
+            "note": "bit_floor(0) is 0, bit_width(0) is 0, and bit_floor(37u) is 32."
+          },
+          {
+            "label": "bit_ceil precondition",
+            "note": "Undefined if the result does not fit the type; constant evaluation rejects it."
+          }
+        ]
+      },
+      {
+        "label": "Reinterpreting bytes",
+        "note": "bit_cast, byteswap and endian handle object representation without aliasing violations.",
+        "children": [
+          {
+            "label": "bit_cast",
+            "note": "Needs equal sizes and trivially copyable types; constexpr unless pointers, unions or references are involved."
+          },
+          {
+            "label": "byteswap (C++23)",
+            "note": "Reverses the bytes of any integer type and knows nothing about the host order."
+          },
+          {
+            "label": "std::endian",
+            "note": "little, big and native describe byte order; native may equal neither on a mixed-endian platform."
+          }
+        ]
+      },
+      {
+        "label": "Shift counts",
+        "note": "The right operand has to be within range for both shift directions.",
+        "children": [
+          {
+            "label": "Count out of range",
+            "note": "A negative count or one at least the promoted width is undefined, for signed and unsigned alike."
+          },
+          {
+            "label": "Result type",
+            "note": "The result has the promoted type of the left operand; the count's type does not matter."
+          },
+          {
+            "label": "Mask pitfall",
+            "note": "(1u << n) - 1 fails at n equal to the width; guard the edge cases."
+          }
+        ]
+      },
+      {
+        "label": "Signedness and promotion",
+        "note": "Narrow operands become int before shifts and bitwise operators, and C++20 tightened signed shifts.",
+        "children": [
+          {
+            "label": "Right shift, C++20",
+            "note": "Negative values shift arithmetically, rounding toward negative infinity, so -7 >> 1 is -4."
+          },
+          {
+            "label": "Left shift, C++20",
+            "note": "Signed left shift is modular and two's complement, so -1 << 3 is -8."
+          },
+          {
+            "label": "Promotion trap",
+            "note": "~uint8_t{15} is the int -16, and uint8_t{0x80} << 24 is a negative int."
+          },
+          {
+            "label": "Two's complement",
+            "note": "C++20 requires signed integers to use two's complement."
+          }
+        ]
+      },
+      {
+        "label": "Bytes and bit-fields",
+        "note": "Use std::byte for raw memory and be wary of bit-fields in external formats.",
+        "children": [
+          {
+            "label": "std::byte",
+            "note": "Supports bitwise operators and shifts, no arithmetic; convert with std::to_integer."
+          },
+          {
+            "label": "Bit-field layout",
+            "note": "Allocation order and straddling are implementation-defined, so use masks for wire formats."
+          }
+        ]
+      }
+    ]
+  }
+}

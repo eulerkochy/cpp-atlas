@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "std::simd (C++26)",
+    "note": "P1928 and follow-ups: portable data-parallel vector and mask types in namespace std::simd.",
+    "children": [
+      {
+        "label": "Types and widths",
+        "note": "basic_vec<T, Abi> and basic_mask<Bytes, Abi>, used through the vec and mask aliases.",
+        "children": [
+          { "label": "vec<T> and vec<T, N>", "note": "Native width for the target, or exactly N lanes; N from 1 to 64 is always supported." },
+          { "label": "Vectorizable types", "note": "Standard integers, characters, float, double, fixed-width floats, and complex of those; not bool or long double." },
+          { "label": "Names from P3691", "note": "Formerly std::datapar, basic_simd and simd_mask; older pages use the old names." }
+        ]
+      },
+      {
+        "label": "Construction",
+        "note": "Every way of making a vector checks conversions strictly.",
+        "children": [
+          { "label": "Broadcast", "note": "A scalar fills every lane only if its conversion is value-preserving, so vec<float> * 2 fails." },
+          { "label": "Generator", "note": "Explicit; calls the callable once per lane with integral_constant<i>, in increasing order." },
+          { "label": "Vector conversions", "note": "Explicit when values could be lost or rank would drop; float to double is implicit." },
+          { "label": "Read-only lanes", "note": "operator[] returns value_type by value; vectors are read-only ranges (P3480)." }
+        ]
+      },
+      {
+        "label": "Masks",
+        "note": "Comparisons are element-wise and return a mask, never a bool.",
+        "children": [
+          { "label": "No operator bool", "note": "if (a < b) is ill-formed; say what you mean with a reduction." },
+          { "label": "Mask reductions", "note": "all_of, any_of, none_of, reduce_count, reduce_min_index, reduce_max_index." },
+          { "label": "select", "note": "select(m, a, b) blends lanes; both sides are computed. Replaces the TS where-expressions." }
+        ]
+      },
+      {
+        "label": "Memory",
+        "note": "Explicit loads and stores between vectors and contiguous ranges.",
+        "children": [
+          { "label": "unchecked_load and store", "note": "Need at least V::size() elements; too few is ill-formed if constant, otherwise UB." },
+          { "label": "partial_load and store", "note": "Any size; missing lanes load as T() and are never read or written." },
+          { "label": "Flags", "note": "flag_convert allows lossy loads; flag_aligned and flag_overaligned<N> promise alignment." },
+          { "label": "Gather and scatter", "note": "unchecked_ and partial_gather_from and scatter_to use an index vector (P2664)." }
+        ]
+      },
+      {
+        "label": "Algorithms",
+        "note": "Whole-vector operations beyond arithmetic.",
+        "children": [
+          { "label": "reduce", "note": "Generalized sum with a commutative op; masked form returns the identity if no lane is selected." },
+          { "label": "Math and bits", "note": "Element-wise <cmath>, <bit> and complex functions, plus min, max and clamp." },
+          { "label": "Permutations", "note": "permute, compress, expand, chunk and cat move lanes around." }
+        ]
+      },
+      {
+        "label": "Implementation status",
+        "note": "Where <simd> works in late 2026.",
+        "children": [
+          { "label": "GCC 16", "note": "Experimental, x86 with SSE2 only; __cpp_lib_simd is never defined. Nothing on AArch64." },
+          { "label": "Clang 21", "note": "libc++ has no <simd> yet." }
+        ]
+      }
+    ]
+  }
+}

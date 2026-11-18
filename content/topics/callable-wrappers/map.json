@@ -1,0 +1,62 @@
+{
+  "root": {
+    "label": "Callable wrappers",
+    "note": "Type-erased holders for callables, plus the invoke rules and binders beneath them.",
+    "children": [
+      {
+        "label": "std::function",
+        "note": "The C++11 copyable wrapper that keeps only the call signature.",
+        "children": [
+          { "label": "Copyable target", "note": "The stored callable must be copy constructible, so move-only closures are rejected." },
+          { "label": "Empty call", "note": "Calling an empty function throws bad_function_call." },
+          { "label": "Const hole", "note": "operator() is const but calls the target non-const, so a mutable lambda mutates." },
+          { "label": "Small buffer", "note": "Only encouraged by the standard; large targets may allocate, and the limit varies by library." }
+        ]
+      },
+      {
+        "label": "Qualified signatures",
+        "note": "Newer wrappers put const, reference and noexcept qualifiers in the signature.",
+        "children": [
+          { "label": "move_only_function", "note": "C++23 owning wrapper that is move only and accepts move-only targets." },
+          { "label": "copyable_function", "note": "C++26 copyable counterpart with the same qualifier support." },
+          { "label": "Empty call is UB", "note": "Unlike function, calling an empty one of these is undefined behavior." },
+          { "label": "Const-correct", "note": "A const in the signature rejects a mutable target at construction." }
+        ]
+      },
+      {
+        "label": "function_ref",
+        "note": "C++26 non-owning view of a callable.",
+        "children": [
+          { "label": "No allocation", "note": "It stores a reference and a thunk, is trivially copyable, and never allocates." },
+          { "label": "Dangling risk", "note": "Calling it after the target is destroyed is undefined behavior, as with string_view." }
+        ]
+      },
+      {
+        "label": "invoke rules",
+        "note": "INVOKE is the single definition of calling, used throughout the library.",
+        "children": [
+          { "label": "Member pointers", "note": "The first argument may be an object, reference, pointer, smart pointer or reference_wrapper." },
+          { "label": "Value category", "note": "A data member pointer yields a result whose category follows the object." }
+        ]
+      },
+      {
+        "label": "Binders",
+        "note": "Ways to fix some arguments of a callable.",
+        "children": [
+          { "label": "bind", "note": "Stores decayed copies, uses placeholders, and drops extra call arguments." },
+          { "label": "bind_front and bind_back", "note": "Bind leading or trailing arguments with perfect forwarding and no placeholders." },
+          { "label": "Lambdas", "note": "Usually clearer and more optimizable than any binder." }
+        ]
+      },
+      {
+        "label": "Helpers and cost",
+        "note": "Small adapters, and what the wrappers cost.",
+        "children": [
+          { "label": "reference_wrapper", "note": "A copyable reference that rebinds on assignment; made by ref and cref." },
+          { "label": "mem_fn and not_fn", "note": "mem_fn adapts member pointers; not_fn negates a callable's result." },
+          { "label": "Cost model", "note": "An indirect call that rarely inlines, plus a possible allocation on construction." }
+        ]
+      }
+    ]
+  }
+}

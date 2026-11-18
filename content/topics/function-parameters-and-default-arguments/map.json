@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "Parameters and default arguments",
+    "note": "The function type comes from adjusted parameters; default arguments live on declarations, outside the type.",
+    "children": [
+      {
+        "label": "Parameter adjustment",
+        "note": "Parameter types are rewritten before the function type is formed.",
+        "children": [
+          { "label": "Arrays become pointers", "note": "const int a[10] is const int*; only the outermost bound is lost." },
+          { "label": "Functions become pointers", "note": "A parameter int cb(int) means int (*cb)(int)." },
+          { "label": "Top-level cv dropped", "note": "void f(const int) and void f(int) declare the same function." },
+          { "label": "Array references kept", "note": "int (&a)[N] keeps the bound, so templates can deduce N." }
+        ]
+      },
+      {
+        "label": "Default arguments",
+        "note": "Caller-side expressions attached to a declaration.",
+        "children": [
+          { "label": "Bound at declaration", "note": "Names are looked up where the declaration appears." },
+          { "label": "Evaluated per call", "note": "The expression runs again at every call that uses it." },
+          { "label": "Forbidden names", "note": "No this, no locals, and no other parameter in a potentially-evaluated use." },
+          { "label": "Accumulation", "note": "Later declarations in the same scope may add defaults right to left, never repeat one." },
+          { "label": "Other scopes", "note": "A block-scope redeclaration gets a completely separate set of defaults." }
+        ]
+      },
+      {
+        "label": "Defaults and dispatch",
+        "note": "Defaults come from what the caller sees, not what runs.",
+        "children": [
+          { "label": "Virtual functions", "note": "The default comes from the static type, the body from the final overrider." },
+          { "label": "Function pointers", "note": "A pointer's type has no defaults, so every argument must be passed." }
+        ]
+      },
+      {
+        "label": "Variadic functions",
+        "note": "Arguments matching ... get fixed conversions instead of parameter types.",
+        "children": [
+          { "label": "Default promotions", "note": "bool, char and short become int; float becomes double; nullptr_t becomes void*." },
+          { "label": "va_arg type", "note": "Must name the promoted type; va_arg(ap, float) is undefined behaviour." },
+          { "label": "Non-trivial classes", "note": "Passing them or scoped enums through ... is conditionally-supported." },
+          { "label": "Missing comma", "note": "C++26 deprecates void f(int...) without a comma before the ellipsis." }
+        ]
+      },
+      {
+        "label": "Most vexing parse",
+        "note": "Anything that can be a declaration is a declaration.",
+        "children": [
+          { "label": "Widget w(Timer())", "note": "Declares a function taking a pointer to function returning Timer." },
+          { "label": "Fixes", "note": "Use braces, extra parentheses around the argument, or = initialization." }
+        ]
+      },
+      {
+        "label": "Function type",
+        "note": "Return type, parameter-type-list, noexcept, and member qualifiers.",
+        "children": [
+          { "label": "noexcept since C++17", "note": "Pointers convert from noexcept to potentially-throwing, never back." },
+          { "label": "Overloaded addresses", "note": "The target type picks the overload when taking an overloaded function's address." },
+          { "label": "Standard library", "note": "Since C++20, forming pointers to most std functions is unspecified or ill-formed." }
+        ]
+      }
+    ]
+  }
+}

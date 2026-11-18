@@ -1,0 +1,58 @@
+{
+  "root": {
+    "label": "C++26 containers",
+    "note": "inplace_vector, hive, indirect and polymorphic, plus optional as a range, optional<T&> and span::at.",
+    "children": [
+      {
+        "label": "inplace_vector",
+        "note": "A contiguous sequence container with capacity N fixed in the type and elements stored inside the object (P0843R14).",
+        "children": [
+          { "label": "Overflow throws bad_alloc", "note": "Any member that would make size exceed N throws bad_alloc; push_back then has no effects." },
+          { "label": "try_push_back", "note": "Returns optional<T&>, or nullopt when full, since P3981R2. Older sources show a T* return." },
+          { "label": "unchecked_push_back", "note": "Precondition size() < capacity(); violating it is undefined behavior." },
+          { "label": "Static capacity", "note": "capacity, max_size and reserve are static; reserve(n > N) throws bad_alloc. Move and swap are linear." },
+          { "label": "Triviality passes through", "note": "Trivial copy, move and destruction of T give the same for the vector; N == 0 is empty and trivially copyable." },
+          { "label": "constexpr", "note": "Fully constexpr in the draft since P3074R7; GCC 16 supports constant evaluation only for trivial T." }
+        ]
+      },
+      {
+        "label": "hive",
+        "note": "Block-based container with constant-time insert and erase that never moves surviving elements (P0447R28).",
+        "children": [
+          { "label": "Unordered insertion", "note": "insert and emplace take no position; the hint is ignored and erased slots may be reused." },
+          { "label": "Stable addresses", "note": "Insertion invalidates only end(); erasure invalidates only the erased elements." },
+          { "label": "Skipfield", "note": "The reference implementation skips runs of erased slots in O(1); the draft only says the technique is unspecified." },
+          { "label": "Interface limits", "note": "Bidirectional iterators with <=>, no operator[], no ==; sort, unique, splice and get_iterator are members." },
+          { "label": "Not in GCC 16", "note": "Neither libstdc++ 16 nor libc++ 21 ships <hive>." }
+        ]
+      },
+      {
+        "label": "indirect",
+        "note": "Owns one heap-allocated T, copies it deeply and propagates const (P3019R14).",
+        "children": [
+          { "label": "Never null normally", "note": "The default constructor allocates a value-initialized T; converting constructors are explicit." },
+          { "label": "Value comparison", "note": "== and <=> compare the owned objects, and work against a plain T; hash is provided." },
+          { "label": "Incomplete T", "note": "T may be incomplete where the member is declared, so it suits recursive types and pimpl." }
+        ]
+      },
+      {
+        "label": "polymorphic",
+        "note": "Owns an object of any type derived from T and copies it as its dynamic type, so nothing is sliced.",
+        "children": [
+          { "label": "Derived and copyable", "note": "The owned type must derive from T and be copy-constructible; there are no comparisons or hash." },
+          { "label": "Valueless after move", "note": "Moved-from indirect is valueless; moved-from polymorphic may or may not be, which permits small buffers." }
+        ]
+      },
+      {
+        "label": "optional and span",
+        "note": "Smaller C++26 library changes to existing vocabulary types.",
+        "children": [
+          { "label": "optional is a view", "note": "begin and end give zero or one elements with contiguous iterators (P3168R2)." },
+          { "label": "optional<T&>", "note": "Holds a pointer, rebinds on assignment, refuses temporaries, and is a borrowed range (P2988R12)." },
+          { "label": "span::at", "note": "Throws out_of_range for a bad index (P2821R5); operator[] has only a hardened precondition." },
+          { "label": "No initializer_list span", "note": "P2447R6 added it, and P4144R1 removed it in March 2026; libc++ 21 still ships it." }
+        ]
+      }
+    ]
+  }
+}

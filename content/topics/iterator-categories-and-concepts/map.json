@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Iterator categories and concepts",
+    "note": "Two taxonomies: legacy named requirements tagged by iterator_category, C++20 concepts tagged by iterator_concept.",
+    "children": [
+      {
+        "label": "Legacy ladder",
+        "note": "Input, forward, bidirectional, random access, contiguous; output on the side.",
+        "children": [
+          { "label": "Multi-pass", "note": "Forward adds it: copies advance independently and a == b implies ++a == ++b." },
+          { "label": "True reference rule", "note": "Cpp17ForwardIterator requires *it to be T& or const T&, which proxies cannot meet." },
+          { "label": "Tag is trusted", "note": "Nothing checks iterator_category; vector<bool> iterators claim random access anyway." }
+        ]
+      },
+      {
+        "label": "C++20 concepts",
+        "note": "Checked by the compiler and built from indirectly_readable, incrementable and sentinel_for.",
+        "children": [
+          { "label": "Weaker input", "note": "input_iterator may be move-only, lack ==, and have a void postfix ++." },
+          { "label": "Forward without T&", "note": "forward_iterator needs regular and multi-pass, but any reference type." },
+          { "label": "Contiguous needs lvalue", "note": "contiguous_iterator requires an lvalue reference and working std::to_address." },
+          { "label": "ITER_CONCEPT", "note": "Reads iterator_concept, then iterator_category, else random access for primary traits." }
+        ]
+      },
+      {
+        "label": "Proxy iterators",
+        "note": "An iterator can be random access by concept and input by category.",
+        "children": [
+          { "label": "views::transform", "note": "By-value result: concept follows the base range, category is input_iterator_tag." },
+          { "label": "vector<bool>", "note": "Models random_access_iterator but never contiguous_iterator; reference is a proxy." },
+          { "label": "Pointers", "note": "iterator_traits<T*> reports random access category and contiguous concept." }
+        ]
+      },
+      {
+        "label": "Associated types",
+        "note": "Prefer the C++20 aliases over iterator_traits members.",
+        "children": [
+          { "label": "iter_value_t", "note": "cv-qualifiers removed: iter_value_t<const int*> is int." },
+          { "label": "iter_reference_t", "note": "Exactly decltype(*it), such as const int& for const int*." },
+          { "label": "iter_rvalue_reference_t", "note": "Type of ranges::iter_move(it); int&& for int*." },
+          { "label": "Traits specialization wins", "note": "A user specialization of iterator_traits overrides the computed traits." }
+        ]
+      },
+      {
+        "label": "Operations and cost",
+        "note": "advance, distance, next and prev hide the category but not the cost.",
+        "children": [
+          { "label": "Linear below random", "note": "std::distance on a list walks every node, even though size() is O(1)." },
+          { "label": "Negative advance", "note": "Undefined behavior unless the iterator is at least bidirectional." },
+          { "label": "ranges::distance", "note": "Constant time whenever the sentinel models sized_sentinel_for." }
+        ]
+      },
+      {
+        "label": "Output iterators",
+        "note": "Write-only and single pass, such as back_insert_iterator and ostream_iterator.",
+        "children": [
+          { "label": "void value_type", "note": "iter_value_t is unusable, but difference_type is ptrdiff_t since C++20." },
+          { "label": "output_iterator<I, T>", "note": "Takes the written type as a parameter because acceptance depends on it." }
+        ]
+      }
+    ]
+  }
+}

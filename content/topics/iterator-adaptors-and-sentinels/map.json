@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Iterator adaptors and sentinels",
+    "note": "Wrappers that redefine moving or reading, and ends that need not be iterators.",
+    "children": [
+      {
+        "label": "reverse_iterator",
+        "note": "Swaps increment and decrement; needs a bidirectional iterator.",
+        "children": [
+          { "label": "Off-by-one base", "note": "base() points one past the element: *r is *std::prev(r.base())." },
+          { "label": "Erasing", "note": "Erase through r with v.erase(std::next(r).base()), or the neighbour goes." },
+          { "label": "From an iterator", "note": "reverse_iterator(it) denotes the element before it." }
+        ]
+      },
+      {
+        "label": "Moving and inserting",
+        "note": "Adaptors that change what dereference or assignment does.",
+        "children": [
+          { "label": "move_iterator", "note": "Dereferences to an rvalue via iter_move; algorithms that read twice see moved-from values." },
+          { "label": "move_sentinel", "note": "C++20 wrapper letting a move_iterator compare with a sentinel." },
+          { "label": "Insert iterators", "note": "Assignment calls push_back, push_front or insert; front_inserter reverses order." },
+          { "label": "Stream iterators", "note": "istream_iterator reads in its constructor; ostream_iterator writes a trailing delimiter." }
+        ]
+      },
+      {
+        "label": "Sentinels",
+        "note": "A type that only answers whether iteration is done.",
+        "children": [
+          { "label": "sentinel_for", "note": "Semiregular and ==-comparable with the iterator; one operator== suffices in C++20." },
+          { "label": "iterator_t, sentinel_t", "note": "Types of ranges::begin and ranges::end; common_range means they are the same." },
+          { "label": "unreachable_sentinel", "note": "Never equal to any iterator; drops bounds checks, UB if the value is absent." },
+          { "label": "subrange", "note": "Iterator plus sentinel as a borrowed view, with structured bindings." }
+        ]
+      },
+      {
+        "label": "counted_iterator",
+        "note": "An iterator with a countdown, done when the count reaches zero.",
+        "children": [
+          { "label": "default_sentinel", "note": "Compares equal to a counted_iterator whose count is zero." },
+          { "label": "views::counted", "note": "span if contiguous, subrange(it, it + n) if random access, else counted_iterator." },
+          { "label": "Trusts the count", "note": "Fewer than n elements after it means undefined behavior." }
+        ]
+      },
+      {
+        "label": "common_iterator",
+        "note": "Holds an iterator or a sentinel so both ends share one type.",
+        "children": [
+          { "label": "views::common", "note": "Makes any range common for pre-C++20 iterator-pair APIs; needs a copyable iterator." },
+          { "label": "C++23 alternative", "note": "ranges::to and from_range constructors accept any range directly." }
+        ]
+      },
+      {
+        "label": "Const iterators",
+        "note": "C++23 (P2278) made ranges::cbegin genuinely const.",
+        "children": [
+          { "label": "basic_const_iterator", "note": "Adaptor whose dereference yields the const reference type." },
+          { "label": "ranges::cbegin fix", "note": "On a span it now yields const int&; in C++20 it was writable." },
+          { "label": "std::cbegin unchanged", "note": "Non-member std::cbegin on a span still returns a mutable iterator." }
+        ]
+      }
+    ]
+  }
+}

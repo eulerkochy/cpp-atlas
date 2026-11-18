@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "Lock-free programming",
+    "note": "Replace locks with CAS retry loops; pay for it with ABA and memory reclamation.",
+    "children": [
+      {
+        "label": "Progress guarantees",
+        "note": "Blocking, obstruction-free, lock-free and wait-free, from weakest to strongest.",
+        "children": [
+          { "label": "Lock-free", "note": "Some thread always finishes; an individual thread may starve." },
+          { "label": "Wait-free", "note": "Every thread finishes in a bounded number of its own steps." },
+          { "label": "What the standard requires", "note": "[intro.progress] requires obstruction-freedom and only encourages lock-freedom." },
+          { "label": "atomic_flag", "note": "The only type guaranteed lock-free; ask is_always_lock_free for others." }
+        ]
+      },
+      {
+        "label": "Treiber stack",
+        "note": "A linked list with an atomic head, updated by CAS loops.",
+        "children": [
+          { "label": "Push", "note": "Link the private node to the head, CAS the head to it; a failed CAS refreshes next." },
+          { "label": "Pop", "note": "CAS the head to head->next; reading next of a freed node is UB." },
+          { "label": "compare_exchange_weak", "note": "Right inside a retry loop, since spurious failure costs one iteration." }
+        ]
+      },
+      {
+        "label": "ABA problem",
+        "note": "A CAS succeeds because the pointer value came back, though the structure changed.",
+        "children": [
+          { "label": "Recycled node", "note": "Pop A, pop B, push A again: a stale CAS installs the removed B." },
+          { "label": "Tagged pointers", "note": "A counter beside the pointer, updated by double-width CAS, defeats ABA." },
+          { "label": "Not reclamation", "note": "Tags stop the wrong CAS but not a dereference of freed memory." }
+        ]
+      },
+      {
+        "label": "Safe reclamation",
+        "note": "Delay freeing a node until no thread can still hold a pointer to it.",
+        "children": [
+          { "label": "Hazard pointers", "note": "Publish the pointer before use; retired nodes are freed when no slot holds them." },
+          { "label": "RCU and epochs", "note": "Cheap readers; writers wait for a grace period before freeing." },
+          { "label": "atomic<shared_ptr>", "note": "C++20; reference counts prevent reuse, but libstdc++'s is not lock-free." },
+          { "label": "C++26 support", "note": "<hazard_pointer> and <rcu> standardize the first two schemes." }
+        ]
+      },
+      {
+        "label": "Memory orders in CAS",
+        "note": "Choose success and failure orders by what the thread does with the value.",
+        "children": [
+          { "label": "Push orders", "note": "Success release to publish the node; failure relaxed." },
+          { "label": "Pop orders", "note": "Acquire on success and failure, because the reloaded pointer is dereferenced." },
+          { "label": "Failure restrictions", "note": "Never release or acq_rel; since C++17 it may be stronger than success." }
+        ]
+      },
+      {
+        "label": "Performance",
+        "note": "Lock-free is a progress property, not a speed guarantee.",
+        "children": [
+          { "label": "Contention", "note": "Every failed CAS still takes the cache line; a mutex can win." },
+          { "label": "False sharing", "note": "Independent atomics on one cache line slow each other but never race." },
+          { "label": "Linearizability", "note": "Each operation appears atomic at one point; for Treiber, the successful CAS." }
+        ]
+      }
+    ]
+  }
+}

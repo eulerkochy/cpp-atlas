@@ -1,0 +1,151 @@
+{
+  "questions": [
+    {
+      "id": "partial-ordering-of-templates-template-vs-nontemplate",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nvoid f(int) { std::puts(\"non-template\"); }\ntemplate<class T> void f(T) { std::puts(\"template\"); }\n\nint main() { f('a'); }",
+      "options": [
+        "`non-template`, because non-templates are always preferred",
+        "Nothing: the call is ambiguous",
+        "`template`",
+        "`non-template`, because `char` promotes to `int`"
+      ],
+      "answer": 2,
+      "explanation": "Conversion sequences are compared before any tie-breaker. The template deduces `T = char`, an exact match, while `f(int)` needs an integral promotion, so the template specialization is the better candidate. The preference for non-templates only applies when the conversions are equally good, as they would be for `f(1)`.",
+      "refs": [
+        "[over.match.best.general]",
+        "[over.ics.rank]"
+      ]
+    },
+    {
+      "id": "partial-ordering-of-templates-pointer",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\ntemplate<class T> void b(T)  { std::puts(\"b(T)\"); }\ntemplate<class T> void b(T*) { std::puts(\"b(T*)\"); }\n\nint main() {\n  int i = 0;\n  b(&i);\n}",
+      "options": [
+        "`b(T)`, because it was declared first",
+        "Nothing: the call is ambiguous because both are exact matches",
+        "`b(T*)`",
+        "`b(T)`, because `T = int*` needs no adjustment"
+      ],
+      "answer": 2,
+      "explanation": "Both candidates are exact matches, so partial ordering decides. `b(T)` can be deduced from the synthesized `b(U*)`, but `b(T*)` cannot be deduced from `b(U)`, so `b(T*)` is more specialized and is chosen. Exact matches on both sides are precisely the situation partial ordering exists to resolve, so the call is not ambiguous; declaration order plays no role.",
+      "refs": [
+        "[temp.func.order]",
+        "[temp.deduct.partial]"
+      ]
+    },
+    {
+      "id": "partial-ordering-of-templates-class-ambiguous",
+      "kind": "warmup",
+      "prompt": "Which line makes this program ill-formed?",
+      "code": "template<class T, class U> struct S { static constexpr int v = 0; };\ntemplate<class T> struct S<T, int> { static constexpr int v = 1; };\ntemplate<class T> struct S<int, T> { static constexpr int v = 2; };\n\nconstexpr int a = S<long, int>::v;   // #1\nconstexpr int b = S<int, long>::v;   // #2\nconstexpr int c = S<int, int>::v;    // #3\nconstexpr int d = S<long, long>::v;  // #4",
+      "options": [
+        "#3",
+        "#4, because no partial specialization matches",
+        "None; #3 uses the primary template when specializations conflict",
+        "#1 and #2, because the two partial specializations overlap"
+      ],
+      "answer": 0,
+      "explanation": "Both partial specializations match `S<int, int>`, and rewriting them as function templates `void p(S<T, int>)` and `void p(S<int, T>)` shows neither is more specialized, so #3 is ill-formed. Overlapping specializations are only a problem for arguments they both match, so #1 and #2 are fine. When no partial specialization matches, as in #4, the primary template is used; it is never a fallback for an ambiguity.",
+      "refs": [
+        "[temp.spec.partial.match]",
+        "[temp.spec.partial.order]"
+      ]
+    },
+    {
+      "id": "partial-ordering-of-templates-explicit-spec",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\ntemplate<class T> void h(T)  { std::puts(\"h(T)\"); }\ntemplate<> void h<>(int*)    { std::puts(\"h<int*>\"); }\ntemplate<class T> void h(T*) { std::puts(\"h(T*)\"); }\n\nint main() {\n  int i = 0;\n  h(&i);\n}",
+      "options": [
+        "`h<int*>`, because an exact explicit specialization beats any template",
+        "`h(T*)`",
+        "`h(T)`",
+        "Nothing: the specialization makes the call ambiguous"
+      ],
+      "answer": 1,
+      "explanation": "When the explicit specialization is declared, only `h(T)` exists, so it specializes `h(T)` with `T = int*`. Explicit specializations do not take part in overload resolution; the primary templates do, and `h(T*)` is more specialized than `h(T)`, so `h<int>(int*)` from the second template is called. Declaring the specialization after both templates would attach it to `h(T*)` instead and print `h<int*>`.",
+      "refs": [
+        "[temp.expl.spec]",
+        "[temp.func.order]",
+        "[over.match.best.general]"
+      ]
+    },
+    {
+      "id": "partial-ordering-of-templates-forwarding",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\ntemplate<class T> void d(const T&) { std::puts(\"const T&\"); }\ntemplate<class T> void d(T&&)      { std::puts(\"T&&\"); }\n\nint main() {\n  int i = 0;\n  const int ci = 0;\n  d(i);\n  d(ci);\n}",
+      "options": [
+        "`const T&` then `const T&`",
+        "`T&&` then `T&&`",
+        "`const T&` then `T&&`",
+        "`T&&` then `const T&`"
+      ],
+      "answer": 3,
+      "explanation": "For `d(i)`, the forwarding reference deduces `T = int&` and binds `int&`, which is a better reference binding than `const int&`, so conversions decide before partial ordering runs. For `d(ci)`, both bind `const int&` equally, so partial ordering applies, and its reference tie-break makes `const T&` more specialized than `T&&`. The tempting `const T&` twice assumes ordering always prefers the more specific-looking parameter.",
+      "refs": [
+        "[over.ics.rank]",
+        "[temp.deduct.partial]",
+        "[temp.deduct.call]"
+      ]
+    },
+    {
+      "id": "partial-ordering-of-templates-constraint-shape",
+      "kind": "tricky",
+      "prompt": "Which call is ill-formed?",
+      "code": "#include <concepts>\n\ntemplate<std::integral T> void k(T) {}\ntemplate<class T> void k(T) {}\n\ntemplate<std::integral T> void m(T) {}\ntemplate<class T> void m(const T&) {}\n\nint main() {\n  k(1);  // #1\n  m(1);  // #2\n}",
+      "options": [
+        "#1: two templates with the same signature cannot be overloaded",
+        "Neither: the constrained template wins both calls",
+        "#2: the call is ambiguous",
+        "Both"
+      ],
+      "answer": 2,
+      "explanation": "Constraints only break a tie between templates whose template parameters and function parameter types are equivalent. The two `k` templates have that shape, and they are distinct declarations because their constraints differ, so the constrained one wins #1. For `m`, `T` and `const T&` deduce from each other in both directions, but the parameter types differ, so [temp.func.order] never consults the constraint, and the equal conversions leave #2 ambiguous, which makes the program ill-formed.",
+      "refs": [
+        "[temp.func.order]",
+        "[temp.constr.order]",
+        "[over.match.best.general]"
+      ]
+    },
+    {
+      "id": "partial-ordering-of-templates-trailing-pack",
+      "kind": "standardese",
+      "prompt": "With the resolution of CWG 1395 applied, as in current GCC and Clang, what does this print?",
+      "code": "#include <cstdio>\n\ntemplate<class T> void e(T) { std::puts(\"e(T)\"); }\ntemplate<class T, class... Ts> void e(T, Ts...) { std::puts(\"e(T, Ts...)\"); }\n\nint main() { e(1); }",
+      "options": [
+        "`e(T, Ts...)`, because it is the more general template",
+        "`e(T)`",
+        "Nothing: the call is ambiguous",
+        "Nothing: a pack cannot be empty in a call"
+      ],
+      "answer": 1,
+      "explanation": "In a call, only parameters with arguments are compared, so both templates are compared on their first parameter alone and tie. [temp.deduct.partial] then says that if one template has a trailing parameter pack and the other has no corresponding parameter, the one without the pack is more specialized, so `e(T)` wins. Before that rule the call was ambiguous, which is what older compilers reported.",
+      "refs": [
+        "[temp.deduct.partial]",
+        "[temp.func.order]"
+      ]
+    },
+    {
+      "id": "partial-ordering-of-templates-reversed-nontemplate",
+      "kind": "standardese",
+      "prompt": "In C++20, what does this program print?",
+      "code": "#include <cstdio>\n\nstruct X {};\nstruct Y {};\n\ntemplate<class T, class U> bool operator==(const T&, const U&) {\n  std::puts(\"generic\");\n  return true;\n}\nbool operator==(const Y&, const X&) {\n  std::puts(\"Y == X\");\n  return true;\n}\n\nint main() {\n  X x; Y y;\n  (void)(x == y);\n}",
+      "options": [
+        "`generic`, because non-reversed candidates are preferred",
+        "Nothing: the call is ambiguous",
+        "`Y == X`",
+        "Nothing: ill-formed because a reversed candidate cannot be selected when a direct one is viable"
+      ],
+      "answer": 2,
+      "explanation": "Both candidates bind each operand to a const reference of its exact type, so conversions tie. [over.match.best.general] applies the \"non-template beats template specialization\" tie-break before the \"non-rewritten beats rewritten\" one, so the reversed non-template `operator==(const Y&, const X&)` wins. The preference for non-reversed candidates is real but comes later in the list, so it never gets a say here.",
+      "refs": [
+        "[over.match.best.general]",
+        "[over.match.oper]"
+      ]
+    }
+  ]
+}

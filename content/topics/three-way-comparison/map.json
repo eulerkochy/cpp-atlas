@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "Three-way comparison",
+    "note": "operator<=> answers ordering, operator== answers equality, and the compiler rewrites the rest.",
+    "children": [
+      {
+        "label": "Comparison categories",
+        "note": "The result type of <=> says what kind of order the type has.",
+        "children": [
+          { "label": "strong_ordering", "note": "Equal values are interchangeable; built-in for integers, enums and pointers." },
+          { "label": "weak_ordering", "note": "Equivalent values may still be distinguishable, as in case-insensitive strings." },
+          { "label": "partial_ordering", "note": "Adds unordered; built-in <=> on floating point returns it, and NaN is unordered." },
+          { "label": "One-way conversions", "note": "strong converts to weak converts to partial, never the other way." },
+          { "label": "Compare with literal 0", "note": "Test results as r < 0 or r == 0; comparing with any other value is undefined." }
+        ]
+      },
+      {
+        "label": "Built-in <=>",
+        "note": "Applies the usual arithmetic conversions, but more strictly than <.",
+        "children": [
+          { "label": "No narrowing", "note": "-1 <=> 1u is ill-formed because int to unsigned narrows." },
+          { "label": "Unrelated pointers", "note": "Comparing pointers into unrelated objects gives an unspecified result." }
+        ]
+      },
+      {
+        "label": "Defaulting",
+        "note": "= default compares bases, then members, in declaration order.",
+        "children": [
+          { "label": "Implicit ==", "note": "A defaulted <=> declares a defaulted == only if no operator== is declared." },
+          { "label": "auto return type", "note": "Deduces the common category; deleted if any member lacks <=>." },
+          { "label": "Named return type", "note": "Lets the compiler synthesize the result from == and < for legacy members." },
+          { "label": "Deleted cases", "note": "Reference members and union-like classes make defaulted comparisons deleted." }
+        ]
+      },
+      {
+        "label": "Rewritten candidates",
+        "note": "Overload resolution adds rewritten and reversed forms for comparisons.",
+        "children": [
+          { "label": "Relational", "note": "a < b also tries (a <=> b) < 0 and 0 < (b <=> a)." },
+          { "label": "Equality", "note": "a != b tries !(a == b) and !(b == a); a == b tries b == a." },
+          { "label": "Tie-breakers", "note": "Ordinary candidates beat rewritten ones, and non-reversed beat reversed." },
+          { "label": "bool required", "note": "A rewritten == chosen for != or reversed == must return bool." }
+        ]
+      },
+      {
+        "label": "C++20 breakage",
+        "note": "Reversed candidates appeared in old code without warning.",
+        "children": [
+          { "label": "Non-const member ==", "note": "Normal and reversed candidates each win one argument, so C++20 calls it ambiguous." },
+          { "label": "P2468 escape hatch", "note": "A matching operator!= in the same scope stops that == from being rewritten or reversed." },
+          { "label": "No == from <=>", "note": "A hand-written <=> never provides ==, because equality can often be cheaper." }
+        ]
+      },
+      {
+        "label": "Library helpers",
+        "note": "Function objects and exposition-only helpers built on <=>.",
+        "children": [
+          { "label": "compare_three_way", "note": "Calls <=> and gives a strict total order over pointers." },
+          { "label": "synth-three-way", "note": "Used by pair, tuple and containers; falls back on < and yields weak_ordering." },
+          { "label": "strong_order", "note": "Gives floating point the IEEE total order, so NaNs have a place." }
+        ]
+      }
+    ]
+  }
+}

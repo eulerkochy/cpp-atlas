@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "smart-pointers-copy-unique",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "#include <memory>\n\nint main() {\n  auto a = std::make_unique<int>(1);\n  auto b = a;\n  (void)b;\n}",
+      "options": [
+        "Well-formed: `b` shares ownership with `a`",
+        "Well-formed: `a` is moved into `b` and left null",
+        "Ill-formed: the copy constructor of `std::unique_ptr` is deleted",
+        "Undefined behavior: the `int` is deleted twice"
+      ],
+      "answer": 2,
+      "explanation": "`a` is an lvalue, so `auto b = a;` selects the copy constructor, which `std::unique_ptr` declares as deleted. Ownership only moves when you ask for it with `std::move(a)`, after which `a` is guaranteed to be null. The second option describes the removed `std::auto_ptr`, whose copy constructor silently transferred ownership.",
+      "refs": [
+        "[unique.ptr.single]"
+      ]
+    },
+    {
+      "id": "smart-pointers-counts",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <memory>\n\nint main() {\n  auto p = std::make_shared<int>(1);\n  auto q = p;\n  std::weak_ptr<int> w = p;\n  p.reset();\n  std::printf(\"%ld %ld %d\\n\", q.use_count(), w.use_count(), w.expired());\n}",
+      "options": [
+        "`1 0 0`",
+        "`2 1 0`",
+        "`1 1 1`",
+        "`1 1 0`"
+      ],
+      "answer": 3,
+      "explanation": "After `p.reset()`, `q` is the only owner, so the strong count is 1. `weak_ptr::use_count()` reports the number of `shared_ptr` owners of the shared object, not the number of weak references, so it is also 1. Since an owner remains, `expired()` is false. Reading `w.use_count()` as the weak count is the usual mistake behind the first option.",
+      "refs": [
+        "[util.smartptr.weak.obs]",
+        "[util.smartptr.shared.obs]"
+      ]
+    },
+    {
+      "id": "smart-pointers-shared-from-this-unowned",
+      "kind": "warmup",
+      "prompt": "In C++17 and later, what does this program print?",
+      "code": "#include <cstdio>\n#include <memory>\n\nstruct Node : std::enable_shared_from_this<Node> {};\n\nint main() {\n  Node n;\n  try {\n    auto p = n.shared_from_this();\n    std::puts(p ? \"owner\" : \"empty\");\n  } catch (const std::bad_weak_ptr&) {\n    std::puts(\"bad_weak_ptr\");\n  }\n}",
+      "options": [
+        "`bad_weak_ptr`",
+        "`empty`",
+        "`owner`",
+        "Nothing predictable: the behavior is undefined"
+      ],
+      "answer": 0,
+      "explanation": "`shared_from_this()` locks the `weak_ptr` stored in the `enable_shared_from_this` base. No `shared_ptr` ever owned `n`, so that `weak_ptr` is empty, and since C++17 the call is specified as `shared_ptr<T>(weak_this)`, whose constructor throws `std::bad_weak_ptr`. Before C++17 the call had a precondition that an owner existed, so the last option was correct in C++14. Use `weak_from_this()` if an empty result is preferable to an exception.",
+      "refs": [
+        "[util.smartptr.enab]",
+        "[util.smartptr.shared.const]"
+      ]
+    },
+    {
+      "id": "smart-pointers-nonvirtual-base",
+      "kind": "tricky",
+      "prompt": "`Base` has no virtual destructor. What does this program print?",
+      "code": "#include <cstdio>\n#include <memory>\n\nstruct Base { ~Base() { std::puts(\"~Base\"); } };\nstruct Derived : Base { ~Derived() { std::puts(\"~Derived\"); } };\n\nint main() {\n  std::shared_ptr<Base> p(new Derived);\n  p.reset();\n}",
+      "options": [
+        "`~Base` only, because the destructor is not virtual",
+        "`~Derived` then `~Base`",
+        "Nothing predictable: deleting through a base without a virtual destructor is undefined",
+        "Ill-formed: `shared_ptr<Base>` cannot be constructed from `Derived*`"
+      ],
+      "answer": 1,
+      "explanation": "The constructor `template<class Y> shared_ptr(Y* p)` records a deleter that performs `delete p` on the `Y*` it received, here `Derived*`. The control block keeps that deleter, so the eventual deletion has static type `Derived` and runs both destructors in the right order. With `std::unique_ptr<Base>` the default deleter is `default_delete<Base>`, and the third option would be correct.",
+      "refs": [
+        "[util.smartptr.shared.const]",
+        "[util.smartptr.shared.dest]",
+        "[expr.delete]"
+      ]
+    },
+    {
+      "id": "smart-pointers-pimpl-incomplete",
+      "kind": "tricky",
+      "prompt": "This is the whole translation unit; `Impl` is defined in another one. Is it well-formed?",
+      "code": "#include <memory>\n\nstruct Impl;\n\nstruct Widget {\n  std::unique_ptr<Impl> p;\n};\n\nint main() { Widget w; }",
+      "options": [
+        "Well-formed: `unique_ptr` is designed to hold incomplete types",
+        "Well-formed, but the `Impl` destructor is not called",
+        "Undefined behavior: deleting an incomplete type skips the destructor",
+        "Ill-formed: destroying `w` instantiates `default_delete<Impl>::operator()` with `Impl` incomplete"
+      ],
+      "answer": 3,
+      "explanation": "Declaring a `unique_ptr<Impl>` member with `Impl` incomplete is fine, which is why the first option is tempting. But `Widget`'s implicit destructor is defined in this translation unit, it calls `~unique_ptr`, and that calls `default_delete<Impl>::operator()`, which requires a complete type; both libstdc++ and libc++ reject it. A raw `delete` of an incomplete type would be the undefined case in the third option, and `default_delete` exists precisely to turn that into a compile error. Declare `~Widget()` here and define it as `= default` where `Impl` is complete.",
+      "refs": [
+        "[unique.ptr.dltr.dflt]",
+        "[unique.ptr.single.dtor]"
+      ]
+    },
+    {
+      "id": "smart-pointers-aliasing",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <memory>\n#include <utility>\n\nint main() {\n  auto owner = std::make_shared<std::pair<int, int>>(1, 2);\n  std::shared_ptr<int> second(owner, &owner->second);\n  owner.reset();\n  std::printf(\"%d %ld\\n\", *second, second.use_count());\n}",
+      "options": [
+        "`2 1`",
+        "`2 2`",
+        "Nothing predictable: `second` dangles once `owner` is reset",
+        "`2 0`"
+      ],
+      "answer": 0,
+      "explanation": "The aliasing constructor makes `second` share ownership with `owner`, using the same control block, while storing a pointer to the `second` member. Resetting `owner` drops one of the two owners, so the pair stays alive and `use_count()` is 1. The dangling answer assumes `second` owns only an `int`, which it does not; a use count of 0 only happens when the aliasing source was empty.",
+      "refs": [
+        "[util.smartptr.shared.const]"
+      ]
+    },
+    {
+      "id": "smart-pointers-race-on-object",
+      "kind": "standardese",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <memory>\n#include <thread>\n\nstd::shared_ptr<int> g = std::make_shared<int>(0);\n\nvoid reader() { std::shared_ptr<int> local = g; (void)local; }\nvoid writer() { g = std::make_shared<int>(1); }\n\nint main() {\n  std::thread a(reader), b(writer);\n  a.join();\n  b.join();\n}",
+      "options": [
+        "Well-defined: reference count updates are atomic",
+        "Well-defined only where atomic operations on two pointers are lock-free",
+        "Data race on the `int` objects, but not on `g`",
+        "Data race on `g`: undefined behavior"
+      ],
+      "answer": 3,
+      "explanation": "[util.smartptr.shared] says that, for determining data races, `shared_ptr` member functions access and modify only the `shared_ptr` and `weak_ptr` objects themselves. Copying `g` reads `g`, and assigning to `g` modifies it, from two threads without synchronization, so the program has a data race on the single object `g`. The atomic count only makes it safe for different `shared_ptr` objects that share a control block to be used concurrently. Use a mutex or `std::atomic<std::shared_ptr<int>>`.",
+      "refs": [
+        "[util.smartptr.shared]",
+        "[intro.races]",
+        "[res.on.data.races]"
+      ]
+    },
+    {
+      "id": "smart-pointers-out-ptr-order",
+      "kind": "standardese",
+      "prompt": "In C++23, what does this program print, one token per line?",
+      "code": "#include <cstdio>\n#include <cstdlib>\n#include <memory>\n\nint c_make(int** out) {\n  std::puts(\"c_make\");\n  *out = static_cast<int*>(std::malloc(sizeof(int)));\n  **out = 7;\n  return 0;\n}\n\nstruct Free {\n  void operator()(int* p) const { std::puts(\"free\"); std::free(p); }\n};\n\nint main() {\n  std::unique_ptr<int, Free> p(static_cast<int*>(std::malloc(sizeof(int))));\n  c_make(std::out_ptr(p));\n  std::printf(\"%d\\n\", *p);\n}",
+      "options": [
+        "`c_make`, `free`, `7`, `free`",
+        "`c_make`, `7`, `free`, because the original allocation leaks",
+        "`free`, `c_make`, `7`, `free`",
+        "Ill-formed: `std::out_ptr` requires an empty smart pointer"
+      ],
+      "answer": 2,
+      "explanation": "The `out_ptr_t` constructor calls `p.reset()` immediately, so the original allocation is freed before `c_make` runs. The function writes into the adapter's own pointer, and the adapter's destructor, at the end of the full-expression, calls `p.reset(new_value)`, which has nothing old left to free. The final `free` comes from `p`'s destructor. The first option is what you would see if the reset happened only in the destructor. `inout_ptr` differs again: it releases the old pointer without freeing it and passes it in, expecting the function to free or reuse it.",
+      "refs": [
+        "[out.ptr.t]",
+        "[out.ptr]"
+      ]
+    }
+  ]
+}

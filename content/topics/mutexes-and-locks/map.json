@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "Mutexes and locks",
+    "note": "A mutex makes critical sections exclusive, and each unlock synchronizes with the next lock.",
+    "children": [
+      {
+        "label": "Mutex kinds",
+        "note": "All are neither copyable nor movable; their identity is what threads agree on.",
+        "children": [
+          { "label": "std::mutex", "note": "Plain exclusive mutex with a constexpr constructor, so globals are constant-initialized." },
+          { "label": "recursive_mutex", "note": "The owner may relock; unlock as many times; exceeding the unspecified depth throws." },
+          { "label": "Timed mutexes", "note": "timed_mutex and recursive_timed_mutex add try_lock_for and try_lock_until." },
+          { "label": "Shared mutexes", "note": "shared_mutex (C++17) allows many lock_shared holders or one exclusive owner; no upgrade." },
+          { "label": "Spurious try_lock", "note": "try_lock may fail on a free mutex, and a failed try_lock synchronizes with nothing." }
+        ]
+      },
+      {
+        "label": "Lock wrappers",
+        "note": "RAII types that tie ownership to a scope, satisfying the Lockable requirements on the inside.",
+        "children": [
+          { "label": "lock_guard", "note": "Locks in the constructor, unlocks in the destructor; not movable; adopt_lock takes over." },
+          { "label": "scoped_lock (C++17)", "note": "Variadic; with several mutexes it uses the std::lock algorithm." },
+          { "label": "unique_lock", "note": "Movable, optional ownership, defer_lock and try_to_lock; required by condition_variable." },
+          { "label": "shared_lock (C++14)", "note": "Calls lock_shared and unlock_shared, for readers of a shared mutex." },
+          { "label": "Unnamed wrappers", "note": "scoped_lock{m}; unlocks at once; unique_lock<mutex>(m); declares a new variable m." }
+        ]
+      },
+      {
+        "label": "Deadlock",
+        "note": "A cycle of threads each holding a mutex the next one wants.",
+        "children": [
+          { "label": "Lock ordering", "note": "A global acquisition order makes cycles impossible." },
+          { "label": "std::lock", "note": "Locks several Lockables without deadlock by an unspecified algorithm; unlocks all on exception." },
+          { "label": "std::try_lock", "note": "Returns -1 on success, or the zero-based index of the first mutex it could not lock." }
+        ]
+      },
+      {
+        "label": "Undefined behavior",
+        "note": "Mutex rules are preconditions, so breaking them is undefined, not an error code.",
+        "children": [
+          { "label": "Relocking", "note": "Locking a non-recursive mutex the thread already owns; deadlock is common, not guaranteed." },
+          { "label": "Foreign unlock", "note": "Only the owning thread may unlock a mutex." },
+          { "label": "Owned at death", "note": "Destroying an owned mutex, or a thread ending while it owns one." }
+        ]
+      },
+      {
+        "label": "One-time initialization",
+        "note": "Two standard ways to run initialization exactly once under concurrency.",
+        "children": [
+          { "label": "Magic statics", "note": "Since C++11 concurrent callers wait; a throw means retry; recursive re-entry is undefined." },
+          { "label": "call_once", "note": "Exceptional executions leave the flag unset; the returning one synchronizes with passive calls." }
+        ]
+      },
+      {
+        "label": "Granularity",
+        "note": "Hold a lock for the shortest stretch that keeps the invariant intact.",
+        "children": [
+          { "label": "No unknown code", "note": "Callbacks under a lock can relock or invert lock order; snapshot, unlock, then call." },
+          { "label": "No leaked references", "note": "A reference to guarded data returned from a locked accessor is unprotected afterwards." }
+        ]
+      }
+    ]
+  }
+}

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import { Menu, Search } from "lucide-react";
 import { LogoMark } from "@/components/LogoMark";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useProgress } from "@/components/ProgressProvider";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -160,7 +161,7 @@ export function Navbar() {
     <header className="pointer-events-none fixed inset-x-0 top-3 z-40 flex justify-center px-4 sm:top-4">
       <nav
         aria-label="Main"
-        className="pointer-events-auto flex h-12 items-center gap-0.5 rounded-full border border-line bg-white/75 pr-1.5 pl-1.5 shadow-[0_6px_24px_-12px_rgb(0_0_0/0.25)] backdrop-blur-xl backdrop-saturate-150"
+        className="pointer-events-auto flex h-12 items-center gap-0.5 rounded-full border border-line bg-[var(--nav-glass)] pr-1.5 pl-1.5 shadow-[0_6px_24px_-12px_rgb(0_0_0/0.25)] backdrop-blur-xl backdrop-saturate-150"
       >
         <Link
           href="/"
@@ -190,6 +191,7 @@ export function Navbar() {
               ⌘K
             </kbd>
           </button>
+          <ThemeToggle />
         </div>
 
         <div className="flex items-center sm:hidden">
@@ -202,6 +204,7 @@ export function Navbar() {
           >
             <Search className="size-4" aria-hidden />
           </button>
+          <ThemeToggle />
           <Sheet>
             <SheetTrigger
               render={

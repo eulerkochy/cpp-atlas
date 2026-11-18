@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Range adaptors and pipelines",
+    "note": "Lazy views built from adaptor objects; the pipe only rearranges the call.",
+    "children": [
+      {
+        "label": "Adaptor objects",
+        "note": "Every views:: name is a function object, specified in [range.adaptor.object].",
+        "children": [
+          { "label": "Closure objects", "note": "Take one range; C(r) and r | C are equivalent, as with views::reverse or views::join." },
+          { "label": "Partial application", "note": "views::filter(p) stores p and returns a closure; r | views::filter(p) is views::filter(r, p)." },
+          { "label": "Composing closures", "note": "C | D is a closure, and r | (C | D) means D(C(r)), the same as r | C | D." },
+          { "label": "Not pipeable", "note": "zip, cartesian_product and concat take many ranges; xs | views::zip(ys) does not compile." }
+        ]
+      },
+      {
+        "label": "Adaptors to know",
+        "note": "C++20 gave selection and reshaping; C++23 added the range-v3 favourites.",
+        "children": [
+          { "label": "C++20 core", "note": "filter, transform, take, drop, take_while, drop_while, join, split, reverse, keys, values." },
+          { "label": "C++23 additions", "note": "zip, enumerate, chunk, slide, stride, cartesian_product, as_rvalue, as_const." },
+          { "label": "split vs lazy_split", "note": "split needs a forward range and yields subranges; lazy_split takes input ranges, weak pieces." }
+        ]
+      },
+      {
+        "label": "Category kept or lost",
+        "note": "An adaptor offers only what it can do in constant time on its input.",
+        "children": [
+          { "label": "filter", "note": "At most bidirectional and never sized, since gaps between matches are unknown." },
+          { "label": "transform", "note": "Keeps random access and size but is never contiguous: values are computed." },
+          { "label": "take on a list", "note": "Sized but not common: counted_iterator paired with default_sentinel." },
+          { "label": "Cheaper return types", "note": "take and drop on span, string_view or sized iota_view return that same kind of type." }
+        ]
+      },
+      {
+        "label": "Evaluation surprises",
+        "note": "Work happens at dereference time, every time.",
+        "children": [
+          { "label": "transform then filter", "note": "The function runs once to test and again to read every element that passes." },
+          { "label": "Writing through filter", "note": "Undefined behavior if the new value fails the predicate, per [range.filter.iterator]." },
+          { "label": "Regular functions", "note": "transform and filter require regular_invocable: same input, same output." }
+        ]
+      },
+      {
+        "label": "Caching",
+        "note": "begin() must be amortized O(1), so some views remember their first position.",
+        "children": [
+          { "label": "Who caches", "note": "filter, split, chunk_by, drop on non-random-access inputs, reverse on non-common inputs." },
+          { "label": "No const iteration", "note": "Caching begin() is non-const, so a const filter_view is not a range." },
+          { "label": "Stale cache", "note": "Changing underlying data after a pass does not move the cached begin; recreate the view." }
+        ]
+      },
+      {
+        "label": "Custom adaptors",
+        "note": "C++23 range_adaptor_closure gives your own function object the pipe.",
+        "children": [
+          { "label": "CRTP base", "note": "Derive D from range_adaptor_closure<D> exactly once; D must not itself be a range." },
+          { "label": "Arguments", "note": "Store them as members, or build the closure with std::bind_back over an adaptor." }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "template-instantiation-and-specialization-lazy-member",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "template<class T> struct Box {\n  T value;\n  void bad() { value.frobnicate(); }\n};\n\nint main() {\n  Box<int> b{42};\n  return b.value - 42;\n}",
+      "options": [
+        "Ill-formed: `int` has no member `frobnicate`",
+        "Ill-formed, no diagnostic required",
+        "Well-formed: the body of `bad` is never instantiated",
+        "Ill-formed: a class with member functions cannot be initialized with `{42}`"
+      ],
+      "answer": 2,
+      "explanation": "Implicitly instantiating `Box<int>` instantiates the declarations of its members, so `void bad();` exists, but not the definitions of its member functions. The body of `bad` would be instantiated only if `bad` were used, and it is not. The first option is the error you would get from `b.bad();` or from an explicit instantiation definition of `Box<int>`. `Box<int>` is still an aggregate, because member functions do not affect that, so `{42}` initializes `value`.",
+      "refs": [
+        "[temp.inst]"
+      ]
+    },
+    {
+      "id": "template-instantiation-and-specialization-what-partial",
+      "kind": "warmup",
+      "prompt": "In C++23, which kinds of templates can be partially specialized?",
+      "options": [
+        "Class templates only",
+        "Class templates and variable templates",
+        "Class templates, variable templates and function templates",
+        "Class templates and function templates",
+        "Class templates, variable templates and alias templates"
+      ],
+      "answer": 1,
+      "explanation": "Class templates have always allowed partial specialization, and variable templates allow it since they were added in C++14. Function templates cannot be partially specialized: the language expects you to overload them instead, and partial ordering picks the more specialized overload. Alias templates cannot be specialized at all, neither fully nor partially.",
+      "refs": [
+        "[temp.spec.partial]",
+        "[temp.fct]",
+        "[temp.alias]"
+      ]
+    },
+    {
+      "id": "template-instantiation-and-specialization-which-spec",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\ntemplate<class T> struct S       { static const char* name() { return \"primary\"; } };\ntemplate<class T> struct S<T*>   { static const char* name() { return \"pointer\"; } };\ntemplate<>        struct S<int*> { static const char* name() { return \"int*\"; } };\n\nint main() {\n  std::puts(S<int*>::name());\n  std::puts(S<const int*>::name());\n  std::puts(S<int* const>::name());\n}",
+      "options": [
+        "`int*`, `pointer`, `pointer`",
+        "`pointer`, `pointer`, `primary`",
+        "`int*`, `int*`, `pointer`",
+        "`int*`, `pointer`, `primary`"
+      ],
+      "answer": 3,
+      "explanation": "`S<int*>` uses the explicit specialization, which is an exact match for those arguments. `S<const int*>` matches the partial specialization `S<T*>` with `T` deduced as `const int`. `S<int* const>` is a const pointer: the top-level `const` is part of the argument type, and `int* const` does not have the form `T*`, so the primary template is used. The tempting first option forgets that matching is on the exact type, cv-qualifiers included.",
+      "refs": [
+        "[temp.spec.partial.match]",
+        "[temp.expl.spec]"
+      ]
+    },
+    {
+      "id": "template-instantiation-and-specialization-dimov-abrahams",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\ntemplate<class T> void f(T)    { std::puts(\"f(T)\"); }\ntemplate<>        void f(int*) { std::puts(\"f<int*>\"); }\ntemplate<class T> void f(T*)   { std::puts(\"f(T*)\"); }\n\nint main() {\n  int* p = nullptr;\n  f(p);\n}",
+      "options": [
+        "`f<int*>`",
+        "`f(T*)`",
+        "`f(T)`",
+        "Ill-formed: the call is ambiguous"
+      ],
+      "answer": 1,
+      "explanation": "When the explicit specialization is declared, only `f(T)` exists, so it is a specialization of that template with `T = int*`. Overload resolution then considers only the two primary templates; `f(T*)` is more specialized and wins, and it has no explicit specialization for `int`, so `f(T*)` runs. The tempting answer `f<int*>` is what you get if the specialization is declared after `f(T*)`, because it would then specialize the better template. Explicit specializations never take part in overload resolution themselves.",
+      "refs": [
+        "[temp.over]",
+        "[temp.expl.spec]",
+        "[temp.func.order]"
+      ]
+    },
+    {
+      "id": "template-instantiation-and-specialization-explicit-inst-all",
+      "kind": "tricky",
+      "prompt": "Is this translation unit well-formed?",
+      "code": "template<class T> struct Box {\n  T value;\n  void bad() { value.frobnicate(); }\n};\n\ntemplate struct Box<int>;",
+      "options": [
+        "Well-formed: `bad` is never called",
+        "Ill-formed: the explicit instantiation instantiates `bad`, and `int` has no member `frobnicate`",
+        "Ill-formed, no diagnostic required",
+        "Well-formed, but calling `Box<int>::bad` anywhere would fail to link"
+      ],
+      "answer": 1,
+      "explanation": "An explicit instantiation definition of a class template specialization is also an explicit instantiation definition of every member defined at that point, so the body of `bad` is instantiated with `T = int` and fails. Implicit instantiation is the lazy one; explicit instantiation deliberately is not, which is why it is unsuitable for arguments that support only some members. GCC and Clang reject this translation unit.",
+      "refs": [
+        "[temp.explicit]",
+        "[temp.inst]"
+      ]
+    },
+    {
+      "id": "template-instantiation-and-specialization-poi-end",
+      "kind": "tricky",
+      "prompt": "According to the C++23 standard, what is the status of this program?",
+      "code": "namespace n {\n  struct A {};\n  int score(const A&) { return 1; }\n}\ntemplate<class T> int pick(T t) { return score(t); }\n\nint first = pick(n::A{});\n\nnamespace n { int score(A&) { return 2; } }\n\nint main() { return first; }",
+      "options": [
+        "Well-formed; `main` returns 1, because only `score(const A&)` is visible where `pick` is called",
+        "Well-formed; `main` returns 2, because instantiation happens at the end of the file",
+        "Ill-formed, no diagnostic required",
+        "Ill-formed: `score` is not declared when `pick` is defined"
+      ],
+      "answer": 2,
+      "explanation": "`pick<n::A>` has a point of instantiation right after the declaration of `first`, and the end of the translation unit is also a point of instantiation. At the first, argument-dependent lookup finds only `score(const A&)`; at the second it also finds `score(A&)`, a better match for the lvalue `t`. Two points of instantiation that give different meanings make the program ill-formed, no diagnostic required. GCC 16 and Clang 21 both return 2, which is why the second option is tempting, but that is what the implementations happen to do, not a guarantee.",
+      "refs": [
+        "[temp.point]"
+      ]
+    },
+    {
+      "id": "template-instantiation-and-specialization-spec-after-use",
+      "kind": "standardese",
+      "prompt": "What does the C++23 standard say about this translation unit?",
+      "code": "template<class T> struct Traits { static constexpr int id = 0; };\n\nint f() { return Traits<int>::id; }\n\ntemplate<> struct Traits<int> { static constexpr int id = 1; };",
+      "options": [
+        "Well-formed; `f` returns 0",
+        "Well-formed; `f` returns 1, since the specialization is found at the end of the file",
+        "Undefined behavior when `f` is called",
+        "Ill-formed, no diagnostic required, because the specialization is declared after a use that instantiates `Traits<int>`"
+      ],
+      "answer": 3,
+      "explanation": "An explicit specialization must be declared before the first use that would cause an implicit instantiation, in every translation unit with such a use; otherwise the program is ill-formed and no diagnostic is required. Here `Traits<int>::id` instantiates the primary template first. GCC and Clang do diagnose this case within one file, with \"specialization of 'Traits<int>' after instantiation\", but the standard does not require it, and across translation units the same mistake goes unnoticed.",
+      "refs": [
+        "[temp.expl.spec]"
+      ]
+    },
+    {
+      "id": "template-instantiation-and-specialization-extern-template",
+      "kind": "standardese",
+      "prompt": "Several translation units include this header and call `Widget<int>{}.run()`. No translation unit contains `template struct Widget<int>;`. What does the standard say?",
+      "code": "// widget.h\ntemplate<class T> struct Widget { int run(); };\ntemplate<class T> int Widget<T>::run() { return 7; }\n\nextern template struct Widget<int>;",
+      "options": [
+        "Well-formed: `extern template` is only a hint, and each translation unit may still instantiate `run`",
+        "Ill-formed, no diagnostic required; in practice a link error for `Widget<int>::run()`",
+        "Ill-formed: the compiler must diagnose the missing explicit instantiation definition",
+        "Well-formed: one of the translation units is chosen to instantiate `run`"
+      ],
+      "answer": 1,
+      "explanation": "An explicit instantiation declaration suppresses implicit instantiation of the definitions of non-inline members such as `run`. If an entity named by an explicit instantiation declaration is used in a way that would otherwise instantiate it, an explicit instantiation definition must appear somewhere in the program, or the program is ill-formed with no diagnostic required. With GCC 16 this program fails to link with an undefined `Widget<int>::run()`. The hint reading is true only for inline functions, which `run` is not, because it is defined outside the class without `inline`.",
+      "refs": [
+        "[temp.explicit]"
+      ]
+    }
+  ]
+}

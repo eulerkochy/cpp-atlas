@@ -1,0 +1,56 @@
+{
+  "root": {
+    "label": "Coroutine library",
+    "note": "A non-owning handle, a no-op coroutine and two trivial awaiters; generators and tasks are built on top.",
+    "children": [
+      {
+        "label": "coroutine_handle",
+        "note": "A copyable, non-owning pointer to a coroutine frame.",
+        "children": [
+          { "label": "Typed and void", "note": "Only coroutine_handle<P> has promise() and from_promise; any typed handle converts to the void form." },
+          { "label": "resume precondition", "note": "Suspended and not at the final suspend point; otherwise undefined behavior." },
+          { "label": "destroy precondition", "note": "Suspended at any point; destroying twice or while running is undefined behavior." },
+          { "label": "done", "note": "True only at the final suspend point; calling it on a destroyed frame is UB." }
+        ]
+      },
+      {
+        "label": "Trivial pieces",
+        "note": "Library-provided building blocks with no behavior of their own.",
+        "children": [
+          { "label": "noop_coroutine", "note": "resume and destroy do nothing and done() is always false." },
+          { "label": "noop equality", "note": "Handles from different noop_coroutine calls may or may not compare equal." },
+          { "label": "suspend_always, suspend_never", "note": "constexpr noexcept awaiters whose await_ready returns false or true." }
+        ]
+      },
+      {
+        "label": "Hand-written generator",
+        "note": "Suspend initially and finally, store the value in the promise, own the handle.",
+        "children": [
+          { "label": "Lazy start", "note": "initial_suspend returns suspend_always so nothing runs before the first next()." },
+          { "label": "Final suspend", "note": "Suspending at the end keeps done() valid and lets the owner destroy the frame." },
+          { "label": "Move-only owner", "note": "The destructor calls destroy once; copying would destroy twice." }
+        ]
+      },
+      {
+        "label": "Hand-written task",
+        "note": "A lazy single-result coroutine that resumes its awaiter when it finishes.",
+        "children": [
+          { "label": "Continuation", "note": "await_suspend stores the awaiting handle in the child's promise." },
+          { "label": "Start by transfer", "note": "await_suspend returns the child's handle instead of calling resume." },
+          { "label": "Finish by transfer", "note": "The final awaiter returns the continuation, or noop_coroutine if none." }
+        ]
+      },
+      {
+        "label": "std::generator (C++23)",
+        "note": "generator<Ref, V, Allocator> in <generator>: a coroutine that is also a range.",
+        "children": [
+          { "label": "Reference type", "note": "generator<T> yields T&&; generator<const T&> yields references without copies." },
+          { "label": "elements_of", "note": "Nested generators transfer directly; other ranges need references convertible to the yielded type." },
+          { "label": "Move-only input view", "note": "Not copyable, forward, sized or common; begin() may be called only once." },
+          { "label": "Allocator", "note": "Pass allocator_arg and an allocator as the first two parameters to allocate the frame." },
+          { "label": "Range-for temporaries", "note": "C++23 extends temporaries in the loop initializer, not in an earlier declaration." }
+        ]
+      }
+    ]
+  }
+}

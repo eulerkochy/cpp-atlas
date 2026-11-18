@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "Partial ordering",
+    "note": "How the compiler picks the most specialized template when conversions tie.",
+    "children": [
+      {
+        "label": "Place in overload resolution",
+        "note": "A tie-breaker that runs only after conversion sequences fail to separate candidates.",
+        "children": [
+          { "label": "Conversions first", "note": "f('a') picks a template with T = char over f(int), which needs a promotion." },
+          { "label": "Non-template wins ties", "note": "With equal conversions a non-template beats any template specialization." },
+          { "label": "Tie-breaker order", "note": "Non-template, then more specialized, then more constrained, then non-rewritten, then non-reversed." }
+        ]
+      },
+      {
+        "label": "The procedure",
+        "note": "Synthesize unique types for one template and deduce the other from it, both ways.",
+        "children": [
+          { "label": "Types considered", "note": "In a call, only parameters with explicit arguments; default arguments are ignored." },
+          { "label": "Adjustments", "note": "References and then top-level cv are stripped before deducing." },
+          { "label": "More specialized", "note": "Deduction succeeds one way for all types and fails the other way for some." },
+          { "label": "Ambiguity", "note": "g(T, int*) and g(int*, T) each win one position, so g(p, p) is ambiguous." }
+        ]
+      },
+      {
+        "label": "References and packs",
+        "note": "Extra tie-breaks when deduction succeeds in both directions.",
+        "children": [
+          { "label": "Lvalue beats rvalue", "note": "f(T&) is more specialized than f(T&&) for an lvalue argument." },
+          { "label": "More cv wins", "note": "const T& beats T&& for a const lvalue, after both bind const int&." },
+          { "label": "Forwarding wins conversions", "note": "For a non-const lvalue T&& binds int&, which beats const int& before ordering runs." },
+          { "label": "Trailing pack loses", "note": "On a tie, f(T) beats f(T, Ts...) because of the empty pack (CWG 1395)." }
+        ]
+      },
+      {
+        "label": "Constraints",
+        "note": "C++20 lets the more constrained template win, under conditions.",
+        "children": [
+          { "label": "Same shape required", "note": "Only templates with equivalent template parameters and parameter types are compared by constraints." },
+          { "label": "Concepts subsume", "note": "Repeated requires is_integral_v<T> clauses are different atomic constraints and never subsume." },
+          { "label": "Non-template members", "note": "Constraints also order non-template members of class templates with equal parameters." }
+        ]
+      },
+      {
+        "label": "Specializations",
+        "note": "Explicit and partial specializations use the same ordering differently.",
+        "children": [
+          { "label": "Explicit ones never compete", "note": "They attach to the primary template chosen where they are declared." },
+          { "label": "Class partial ordering", "note": "Each partial specialization is rewritten as a function template taking S<args>." },
+          { "label": "Ambiguous use ill-formed", "note": "S<T, int> and S<int, T> both match S<int, int>, so that use is an error." },
+          { "label": "Must beat primary", "note": "A partial specialization must be more specialized than the primary template." }
+        ]
+      },
+      {
+        "label": "Rewritten operators",
+        "note": "C++20 adds reversed and rewritten comparison candidates.",
+        "children": [
+          { "label": "Reversed parameter order", "note": "A reversed template candidate is ordered with its parameters reversed." },
+          { "label": "Late tie-breaker", "note": "A reversed non-template still beats a non-reversed template." },
+          { "label": "Non-const member ==", "note": "Ambiguous by the letter of C++20; GCC and Clang accept it with a warning." }
+        ]
+      }
+    ]
+  }
+}

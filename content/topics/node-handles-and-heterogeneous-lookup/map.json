@@ -1,0 +1,116 @@
+{
+  "root": {
+    "label": "Node handles and heterogeneous lookup",
+    "note": "Splice nodes between containers and search without building keys.",
+    "children": [
+      {
+        "label": "Node handles (C++17)",
+        "note": "Move-only owners of one detached node.",
+        "children": [
+          {
+            "label": "extract",
+            "note": "Unlinks a node by iterator or key with no allocation; a missing key gives an empty handle."
+          },
+          {
+            "label": "Edit the key",
+            "note": "nh.key() is mutable, the only way to rename a map key without copying."
+          },
+          {
+            "label": "Move out of a set",
+            "note": "nh.value() is mutable, so an element can be moved out of a set."
+          },
+          {
+            "label": "Reference validity",
+            "note": "References to an extracted element are unusable while owned, valid again after insertion."
+          }
+        ]
+      },
+      {
+        "label": "Inserting nodes",
+        "note": "Reinsertion is a relink, not a copy.",
+        "children": [
+          {
+            "label": "insert_return_type",
+            "note": "Holds position, inserted and node; the node keeps the element after a duplicate failure."
+          },
+          {
+            "label": "Empty handle insert",
+            "note": "No effect: inserted is false, position is end(), node is empty."
+          },
+          {
+            "label": "Multi containers",
+            "note": "Insertion cannot fail on duplicates and returns a plain iterator."
+          }
+        ]
+      },
+      {
+        "label": "merge",
+        "note": "Splice every non-conflicting node from another container.",
+        "children": [
+          {
+            "label": "Duplicates stay behind",
+            "note": "Elements whose key exists in the destination remain in the source."
+          },
+          {
+            "label": "Compatible containers",
+            "note": "Comparator or hash may differ, and map and multimap interchange."
+          }
+        ]
+      },
+      {
+        "label": "Allocator rules",
+        "note": "The node carries its container's allocator.",
+        "children": [
+          {
+            "label": "Equal allocators needed",
+            "note": "insert and merge across unequal allocators are undefined."
+          },
+          {
+            "label": "pmr resources differ",
+            "note": "Two pmr maps on different resources have unequal allocators."
+          }
+        ]
+      },
+      {
+        "label": "Heterogeneous lookup",
+        "note": "Search with a type other than the key.",
+        "children": [
+          {
+            "label": "Transparent comparator",
+            "note": "std::less<> or any comparator with is_transparent enables template find overloads."
+          },
+          {
+            "label": "Unordered (C++20)",
+            "note": "Needs a transparent hash and equality, and hashes must agree across types."
+          },
+          {
+            "label": "Erase and extract (C++23)",
+            "note": "Template overloads take transparent keys; excluded for iterator-convertible types."
+          },
+          {
+            "label": "Insertion forms (C++26)",
+            "note": "operator[], at, try_emplace and insert_or_assign gain heterogeneous overloads."
+          }
+        ]
+      },
+      {
+        "label": "Pitfalls",
+        "note": "Transparency is a promise the container trusts.",
+        "children": [
+          {
+            "label": "Both argument orders",
+            "note": "The comparator must accept key-versus-other and other-versus-key."
+          },
+          {
+            "label": "Consistent ordering",
+            "note": "Foreign comparisons must agree with key ordering, or lookup is undefined."
+          },
+          {
+            "label": "Library support",
+            "note": "g++-16 has C++23 erase and extract; libc++ 21 lacks them."
+          }
+        ]
+      }
+    ]
+  }
+}

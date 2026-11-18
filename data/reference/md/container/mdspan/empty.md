@@ -1,0 +1,25 @@
+# std::mdspan<T,Extents,LayoutPolicy,AccessorPolicy>::empty
+
+Source: https://en.cppreference.com/w/cpp/container/mdspan/empty
+
+```cpp
+constexpr bool empty() const noexcept; // (since C++23)
+```
+
+Check if the `mdspan` is empty.
+
+## Parameters
+
+(none)
+
+## Return value
+
+`true` if the size of the multidimensional index space `extents()` is `​0​`, otherwise `false`.
+
+## Example
+
+> Note: This section is incomplete Reason: no example
+
+## See also
+
+> Note: This section is incomplete

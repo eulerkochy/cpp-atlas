@@ -1,0 +1,62 @@
+{
+  "root": {
+    "label": "Instantiation and specialization",
+    "note": "Each argument set names a specialization, instantiated from the template or written by hand.",
+    "children": [
+      {
+        "label": "Implicit instantiation",
+        "note": "Happens on demand when a use needs the definition.",
+        "children": [
+          { "label": "Declarations only", "note": "A class instantiation creates member declarations, not member function bodies." },
+          { "label": "Bodies when used", "note": "A member function, default argument or static member is instantiated only if needed." },
+          { "label": "Pointers need nothing", "note": "Naming Box<T>* or Box<T>& does not instantiate the class." }
+        ]
+      },
+      {
+        "label": "Point of instantiation",
+        "note": "Where dependent names are resolved as though the specialization were written.",
+        "children": [
+          { "label": "Function templates", "note": "Right after the namespace-scope declaration that uses it, and also at end of file." },
+          { "label": "Class templates", "note": "Immediately before the namespace-scope declaration that needs it." },
+          { "label": "Differing meanings", "note": "If two points give different meanings, ill-formed, no diagnostic required." }
+        ]
+      },
+      {
+        "label": "Explicit instantiation",
+        "note": "You tell the compiler to instantiate, or not to.",
+        "children": [
+          { "label": "template struct X<int>;", "note": "Instantiates every member defined at that point, so all bodies must compile." },
+          { "label": "extern template", "note": "Suppresses implicit instantiation of non-inline definitions in this translation unit." },
+          { "label": "Missing definition", "note": "Used but never explicitly instantiated anywhere: ill-formed NDR, usually a link error." }
+        ]
+      },
+      {
+        "label": "Explicit specialization",
+        "note": "template<> supplies the definition for one exact argument list.",
+        "children": [
+          { "label": "Unrelated class", "note": "A full class specialization inherits no members from the primary template." },
+          { "label": "Single member", "note": "One member function of an implicit specialization can be specialized alone." },
+          { "label": "Declare before use", "note": "After an instantiating use, or missing in another TU: ill-formed NDR." }
+        ]
+      },
+      {
+        "label": "Partial specialization",
+        "note": "Constrains the shape of arguments while keeping some parameters.",
+        "children": [
+          { "label": "Class and variable", "note": "Allowed for class templates and, since C++14, variable templates only." },
+          { "label": "Most specialized wins", "note": "Among matching partial specializations; equal ones make the use ambiguous." },
+          { "label": "Exact matching", "note": "int* const does not match T*; cv-qualifiers are part of the type." }
+        ]
+      },
+      {
+        "label": "Function templates",
+        "note": "No partial specialization; overload them instead.",
+        "children": [
+          { "label": "Not in overload resolution", "note": "Only primaries compete; the winner's explicit specialization then supplies the body." },
+          { "label": "Dimov/Abrahams", "note": "A specialization attaches to the best primary visible where it is declared." },
+          { "label": "Prefer overloads", "note": "Use a plain overload, or forward to a partially specialized class template." }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+# std::experimental::pmr::polymorphic_allocator<T>::operator=
+
+Source: https://en.cppreference.com/w/cpp/experimental/polymorphic_allocator/operator=
+
+```cpp
+polymorphic_allocator& operator=( const polymorphic_allocator& rhs ) = default; // (library fundamentals TS)
+```
+
+Copy assigns this `polymorphic_allocator`. Sets the memory resource pointer of `*this` to that of `rhs`.
+
+## Parameters
+
+- `rhs` - another `polymorphic_allocator` to copy from
+
+## Return value
+
+`*this`

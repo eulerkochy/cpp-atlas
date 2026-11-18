@@ -1,0 +1,9 @@
+# No Diagnostic Required
+
+Source: https://en.cppreference.com/w/c/language/ndr
+
+"No diagnostic required" indicates that some phraseology is ill-formed according to the language rules, but a compiler need not issue any diagnostic or error message. Usually, the reason is that trying to detect these situations would result in prohibitively long compile times.
+
+## See also
+
+- [C++ documentation for No Diagnostic Required](https://en.cppreference.com/w/cpp/language/ndr)

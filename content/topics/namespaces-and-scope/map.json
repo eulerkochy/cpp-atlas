@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Namespaces and scope",
+    "note": "Where a declaration is visible, and how named, reopenable namespace scopes combine.",
+    "children": [
+      {
+        "label": "Kinds of scope",
+        "note": "Namespace, class, enumeration, block, function parameter, lambda and template parameter.",
+        "children": [
+          { "label": "Block scopes", "note": "Compound statements, each if, switch, loop and handler introduce one." },
+          { "label": "P1787R6", "note": "C++23 rewording: declarations inhabit and target scopes and bind names." },
+          { "label": "P2036R3", "note": "A lambda's trailing return type sees its init-captures; applied as a defect report." }
+        ]
+      },
+      {
+        "label": "Point of declaration",
+        "note": "The locus where a name starts to be visible.",
+        "children": [
+          { "label": "Variables", "note": "After the declarator, before the initializer: char n[n] uses the outer n." },
+          { "label": "Enumerators", "note": "After the initializer, so k = k + 5 reads the outer k." },
+          { "label": "Complete-class contexts", "note": "Member function bodies and default arguments see members declared later." }
+        ]
+      },
+      {
+        "label": "Block scope",
+        "note": "Inner declarations hide outer ones of the same name.",
+        "children": [
+          { "label": "Shadowing", "note": "Legal and silent; hidden globals are reachable with ::, hidden locals are not." },
+          { "label": "Forbidden redeclarations", "note": "Parameters in the outer body block, condition names in if or else bodies." },
+          { "label": "-Wshadow", "note": "GCC and Clang warn about shadowing only when asked." }
+        ]
+      },
+      {
+        "label": "Namespaces",
+        "note": "Named scopes that can be reopened in any file.",
+        "children": [
+          { "label": "Qualified definitions", "note": "Define a member outside only after declaring it, from an enclosing namespace." },
+          { "label": "Nested definitions", "note": "namespace a::b::c is C++17; namespace a::inline b is C++20." },
+          { "label": "Aliases", "note": "namespace fs = std::filesystem; an alias cannot reopen the namespace." },
+          { "label": "Unnamed namespaces", "note": "A unique name plus a using-directive; same-named globals become ambiguous." }
+        ]
+      },
+      {
+        "label": "Using-directives",
+        "note": "using namespace N declares nothing; it only changes unqualified lookup.",
+        "children": [
+          { "label": "Nearest enclosing rule", "note": "Names act as if declared in the nearest namespace enclosing directive and target." },
+          { "label": "Transitive", "note": "A directive for B also brings in namespaces that B nominates." },
+          { "label": "Ambiguity on use", "note": "Two directives bringing the same name only fail when it is used unqualified." }
+        ]
+      },
+      {
+        "label": "Inline namespaces",
+        "note": "Members act as members of the enclosing namespace for most purposes.",
+        "children": [
+          { "label": "ABI versioning", "note": "The inline name stays in mangled names, like std::__cxx11 and std::__1." },
+          { "label": "Specialization", "note": "Templates can be specialized through the enclosing namespace's name." },
+          { "label": "First definition", "note": "inline must appear on the first definition; adding it later is ill-formed." }
+        ]
+      }
+    ]
+  }
+}

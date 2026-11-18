@@ -1,0 +1,54 @@
+{
+  "root": {
+    "label": "optional, variant, any",
+    "note": "Three vocabulary types for a value that may be absent, one of a closed set, or anything.",
+    "children": [
+      {
+        "label": "optional",
+        "note": "A T or nothing, stored inline with no allocation.",
+        "children": [
+          { "label": "Accessors", "note": "operator* on an empty optional is undefined behavior; value() throws bad_optional_access." },
+          { "label": "Assignment", "note": "Constructs, assigns or destroys depending on which side is engaged; emplace destroys then constructs." },
+          { "label": "optional<bool> trap", "note": "if (opt) tests engagement, not the contained boolean." },
+          { "label": "Comparisons", "note": "An empty optional equals nullopt and is less than every value." }
+        ]
+      },
+      {
+        "label": "variant basics",
+        "note": "Exactly one of a fixed list of alternatives, with index() saying which.",
+        "children": [
+          { "label": "Default construction", "note": "Holds a value-initialized first alternative; put monostate first if that type has no default constructor." },
+          { "label": "get versus get_if", "note": "get throws bad_variant_access on mismatch; get_if takes a pointer and returns null." },
+          { "label": "visit and overloaded", "note": "visit with an overloaded lambda set forces every alternative to be handled at compile time." }
+        ]
+      },
+      {
+        "label": "variant conversions",
+        "note": "How a value picks an alternative, and what happens when that goes wrong.",
+        "children": [
+          { "label": "Converting constructor", "note": "Overload resolution over the alternatives; ties make the constructor unavailable." },
+          { "label": "Narrowing excluded", "note": "Since the C++20 fix, narrowing candidates are dropped, so a literal no longer picks bool." },
+          { "label": "valueless_by_exception", "note": "A throw during a type change can leave no value; index() is then variant_npos." }
+        ]
+      },
+      {
+        "label": "any",
+        "note": "A type-erased box holding a copy of any copy-constructible value.",
+        "children": [
+          { "label": "Decayed storage", "note": "any a = \"hi\" holds a const char*, not a std::string." },
+          { "label": "Copy requirement", "note": "The decayed type must be copy constructible, so move-only types are rejected." },
+          { "label": "Small buffer", "note": "Implementations are encouraged but not required to avoid allocating for small types." },
+          { "label": "any_cast forms", "note": "Value and reference forms throw bad_any_cast; the pointer form returns null." }
+        ]
+      },
+      {
+        "label": "Choosing",
+        "note": "Pick by how much the type system knows about the alternatives.",
+        "children": [
+          { "label": "Closed set", "note": "Use variant when you can list the types; it is checked at compile time." },
+          { "label": "Open set", "note": "Use any only when the types are genuinely unknown, and expect a run-time check." }
+        ]
+      }
+    ]
+  }
+}

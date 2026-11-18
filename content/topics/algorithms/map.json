@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "The algorithm library",
+    "note": "Loops with contracts over half-open iterator ranges; every requirement is a precondition.",
+    "children": [
+      {
+        "label": "Contract basics",
+        "note": "Algorithms see iterators, never containers, so they cannot change a container's size.",
+        "children": [
+          { "label": "Half-open ranges", "note": "[first, last) includes first, excludes last; not found is reported as last." },
+          { "label": "Parameter names", "note": "ForwardIterator or RandomAccessIterator in a signature states the required category." },
+          { "label": "Predicates may be copied", "note": "Function objects can be copied freely, so state inside them may split across copies." },
+          { "label": "No modifying predicates", "note": "A predicate must not modify elements through the iterator it is given." }
+        ]
+      },
+      {
+        "label": "remove and unique",
+        "note": "Shift kept elements forward and return the new logical end.",
+        "children": [
+          { "label": "Erase-remove idiom", "note": "Call erase(result, end); C++20 std::erase_if does both steps." },
+          { "label": "Tail state", "note": "Elements past the returned iterator are valid but unspecified." },
+          { "label": "Adjacent only", "note": "unique collapses runs of equal neighbours; sort first to remove all duplicates." }
+        ]
+      },
+      {
+        "label": "Copy and overlap",
+        "note": "Overlap rules are preconditions; breaking them is undefined behavior.",
+        "children": [
+          { "label": "copy", "note": "Destination start must not lie in [first, last)." },
+          { "label": "copy_backward", "note": "For overlap to the right; d_last must not lie in (first, last]." },
+          { "label": "transform in place", "note": "Output may equal an input iterator exactly, by explicit remark." }
+        ]
+      },
+      {
+        "label": "Sorting and searching",
+        "note": "All need a strict weak ordering; searches need correctly ordered input.",
+        "children": [
+          { "label": "sort", "note": "Unstable, worst-case O(N log N) comparisons since C++11." },
+          { "label": "stable_sort", "note": "Keeps equivalent elements in order; N log squared N without a buffer." },
+          { "label": "Binary searches", "note": "Need the range partitioned with respect to the value, not fully sorted." },
+          { "label": "Same comparator", "note": "Searching with a different ordering than the sort violates the precondition." }
+        ]
+      },
+      {
+        "label": "Partitions and heaps",
+        "note": "Linear-time reordering and the max-heap behind priority_queue.",
+        "children": [
+          { "label": "partition", "note": "Unstable; stable_partition keeps order at the cost of memory or N log N swaps." },
+          { "label": "partition_point", "note": "Binary search for the boundary of an already partitioned range." },
+          { "label": "pop_heap", "note": "Moves the largest element to the back; the container must still pop it." }
+        ]
+      },
+      {
+        "label": "ranges:: versions",
+        "note": "Constrained function objects added in C++20.",
+        "children": [
+          { "label": "Concept checks", "note": "ranges::sort on a list fails at the call, not deep inside the library." },
+          { "label": "Projections", "note": "A callable applied to each element first, such as &Person::age." },
+          { "label": "Return types", "note": "copy gives in_out_result, remove gives a subrange, sort gives the end." },
+          { "label": "Not found by ADL", "note": "They are objects, so no ADL and no explicit template arguments." }
+        ]
+      }
+    ]
+  }
+}

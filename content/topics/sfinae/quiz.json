@@ -1,0 +1,147 @@
+{
+  "questions": [
+    {
+      "id": "sfinae-no-survivor",
+      "kind": "warmup",
+      "prompt": "What happens when this program is compiled?",
+      "code": "template <class T>\ntypename T::value_type first(const T& c) { return *c.begin(); }\n\nint main() { return first(42); }",
+      "options": [
+        "It compiles; SFINAE makes `first` return a default `int`",
+        "Ill-formed: there is no matching function for `first(42)`",
+        "Ill-formed: a hard error inside the body of `first`",
+        "Undefined behavior"
+      ],
+      "answer": 1,
+      "explanation": "Substituting `T = int` into the return type forms `int::value_type`, which is a substitution failure, so `first` is removed from the candidate set. SFINAE only removes candidates; with nothing left, the call is ill-formed with the ordinary \"no matching function\" diagnostic. The body is never instantiated, so there is no error inside it.",
+      "refs": [
+        "[temp.deduct.general]",
+        "[temp.over]"
+      ]
+    },
+    {
+      "id": "sfinae-default-arg-redeclaration",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "#include <type_traits>\n\ntemplate <class T, class = std::enable_if_t<std::is_integral_v<T>>>\nvoid f(T) {}\n\ntemplate <class T, class = std::enable_if_t<std::is_floating_point_v<T>>>\nvoid f(T) {}\n\nint main() { f(1); }",
+      "options": [
+        "Well-formed: the second template is removed for `int`, the first is called",
+        "Ill-formed: the call `f(1)` is ambiguous",
+        "Ill-formed: the second definition redefines the same function template",
+        "Well-formed, but which overload runs is unspecified"
+      ],
+      "answer": 2,
+      "explanation": "Default template arguments are not part of a function template's signature, so both declarations are `template <class, class> void f(T)`, and the second is a redefinition of the first. The error is reported at the declaration, before any call is considered. Writing the condition as a non-type parameter, `std::enable_if_t<cond, int> = 0`, makes the template parameter types differ and gives two distinct templates.",
+      "refs": [
+        "[temp.over.link]",
+        "[temp.param]",
+        "[basic.def.odr]"
+      ]
+    },
+    {
+      "id": "sfinae-private-member-detection",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <type_traits>\n#include <utility>\n\ntemplate <class, class = void>\nstruct has_size : std::false_type {};\ntemplate <class T>\nstruct has_size<T, std::void_t<decltype(std::declval<T&>().size())>> : std::true_type {};\n\nclass Hidden { int size() const { return 0; } };\nstruct Open { int size() const { return 0; } };\n\nint main() { std::printf(\"%d %d\\n\", has_size<Hidden>::value, has_size<Open>::value); }",
+      "options": [
+        "`0 1`",
+        "`1 1`",
+        "Nothing: ill-formed because `Hidden::size` is private",
+        "`0 0`"
+      ],
+      "answer": 0,
+      "explanation": "Access checking is done as part of substitution, so naming the private `Hidden::size` from the partial specialization is an invalid expression in the immediate context, and the specialization simply does not match. `has_size<Hidden>` falls back to the primary template and is false. The tempting \"ill-formed\" answer was how some pre-C++11 compilers behaved; C++11 made access failures soft.",
+      "refs": [
+        "[temp.deduct.general]",
+        "[meta.trans.other]"
+      ]
+    },
+    {
+      "id": "sfinae-static-assert-in-instantiation",
+      "kind": "tricky",
+      "prompt": "What happens when this program is compiled?",
+      "code": "template <class T>\nstruct Checked {\n  static_assert(sizeof(T) > 1, \"too small\");\n  using type = int;\n};\n\ntemplate <class T> typename Checked<T>::type h(T) { return 0; }\nlong h(...) { return 1; }\n\nint main() { return h('c'); }",
+      "options": [
+        "Ill-formed: the `static_assert` fires while instantiating `Checked<char>`",
+        "It compiles and `main` returns 1, because the template is removed",
+        "It compiles and `main` returns 0",
+        "Ill-formed: the call is ambiguous"
+      ],
+      "answer": 0,
+      "explanation": "To form `typename Checked<char>::type`, the compiler must instantiate `Checked<char>`, and the `static_assert` inside that class is not in the immediate context of `h`'s signature. Errors in side effects of substitution, such as instantiating a class template, are hard errors, so the fallback `h(...)` never gets a chance. The first option is what people expect when they think of SFINAE as \"any error during overload resolution\".",
+      "refs": [
+        "[temp.deduct.general]",
+        "[temp.inst]"
+      ]
+    },
+    {
+      "id": "sfinae-auto-return-probe",
+      "kind": "tricky",
+      "prompt": "What happens when this program is compiled?",
+      "code": "#include <cstdio>\n#include <utility>\n\ntemplate <class T> auto value_of(T t) { return t.value; }\n\ntemplate <class T>\nauto probe(int) -> decltype(value_of(std::declval<T>()), true) { return true; }\ntemplate <class T> bool probe(...) { return false; }\n\nint main() { std::printf(\"%d\\n\", probe<int>(0)); }",
+      "options": [
+        "It prints `0`",
+        "It prints `1`",
+        "Ill-formed: `value_of<int>` must be instantiated to deduce its return type, and `t.value` is invalid there",
+        "Ill-formed, no diagnostic required"
+      ],
+      "answer": 2,
+      "explanation": "`value_of(std::declval<int>())` is a valid call as far as its declaration goes, but the type of the call is not known until the placeholder return type is deduced, which requires instantiating the body. Errors in that body are outside the immediate context of `probe`, so they are hard errors rather than a quiet `0`. A trailing `-> decltype(t.value)` on `value_of` would have moved the check into its signature and made `probe` print `0`.",
+      "refs": [
+        "[temp.deduct.general]",
+        "[dcl.spec.auto]"
+      ]
+    },
+    {
+      "id": "sfinae-class-param-member",
+      "kind": "tricky",
+      "prompt": "Which line, if any, makes this translation unit ill-formed?",
+      "code": "#include <type_traits>\n\ntemplate <class T>\nstruct W {\n  std::enable_if_t<std::is_integral_v<T>, int> get() { return 0; }\n};\n\nW<int> a;     // #1\nW<double> b;  // #2",
+      "options": [
+        "Neither: `get` is simply removed from `W<double>`",
+        "Only #2",
+        "Only #1",
+        "Neither, as long as `b.get()` is never called"
+      ],
+      "answer": 1,
+      "explanation": "`get` is not a template, so nothing is deduced or substituted when it is used. Instantiating the class `W<double>` instantiates the declarations of its members, and the declaration of `get` names `std::enable_if<false, int>::type`, which does not exist: a hard error that makes the translation unit ill-formed at #2. Making `get` a template with its own defaulted parameter, such as `template <class U = T>`, moves the condition into a substitution and turns it into SFINAE.",
+      "refs": [
+        "[temp.inst]",
+        "[temp.deduct.general]"
+      ]
+    },
+    {
+      "id": "sfinae-lexical-order",
+      "kind": "standardese",
+      "prompt": "Under the C++23 rules for the order of substitution, which of the two calls in `use` is ill-formed?",
+      "code": "template <class T> struct A { using X = typename T::X; };\n\ntemplate <class T> typename T::X f(typename A<T>::X);\ntemplate <class T> int f(...) { return 1; }\n\ntemplate <class T> auto g(typename A<T>::X) -> typename T::X;\ntemplate <class T> int g(...) { return 2; }\n\nvoid use() {\n  f<int>(0);\n  g<int>(0);\n}",
+      "options": [
+        "Both",
+        "Only `f<int>(0)`",
+        "Neither: both fall back to the `(...)` overloads",
+        "Only `g<int>(0)`"
+      ],
+      "answer": 3,
+      "explanation": "Substitution proceeds in lexical order and stops when it hits a failure. For `f`, the return type `int::X` comes first and fails softly, so `A<int>` is never instantiated and the `(...)` overload is chosen. For `g`, the trailing return type comes after the parameter, so `A<int>::X` is substituted first, which instantiates `A<int>` and fails inside the class: a hard error, so `g<int>(0)` is ill-formed. The two declarations look equivalent, which is why \"both\" or \"neither\" is tempting.",
+      "refs": [
+        "[temp.deduct.general]"
+      ]
+    },
+    {
+      "id": "sfinae-which-is-soft",
+      "kind": "standardese",
+      "prompt": "Which of these, encountered while substituting into a function template's declaration in C++23, is a substitution failure rather than a hard error?",
+      "options": [
+        "A `static_assert` failing inside a class template that the return type instantiates",
+        "An invalid expression in the body of a lambda that appears inside a `decltype` in the return type",
+        "An invalid member access in the body of a function with a deduced `auto` return type that the signature calls",
+        "Naming a private member type of a class in the return type, from outside that class"
+      ],
+      "answer": 3,
+      "explanation": "Access checking is part of the substitution process, so an inaccessible name in the signature is an invalid type in the immediate context and removes the candidate. The other three all happen outside the immediate context: instantiating a class template is a side effect, C++20 says a lambda body is not part of the immediate context, and deducing an `auto` return type instantiates the function's body.",
+      "refs": [
+        "[temp.deduct.general]",
+        "[dcl.spec.auto]"
+      ]
+    }
+  ]
+}

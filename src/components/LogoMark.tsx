@@ -8,7 +8,7 @@ export function LogoMark({ className }: { className?: string }) {
       className={className}
       aria-hidden="true"
     >
-      <circle cx="16" cy="16" r="16" fill="#000" />
+      <circle cx="16" cy="16" r="16" fill="var(--logo-ground)" />
       <circle cx="22.5" cy="10" r="5.5" fill="#FFC93A" />
       <path
         d="M7 22.5h18"

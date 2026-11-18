@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "function-parameters-and-default-arguments-virtual-default",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct Base {\n  virtual void hi(int n = 1) const { std::printf(\"Base %d\\n\", n); }\n  virtual ~Base() = default;\n};\nstruct Der : Base {\n  void hi(int n = 2) const override { std::printf(\"Der %d\\n\", n); }\n};\n\nint main() {\n  Der d;\n  const Base& b = d;\n  b.hi();\n  d.hi();\n}",
+      "options": [
+        "`Der 2`, then `Der 2`",
+        "`Base 1`, then `Der 2`",
+        "`Der 1`, then `Der 2`",
+        "Ill-formed: an override cannot change a default argument"
+      ],
+      "answer": 2,
+      "explanation": "The call through `b` is virtual, so `Der::hi` runs, but default arguments are supplied by the caller from the declaration found through the static type, which is `Base::hi` with default 1. The call through `d` sees `Der::hi` and its default 2. Changing a default in an override is legal, merely confusing.",
+      "refs": [
+        "[dcl.fct.default]",
+        "[class.virtual]"
+      ]
+    },
+    {
+      "id": "function-parameters-and-default-arguments-vexing-parse",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "struct Timer {};\nstruct Widget {\n  Widget(Timer) {}\n  int size() const { return 1; }\n};\n\nint main() {\n  Widget w(Timer());\n  return w.size();\n}",
+      "options": [
+        "Well-formed: `w` is a `Widget` built from a value-initialized `Timer`, and `main` returns 1",
+        "Well-formed, but the `Timer` temporary dangles",
+        "Ill-formed: `Timer()` cannot be used as a constructor argument",
+        "Ill-formed: `w` declares a function, so `w.size()` is invalid"
+      ],
+      "answer": 3,
+      "explanation": "[dcl.ambig.res] resolves anything that can be a declaration as a declaration. `Timer()` can be read as a parameter of type \"function returning `Timer`\", adjusted to a pointer to function, so `w` is a function declaration. Member access on a function is ill-formed. Writing `Widget w{Timer{}};` or `Widget w((Timer()));` gives the object the first option describes.",
+      "refs": [
+        "[dcl.ambig.res]",
+        "[dcl.fct]"
+      ]
+    },
+    {
+      "id": "function-parameters-and-default-arguments-array-param-type",
+      "kind": "warmup",
+      "prompt": "What is `decltype(f)`?",
+      "code": "void f(const int a[10]);",
+      "options": [
+        "`void(const int[10])`",
+        "`void(const int*)`",
+        "`void(int*)`",
+        "`void(const int* const)`"
+      ],
+      "answer": 1,
+      "explanation": "A parameter of type \"array of `const int`\" is adjusted to \"pointer to `const int`\", and the bound 10 is discarded. The `const` applies to the elements, so it survives; only top-level cv-qualifiers on the parameter itself are removed, and there are none here. A reference-to-array parameter would have kept the bound.",
+      "refs": [
+        "[dcl.fct]"
+      ]
+    },
+    {
+      "id": "function-parameters-and-default-arguments-default-binding",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nint x = 1;\nvoid show(int a = x) { std::printf(\"%d\\n\", a); }\n\nint main() {\n  int x = 2;\n  (void)x;\n  ::x = 3;\n  show();\n}",
+      "options": [
+        "`1`: the default is evaluated when `show` is declared",
+        "`2`: the default is evaluated in the caller's scope",
+        "`3`",
+        "Ill-formed: a default argument cannot name a variable"
+      ],
+      "answer": 2,
+      "explanation": "The name `x` in the default argument is looked up where `show` is declared, so it means `::x`, not the local `x` in `main`. But the expression is evaluated at each call that uses it, and by then `::x` is 3. Default arguments may name variables with static storage duration; only locals, `this` and, in evaluated contexts, other parameters are forbidden.",
+      "refs": [
+        "[dcl.fct.default]"
+      ]
+    },
+    {
+      "id": "function-parameters-and-default-arguments-accumulate",
+      "kind": "tricky",
+      "prompt": "Is this program well-formed, and if so what does it print?",
+      "code": "#include <cstdio>\n\nvoid f(int, int);\nvoid f(int, int = 2);\nvoid f(int = 1, int);\nvoid f(int a, int b) { std::printf(\"%d %d\\n\", a, b); }\n\nint main() { f(); }",
+      "options": [
+        "Ill-formed: `void f(int = 1, int)` gives a default to a parameter followed by one without",
+        "Well-formed; prints `1 2`",
+        "Ill-formed: default arguments must all appear on the first declaration",
+        "Ill-formed: the definition must repeat the default arguments"
+      ],
+      "answer": 1,
+      "explanation": "For a non-template function, later declarations in the same scope may add default arguments. By the third declaration the second parameter already has a default from a previous declaration, so giving the first one a default is allowed; the right-to-left rule counts defaults from earlier declarations too. The definition must not repeat a default, and here it does not. The first option would be correct if the second declaration were missing.",
+      "refs": [
+        "[dcl.fct.default]"
+      ]
+    },
+    {
+      "id": "function-parameters-and-default-arguments-noexcept-ptr",
+      "kind": "tricky",
+      "prompt": "In C++23, which line makes this translation unit ill-formed?",
+      "code": "void f() {}\nvoid g() noexcept {}\n\nvoid (*p1)() = f;            // #1\nvoid (*p2)() = g;            // #2\nvoid (*p3)() noexcept = f;   // #3\nvoid (*p4)() noexcept = g;   // #4",
+      "options": [
+        "#2: a `noexcept` function cannot be stored in a plain function pointer",
+        "#3",
+        "#4: `noexcept` cannot appear in a pointer declarator",
+        "None: `noexcept` is not part of the function type"
+      ],
+      "answer": 1,
+      "explanation": "Since C++17, `noexcept` is part of the function type. The function pointer conversion goes only from pointer-to-`noexcept`-function to pointer-to-potentially-throwing function, which makes #2 valid. #3 would claim that `f` never throws, so no conversion exists and it is ill-formed. The last option describes C++14.",
+      "refs": [
+        "[conv.fctptr]",
+        "[except.spec]",
+        "[dcl.fct]"
+      ]
+    },
+    {
+      "id": "function-parameters-and-default-arguments-va-promotion",
+      "kind": "standardese",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <cstdarg>\n#include <cstdio>\n\ndouble sum(int n, ...) {\n  va_list ap;\n  va_start(ap, n);\n  double s = 0;\n  for (int i = 0; i < n; ++i) s += va_arg(ap, double);\n  va_end(ap);\n  return s;\n}\n\nint main() {\n  float f = 1.5f;\n  std::printf(\"%g\\n\", sum(2, f, 2.5));\n}",
+      "options": [
+        "Undefined behavior: a `float` is passed but read as `double`",
+        "Implementation-defined: the output depends on the calling convention",
+        "Ill-formed: a `float` cannot be passed to an ellipsis",
+        "It prints `4`"
+      ],
+      "answer": 3,
+      "explanation": "An argument with no corresponding parameter undergoes the default argument promotions, and `float` is promoted to `double` before the call. So both variadic arguments really are `double`, and `va_arg(ap, double)` reads them correctly, giving 4. Reading with `va_arg(ap, float)` would be the undefined behaviour the first option describes.",
+      "refs": [
+        "[expr.call]",
+        "[conv.fpprom]",
+        "[cstdarg.syn]"
+      ]
+    },
+    {
+      "id": "function-parameters-and-default-arguments-block-scope-default",
+      "kind": "standardese",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nvoid f(int n = 7);\n\nvoid g() {\n  void f(int n = 9);\n  f();\n}\n\nvoid f(int n) { std::printf(\"%d\\n\", n); }\n\nint main() {\n  f();\n  g();\n}",
+      "options": [
+        "`7`, then `9`",
+        "`7`, then `7`",
+        "`9`, then `9`",
+        "Ill-formed: the block-scope declaration redefines a default argument"
+      ],
+      "answer": 0,
+      "explanation": "[dcl.fct.default] says declarations in different scopes have completely distinct sets of default arguments. The block-scope declaration in `g` is in a different scope from the namespace-scope one, so giving it a different default is not a redefinition, and calls inside `g` see 9. Calls in `main` see only the namespace-scope declaration and get 7.",
+      "refs": [
+        "[dcl.fct.default]"
+      ]
+    }
+  ]
+}

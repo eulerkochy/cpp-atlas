@@ -1,0 +1,54 @@
+# std::istrstream::istrstream
+
+Source: https://en.cppreference.com/w/cpp/io/istrstream/istrstream
+
+```cpp
+explicit istrstream( const char* s ); // (1) (deprecated in C++98) (removed in C++26)
+explicit istrstream( char* s ); // (2) (deprecated in C++98) (removed in C++26)
+istrstream( const char* s, std::streamsize n ); // (3) (deprecated in C++98) (removed in C++26)
+istrstream( char* s, std::streamsize n ); // (4) (deprecated in C++98) (removed in C++26)
+```
+
+Constructs new `std::istrstream` and its underlying `std::strstreambuf`.
+
+1,2) Constructs the underlying `std::strstreambuf` by calling `strstreambuf(s, 0)` and initializes the base class with the address of the `strstreambuf`. The behavior is undefined if `s` is not pointing at an element of a null-terminated array.
+
+3,4) Constructs the underlying `std::strstreambuf` by calling `strstreambuf(s, n)` and initializes the base class with the address of the `strstreambuf`. The behavior is undefined if `s` is not pointing at an element of an array whose length is at least `n` elements.
+
+## Parameters
+
+- `s` - C-string or char array to use as the contents of the stream
+- `n` - size of the array
+
+## Example
+
+```cpp
+#include <iostream>
+#include <strstream>
+
+int main()
+{
+    std::istrstream s1("1 2 3"); // string literal
+    int n1, n2, n3;
+    if (s1 >> n1 >> n2 >> n3)
+        std::cout << n1 << ", " << n2 << ", " << n3 << '\n';
+
+    char arr[] = {'4', ' ', '5', ' ', '6'};
+    std::istrstream s2(arr, sizeof arr);
+    if (s2 >> n1 >> n2 >> n3)
+        std::cout << n1 << ", " << n2 << ", " << n3 << '\n';
+}
+```
+
+Output:
+
+```text
+1, 2, 3
+4, 5, 6
+```
+
+## See also
+
+- [(constructor)](https://en.cppreference.com/w/cpp/io/strstreambuf/strstreambuf): constructs a `strstreambuf` object (public member function of `std::strstreambuf`)
+- [(constructor)](https://en.cppreference.com/w/cpp/io/ostrstream/ostrstream): constructs an `ostrstream` object, optionally allocating the buffer (public member function of `std::ostrstream`)
+- [(constructor)](https://en.cppreference.com/w/cpp/io/strstream/strstream): constructs a `strstream` object, optionally allocating the buffer (public member function of `std::strstream`)

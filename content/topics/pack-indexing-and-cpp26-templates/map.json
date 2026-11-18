@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "C++26 template features",
+    "note": "Packs become indexable, creatable from objects, usable in friend lists and orderable in constraints.",
+    "children": [
+      {
+        "label": "Pack indexing",
+        "note": "P2662R3: Ts...[N] picks a type and xs...[N] picks a value from a pack.",
+        "children": [
+          { "label": "Constant size_t index", "note": "The index is a converted constant std::size_t below the pack length; out of range is ill-formed." },
+          { "label": "Non-deduced context", "note": "T...[0] as a parameter type cannot deduce T; the pack ends up empty and the call fails." },
+          { "label": "decltype result", "note": "decltype(xs...[0]) is the parameter's declared type; add parentheses for a reference." },
+          { "label": "Annex C break", "note": "void f(T... [1]) used to declare unnamed array parameters; now it is a pack index." }
+        ]
+      },
+      {
+        "label": "Structured binding packs",
+        "note": "P1061R10: auto [a, ...rest] = e; binds the leftover elements as a pack.",
+        "children": [
+          { "label": "One pack, any position", "note": "At most one ellipsis per declaration; it may be first, middle or last, and may be empty." },
+          { "label": "Templates only", "note": "The declaration must declare a templated entity, such as inside a template or generic lambda." },
+          { "label": "constexpr bindings", "note": "P2686 allows constexpr structured bindings; GCC 16 implements it only partially." }
+        ]
+      },
+      {
+        "label": "Variadic friends",
+        "note": "P2893R3: friend Ts...; and friend A, B; are valid friend-type-declarations.",
+        "children": [
+          { "label": "Non-class ignored", "note": "A friend-type-specifier that is not a class type is ignored, so int in the pack is fine." },
+          { "label": "No friend class Ts...", "note": "An elaborated-type-specifier naming a template parameter is ill-formed." },
+          { "label": "Passkey idiom", "note": "A class can grant access to a caller-supplied list of types without a helper." }
+        ]
+      },
+      {
+        "label": "Fold constraints",
+        "note": "P2963R3: folds over && and || in constraints become fold expanded constraints.",
+        "children": [
+          { "label": "Subsumption now works", "note": "(integral<T> && ...) is more constrained than (Num<T> && ...) when integral refines Num." },
+          { "label": "Same operator, same pack", "note": "An && fold never subsumes an || fold, because empty packs satisfy one but not the other." },
+          { "label": "Bool elements", "note": "Each element is its own atomic constraint and must be bool, which breaks some C++23 code." },
+          { "label": "GCC 16 gap", "note": "GCC 16 does not implement P2963; Clang 21 does." }
+        ]
+      },
+      {
+        "label": "New template parameters",
+        "note": "P2841R7: concepts and variable templates can be template arguments.",
+        "children": [
+          { "label": "Concept parameter", "note": "template<class> concept C takes a concept and may be used as a type-constraint." },
+          { "label": "Variable template parameter", "note": "template<class> auto V takes a variable template such as zero, not zero<int>." },
+          { "label": "Concept-dependent constraints", "note": "Constraints using an unknown concept argument are not eligible for subsumption." },
+          { "label": "Constant template parameter", "note": "C++26 wording renames non-type template parameters to constant template parameters." }
+        ]
+      },
+      {
+        "label": "Expansion statements",
+        "note": "P1306R5: template for repeats its body per element at compile time.",
+        "children": [
+          { "label": "Three forms", "note": "Enumerating over {exprs...}, iterating over a constant range, or destructuring an object." },
+          { "label": "Support", "note": "GCC 16 supports template for in -std=c++26; Clang 21 does not." }
+        ]
+      }
+    ]
+  }
+}

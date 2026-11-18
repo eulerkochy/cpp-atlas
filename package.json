@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "import:cppreference": "node scripts/import-cppreference.mjs",
+    "check:reference": "node scripts/check-reference.mjs",
+    "check:content": "node scripts/check-content.mjs",
+    "check:snippets": "node scripts/check-snippets.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -25,6 +29,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cheerio": "^1.2.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
     "tailwindcss": "4.3.3",

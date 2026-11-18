@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "std::format and print",
+    "note": "A checked format string whose fields are handled by formatter<T>::parse and ::format.",
+    "children": [
+      {
+        "label": "Format string grammar",
+        "note": "Literal text plus replacement fields with an optional index and spec.",
+        "children": [
+          { "label": "Standard spec order", "note": "Fill and align, sign, #, 0, width, precision, L, then type." },
+          { "label": "Argument indexing", "note": "Use all automatic or all manual indices; mixing them is an error." },
+          { "label": "Nested width and precision", "note": "A nested {} takes width or precision from a non-negative standard integer argument." },
+          { "label": "Type-dependent defaults", "note": "Numbers align right, strings left; bool prints as text and char as a character." }
+        ]
+      },
+      {
+        "label": "Checking and errors",
+        "note": "Errors surface at compile time when possible and as format_error otherwise.",
+        "children": [
+          { "label": "format_string is consteval", "note": "A literal is parsed against the argument types at compile time." },
+          { "label": "vformat", "note": "Takes a runtime string and make_format_args of lvalues; throws format_error." },
+          { "label": "runtime_format (C++26)", "note": "Wraps a runtime string so std::format accepts it unchecked." },
+          { "label": "format_error", "note": "Thrown by vformat, bad dynamic widths, and formatters that reject a spec." }
+        ]
+      },
+      {
+        "label": "Custom formatters",
+        "note": "Specialize std::formatter for your own type.",
+        "children": [
+          { "label": "parse", "note": "Consumes the spec text and returns an iterator to the closing brace." },
+          { "label": "format const", "note": "Writes to ctx.out() and must be a const member function." },
+          { "label": "Reuse via delegation", "note": "Format into a string and pad with a standard formatter to get width support." }
+        ]
+      },
+      {
+        "label": "Ranges and tuples (C++23)",
+        "note": "Containers, pairs and tuples are formattable when their elements are.",
+        "children": [
+          { "label": "Default shapes", "note": "Sequences use brackets, sets and maps braces, tuples parentheses." },
+          { "label": "Element specs", "note": "In {::#x}, the second colon starts the spec applied to each element." },
+          { "label": "n option", "note": "{:n} removes the surrounding brackets or braces." }
+        ]
+      },
+      {
+        "label": "Output functions",
+        "note": "Same formatters, different destinations.",
+        "children": [
+          { "label": "format_to", "note": "Writes through an output iterator and returns the end iterator." },
+          { "label": "format_to_n", "note": "Writes at most n characters; size is the untruncated length." },
+          { "label": "formatted_size", "note": "Computes the output length without writing anything." },
+          { "label": "print and println", "note": "C++23 functions that write to stdout or a FILE*, with Unicode-aware terminal output." }
+        ]
+      },
+      {
+        "label": "Unicode and locale",
+        "note": "Widths are in display columns, and locale is opt-in.",
+        "children": [
+          { "label": "Estimated width", "note": "For UTF-8 literal encoding, wide East Asian characters count as two columns." },
+          { "label": "L option", "note": "Only L applies the locale's grouping, radix and bool names; plain {} ignores it." }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Random numbers",
+    "note": "Engines produce bits, distributions shape them, and the seed decides the start.",
+    "children": [
+      {
+        "label": "Three parts",
+        "note": "Generator, distribution and seed are separate objects with separate failure modes.",
+        "children": [
+          { "label": "Engines", "note": "Deterministic state machines: same seed gives the same sequence on every implementation." },
+          { "label": "Adaptors", "note": "discard_block, independent_bits and shuffle_order engines wrap another engine." },
+          { "label": "Distributions", "note": "Turn engine output into values; the algorithm is not specified, so results vary by library." },
+          { "label": "Predefined check value", "note": "The 10000th call of a default mt19937 returns 4123659995." }
+        ]
+      },
+      {
+        "label": "Why not rand()",
+        "note": "std::rand has hidden global state and implementation-defined quality.",
+        "children": [
+          { "label": "Modulo bias", "note": "rand() % n favors some residues unless n divides RAND_MAX + 1." },
+          { "label": "Small RAND_MAX", "note": "RAND_MAX is only guaranteed to be at least 32767." },
+          { "label": "random_shuffle removed", "note": "It used rand and was removed in C++17; use shuffle with an engine." }
+        ]
+      },
+      {
+        "label": "Seeding",
+        "note": "A program's randomness cannot exceed its seed's.",
+        "children": [
+          { "label": "random_device", "note": "Meant to be non-deterministic, but may be a fixed pseudo-random engine on some platforms." },
+          { "label": "Single 32-bit seed", "note": "Reaches at most 2^32 of mt19937's states; 1<<32 and 0 give the same engine." },
+          { "label": "seed_seq", "note": "Spreads seed words over the engine state but cannot add entropy." }
+        ]
+      },
+      {
+        "label": "Distribution rules",
+        "note": "Interval conventions and permitted types differ per distribution.",
+        "children": [
+          { "label": "Integer is closed", "note": "uniform_int_distribution gives [a, b] and needs a <= b, else undefined behavior." },
+          { "label": "Real is half-open", "note": "uniform_real_distribution gives [a, b), but rounding has returned b in some libraries." },
+          { "label": "Allowed int types", "note": "Only short, int, long, long long and unsigned forms; char and bool are undefined." },
+          { "label": "State and reset", "note": "Distributions may cache values, as normal does; reset discards the cache." }
+        ]
+      },
+      {
+        "label": "Algorithms and threads",
+        "note": "Shuffle and sample take a generator, and generators are not thread-safe.",
+        "children": [
+          { "label": "shuffle", "note": "Permutes a range with a generator; results differ between libraries." },
+          { "label": "sample", "note": "C++17 selection without replacement; stable only for forward iterators." },
+          { "label": "Thread safety", "note": "Concurrent calls on one engine or distribution race; use one engine per thread." }
+        ]
+      },
+      {
+        "label": "C++26",
+        "note": "Counter-based generation for parallel work.",
+        "children": [
+          { "label": "philox_engine", "note": "Counter-based engine with philox4x32 and philox4x64 aliases." },
+          { "label": "generate_random", "note": "Ranges algorithm that fills a range from a generator; not in GCC 16.2." }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "questions": [
+    {
+      "id": "casts-remove-const-which-cast",
+      "kind": "warmup",
+      "prompt": "Given `const int* cp`, which of these named casts to `int*` is well-formed?",
+      "code": "int x = 0;\nconst int* cp = &x;\n// int* p = ???_cast<int*>(cp);",
+      "options": [
+        "`static_cast<int*>(cp)`",
+        "`reinterpret_cast<int*>(cp)`",
+        "`const_cast<int*>(cp)`",
+        "`dynamic_cast<int*>(cp)`"
+      ],
+      "answer": 2,
+      "explanation": "Only `const_cast` may remove cv-qualification. `static_cast` and `reinterpret_cast` are both forbidden from casting away constness, so both are ill-formed here even though `reinterpret_cast` is often assumed to allow anything. `dynamic_cast` requires a pointer or reference to a class type.",
+      "refs": [
+        "[expr.const.cast]",
+        "[expr.static.cast]",
+        "[expr.reinterpret.cast]"
+      ]
+    },
+    {
+      "id": "casts-write-const-object",
+      "kind": "warmup",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <cstdio>\n\nint main() {\n  const int x = 1;\n  int* p = const_cast<int*>(&x);\n  *p = 2;\n  std::printf(\"%d\\n\", x);\n}",
+      "options": [
+        "Undefined behavior",
+        "It prints `2`",
+        "It prints `1`, because the compiler folds `x`",
+        "Ill-formed: `const_cast` cannot be applied to the address of a const object"
+      ],
+      "answer": 0,
+      "explanation": "The `const_cast` itself is valid, but `x` is a const object, and modifying a const object during its lifetime is undefined behavior. Printing `1` is a common outcome because compilers fold reads of `x` to its initializer, but it is just one possible result of undefined behavior. Had `x` been declared without `const` and reached through a `const int*`, the write would be fine.",
+      "refs": [
+        "[dcl.type.cv]",
+        "[expr.const.cast]"
+      ]
+    },
+    {
+      "id": "casts-dynamic-cast-reference-failure",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <typeinfo>\n\nstruct A { virtual ~A() = default; };\nstruct C : A {};\n\nint main() {\n  A a;\n  try {\n    C& c = dynamic_cast<C&>(a);\n    (void)c;\n    std::puts(\"ok\");\n  } catch (const std::bad_cast&) {\n    std::puts(\"bad_cast\");\n  }\n}",
+      "options": [
+        "`ok`",
+        "Nothing: it is ill-formed to `dynamic_cast` to a reference",
+        "Undefined behavior: a reference cannot be null",
+        "`bad_cast`"
+      ],
+      "answer": 3,
+      "explanation": "`a` is a complete `A` object, not part of a `C`, so the run-time check fails. There is no null reference to return, so the reference form of `dynamic_cast` throws `std::bad_cast` instead, and the handler prints `bad_cast`. The pointer form would have returned a null pointer.",
+      "refs": [
+        "[expr.dynamic.cast]",
+        "[bad.cast]"
+      ]
+    },
+    {
+      "id": "casts-static-downcast-wrong-object",
+      "kind": "tricky",
+      "prompt": "What does the standard say about this program?",
+      "code": "struct Base { virtual ~Base() = default; };\nstruct Derived : Base { int extra = 0; };\n\nint main() {\n  Base b;\n  Derived* d = static_cast<Derived*>(&b);\n  (void)d;  // d is never dereferenced\n}",
+      "options": [
+        "Well-defined, as long as `d` is never dereferenced",
+        "Undefined behavior at the cast itself",
+        "`d` is a null pointer, because the cast fails",
+        "Ill-formed: `Base` is polymorphic, so `dynamic_cast` is required"
+      ],
+      "answer": 1,
+      "explanation": "[expr.static.cast] allows a base-to-derived pointer cast only when the pointer really points to a base subobject of a `Derived`; otherwise the behavior is undefined, and that applies to the cast, not just to a later access. Only `dynamic_cast` checks and returns null. Being polymorphic does not forbid `static_cast`; it merely makes the checked alternative available.",
+      "refs": [
+        "[expr.static.cast]"
+      ]
+    },
+    {
+      "id": "casts-c-style-private-base",
+      "kind": "tricky",
+      "prompt": "What does the standard say about this program?",
+      "code": "struct Base { int x = 1; };\nstruct Other { int y = 2; };\nstruct Derived : Other, private Base {};\n\nint main() {\n  Derived d;\n  Base* b = (Base*)&d;\n  return b->x;\n}",
+      "options": [
+        "Ill-formed: `Base` is an inaccessible base of `Derived`",
+        "The cast is a `reinterpret_cast`, so `b` points at the `Other` subobject and reading `b->x` is undefined",
+        "Well-formed: it is a derived-to-base conversion that ignores access, and `main` returns 1",
+        "Implementation-defined"
+      ],
+      "answer": 2,
+      "explanation": "A C-style cast tries `static_cast` before `reinterpret_cast`, and in doing so it is allowed to convert to a base class even when that base is inaccessible. So `(Base*)&d` adjusts the address to the real `Base` subobject, and `b->x` reads 1. A named `static_cast<Base*>(&d)` would be ill-formed; the C-style cast is the only way to bypass the access check, which is a reason to avoid it.",
+      "refs": [
+        "[expr.cast]",
+        "[expr.static.cast]"
+      ]
+    },
+    {
+      "id": "casts-const-prvalue-type",
+      "kind": "tricky",
+      "prompt": "What type does `T` name?",
+      "code": "int i = 0;\nusing T = decltype(static_cast<const int>(i));",
+      "options": [
+        "`int`",
+        "`const int`",
+        "`const int&`",
+        "`int&&`"
+      ],
+      "answer": 0,
+      "explanation": "Casting to a non-reference type produces a prvalue, and `decltype` of a prvalue is the plain type. [expr.type] says a prvalue of non-class type is never cv-qualified, so the `const` is dropped and `T` is `int`; GCC even warns that the qualifier is ignored. For a class type, `static_cast<const S>(s)` would keep the `const`.",
+      "refs": [
+        "[expr.static.cast]",
+        "[expr.type]",
+        "[dcl.type.decltype]"
+      ]
+    },
+    {
+      "id": "casts-dynamic-cast-void-pointer",
+      "kind": "standardese",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct A { virtual ~A() = default; int a = 0; };\nstruct B { virtual ~B() = default; int b = 0; };\nstruct C : A, B {};\n\nint main() {\n  C c;\n  B* pb = &c;\n  std::printf(\"%d\\n\", dynamic_cast<void*>(pb) == static_cast<void*>(&c));\n}",
+      "options": [
+        "`0`, because `pb` points at the `B` subobject",
+        "Implementation-defined: it depends on the class layout",
+        "Nothing: `dynamic_cast` to `void*` is ill-formed",
+        "`1`"
+      ],
+      "answer": 3,
+      "explanation": "[expr.dynamic.cast] says that when the target is a pointer to `void`, the result is a pointer to the most derived object pointed to by the operand. The most derived object is `c`, so the comparison is guaranteed true whatever the layout. The tempting `0` is what `static_cast<void*>(pb)` would give on common ABIs, where the `B` subobject sits after the `A` subobject.",
+      "refs": [
+        "[expr.dynamic.cast]"
+      ]
+    },
+    {
+      "id": "casts-c-style-order",
+      "kind": "standardese",
+      "prompt": "Given `const char* s`, which interpretation does [expr.cast] select for `(int*)s`?",
+      "code": "const char* s = \"hi\";\nint* p = (int*)s;",
+      "options": [
+        "`static_cast<int*>(s)`",
+        "`reinterpret_cast<const int*>(s)` followed by `const_cast<int*>`",
+        "`static_cast` followed by `const_cast`",
+        "None: the cast is ill-formed because no single named cast can do it"
+      ],
+      "answer": 1,
+      "explanation": "A C-style cast takes the first well-formed interpretation from: `const_cast`, `static_cast`, `static_cast` then `const_cast`, `reinterpret_cast`, and `reinterpret_cast` then `const_cast`. There is no static conversion between `char` and `int` pointers, so the static steps fail, and `reinterpret_cast` alone cannot drop `const`. The last step succeeds, so the cast silently both reinterprets and removes `const`, which is exactly the combination a named cast would make you spell out.",
+      "refs": [
+        "[expr.cast]"
+      ]
+    }
+  ]
+}

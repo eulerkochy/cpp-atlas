@@ -1,0 +1,150 @@
+{
+  "questions": [
+    {
+      "id": "fundamental-types-char-plus-char",
+      "kind": "warmup",
+      "prompt": "On a platform with 8-bit `char` and 32-bit `int`, what is the type of `x`?",
+      "code": "char a = 'a', b = 'b';\nauto x = a + b;",
+      "options": [
+        "`char`",
+        "`int`",
+        "Implementation-defined: `int` if `char` is signed, `unsigned int` otherwise",
+        "`unsigned char`"
+      ],
+      "answer": 1,
+      "explanation": "Both operands are promoted before the addition. `char` has a conversion rank below `int`, and a 32-bit `int` can represent every value of an 8-bit `char`, signed or unsigned, so both operands become `int` and so does the result. Signedness would only matter on an exotic platform where `char` is as wide as `int`; there an unsigned `char` would promote to `unsigned int`. Arithmetic never happens in `char`, so the first option is never right.",
+      "refs": [
+        "[conv.prom]",
+        "[expr.arith.conv]"
+      ]
+    },
+    {
+      "id": "fundamental-types-minus-one-less-than-zero-u",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nint main() {\n  std::printf(\"%d\\n\", -1 < 0u);\n}",
+      "options": [
+        "`1`",
+        "Undefined behavior: signed and unsigned comparison",
+        "`0`",
+        "Implementation-defined"
+      ],
+      "answer": 2,
+      "explanation": "The operands are `int` and `unsigned int`, which have the same conversion rank, so the usual arithmetic conversions turn the signed operand into `unsigned int`. `-1` becomes `UINT_MAX`, which is not less than `0u`, so the comparison is `false` and prints `0`. Nothing here is undefined; the conversion to unsigned is modular and fully specified, which is exactly why the bug is silent.",
+      "refs": [
+        "[expr.arith.conv]",
+        "[conv.integral]",
+        "[expr.rel]"
+      ]
+    },
+    {
+      "id": "fundamental-types-signed-char-wrap",
+      "kind": "warmup",
+      "prompt": "In C++20 or later, with `CHAR_BIT == 8`, what does this program print?",
+      "code": "#include <cstdio>\n\nint main() {\n  signed char c = static_cast<signed char>(200);\n  std::printf(\"%d\\n\", c);\n}",
+      "options": [
+        "`-56`",
+        "Implementation-defined",
+        "Undefined behavior: 200 does not fit in `signed char`",
+        "`127`"
+      ],
+      "answer": 0,
+      "explanation": "Since C++20, an integer conversion to a type of width N yields the unique value congruent to the source modulo 2^N, and signed types are two's complement. 200 minus 256 is -56. Before C++20 the result of converting an out-of-range value to a signed type was implementation-defined, which is the tempting answer; it was never undefined, and no conversion saturates.",
+      "refs": [
+        "[conv.integral]",
+        "[basic.fundamental]"
+      ]
+    },
+    {
+      "id": "fundamental-types-ushort-multiply",
+      "kind": "tricky",
+      "prompt": "Assume `int` is 32 bits and `unsigned short` is 16 bits. What does the standard say about this program?",
+      "code": "#include <cstdio>\n\nint main() {\n  unsigned short a = 65535, b = 65535;\n  unsigned long long r = a * b;\n  std::printf(\"%llu\\n\", r);\n}",
+      "options": [
+        "It prints `4294836225`",
+        "It prints `1`, the product reduced modulo 2^16",
+        "The result is implementation-defined",
+        "Undefined behavior"
+      ],
+      "answer": 3,
+      "explanation": "Both operands are promoted to `int`, because `int` can represent every `unsigned short` value. The multiplication is therefore signed `int` arithmetic, and 4294836225 exceeds `INT_MAX`, which is signed overflow and undefined behavior. The tempting `4294836225` assumes the product is computed in a wide unsigned type; an unoptimized GCC build on arm64 actually wraps to -131071 and then prints `18446744073709420545`, and in a constant expression both GCC and Clang reject it. Writing `1u * a * b` makes the arithmetic unsigned.",
+      "refs": [
+        "[conv.prom]",
+        "[expr.pre]",
+        "[expr.mul]"
+      ]
+    },
+    {
+      "id": "fundamental-types-char-signedness",
+      "kind": "tricky",
+      "prompt": "With `CHAR_BIT == 8` and C++20 or later, what does this program print?",
+      "code": "#include <cstdio>\n\nint main() {\n  char c = '\\xff';\n  std::puts(c < 0 ? \"negative\" : \"non-negative\");\n}",
+      "options": [
+        "`negative`",
+        "Implementation-defined: it depends on whether `char` is signed",
+        "`non-negative`",
+        "Undefined behavior"
+      ],
+      "answer": 1,
+      "explanation": "Plain `char` has the same range as either `signed char` or `unsigned char`, and which one is implementation-defined. Where `char` is signed, as on x86-64 Linux and Apple arm64, `'\\xff'` holds -1 and the program prints `negative`; where it is unsigned, as on arm64 Linux, it holds 255. Either way the value is well-defined, so there is no undefined behavior.",
+      "refs": [
+        "[basic.fundamental]",
+        "[lex.ccon]"
+      ]
+    },
+    {
+      "id": "fundamental-types-long-vs-unsigned-lp64",
+      "kind": "tricky",
+      "prompt": "On an LP64 platform (32-bit `int`, 64-bit `long`), what does this program print?",
+      "code": "#include <cstdio>\n\nint main() {\n  std::printf(\"%d\\n\", -1L < 1u);\n}",
+      "options": [
+        "`0`, because the signed operand converts to unsigned",
+        "Implementation-defined",
+        "`1`",
+        "Undefined behavior"
+      ],
+      "answer": 2,
+      "explanation": "`long` has a higher rank than `unsigned int`, and on LP64 it can represent every `unsigned int` value, so the unsigned operand converts to `long` and the comparison is the honest -1 < 1. The tempting `0` is what happens on 64-bit Windows (LLP64): there `long` is 32 bits, cannot hold all `unsigned int` values, and both operands become `unsigned long`.",
+      "refs": [
+        "[expr.arith.conv]",
+        "[conv.rank]"
+      ]
+    },
+    {
+      "id": "fundamental-types-ulong-plus-llong",
+      "kind": "standardese",
+      "prompt": "On an LP64 platform, where `long` and `long long` are both 64 bits, what is the type of `1ul + 1ll`?",
+      "options": [
+        "`unsigned long long`",
+        "`long long`",
+        "`unsigned long`",
+        "Ill-formed: neither type can represent the other"
+      ],
+      "answer": 0,
+      "explanation": "`long long` has the greater rank, so the rule that converts the signed operand to the unsigned type does not apply. The next rule asks whether `long long` can represent every `unsigned long` value; with both 64 bits it cannot. The final rule then converts both operands to the unsigned counterpart of the signed type, `unsigned long long`. `long long` is the tempting answer because it has the higher rank, but rank alone does not decide it.",
+      "refs": [
+        "[expr.arith.conv]",
+        "[conv.rank]"
+      ]
+    },
+    {
+      "id": "fundamental-types-float-plus-float32",
+      "kind": "standardese",
+      "prompt": "In C++23, on an implementation that provides `std::float32_t` with the same format as `float`, what is the type of `1.0f + 1.0f32`?",
+      "code": "#include <stdfloat>\n\nauto x = 1.0f + 1.0f32;",
+      "options": [
+        "`float`",
+        "`double`",
+        "Ill-formed: the two types have unordered conversion ranks",
+        "`std::float32_t`"
+      ],
+      "answer": 3,
+      "explanation": "P1467 gives `float` and `std::float32_t` equal floating-point conversion rank when they share a format, and gives the extended type the greater conversion subrank. The usual arithmetic conversions convert the operand of lesser rank, or of equal rank and lesser subrank, to the other type, so the result is `std::float32_t`. Ranks are unordered only between types whose value sets do not nest, such as `std::float16_t` and `std::bfloat16_t`.",
+      "refs": [
+        "[conv.rank]",
+        "[expr.arith.conv]",
+        "[basic.extended.fp]"
+      ]
+    }
+  ]
+}

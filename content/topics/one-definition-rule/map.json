@@ -1,0 +1,56 @@
+{
+  "root": {
+    "label": "One-definition rule",
+    "note": "The program must behave as if each entity had exactly one definition.",
+    "children": [
+      {
+        "label": "Three layers",
+        "note": "Per translation unit, per program, and repeated definitions that must match.",
+        "children": [
+          { "label": "One per TU", "note": "Two definitions of anything in one translation unit are diagnosed." },
+          { "label": "One per program", "note": "Non-inline odr-used functions and variables need exactly one definition overall." },
+          { "label": "Repeatable items", "note": "Classes, enums, inline entities, templates and concepts may be defined once per TU." }
+        ]
+      },
+      {
+        "label": "Odr-use",
+        "note": "Only odr-used entities need a definition to exist.",
+        "children": [
+          { "label": "Reading a constant", "note": "An immediate read of a variable usable in constant expressions is not an odr-use." },
+          { "label": "References and addresses", "note": "Binding a reference or taking the address is an odr-use, as with std::min(x, S::n)." },
+          { "label": "Lambda captures", "note": "A lambda may read a local constant uncaptured but must capture it to take its address." },
+          { "label": "static constexpr", "note": "Since C++17 constexpr static members are inline and need no out-of-class definition." }
+        ]
+      },
+      {
+        "label": "Same definitions",
+        "note": "Repeated definitions must match token for token and in meaning.",
+        "children": [
+          { "label": "Same tokens", "note": "Each definition must consist of the same sequence of tokens." },
+          { "label": "Same entities", "note": "Names must find the same entities after overload resolution in every TU." },
+          { "label": "Constant exception", "note": "Internal-linkage constants may differ per TU only if they are not odr-used." },
+          { "label": "Lambdas", "note": "Lambdas in inline functions share one closure type; namespace-scope constexpr ones do not." }
+        ]
+      },
+      {
+        "label": "How it bites",
+        "note": "Violations are ill-formed, no diagnostic required, so nothing has to warn you.",
+        "children": [
+          { "label": "Macros and flags", "note": "NDEBUG, -D values or #pragma pack can make one class two layouts." },
+          { "label": "Name clashes", "note": "Two libraries' inline version() or Node with different bodies in one namespace." },
+          { "label": "Varies with -O", "note": "At -O0 the linker's copy wins; at -O2 each TU may inline its own body." },
+          { "label": "Missing inline", "note": "inline in one TU but not another is ill-formed and may fail to link at -O2." }
+        ]
+      },
+      {
+        "label": "Vague linkage",
+        "note": "Implementation practice: emit weak or COMDAT copies and keep one.",
+        "children": [
+          { "label": "Weak symbols", "note": "Inline functions, template instantiations and guard variables; nm -m shows weak external." },
+          { "label": "Key function", "note": "Itanium ABI emits a vtable with the first non-inline, non-pure virtual function." },
+          { "label": "Detection tools", "note": "GCC -flto -Wodr catches mismatched types but not differing inline function bodies." }
+        ]
+      }
+    ]
+  }
+}

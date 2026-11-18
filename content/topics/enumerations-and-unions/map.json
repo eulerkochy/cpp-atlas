@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Enumerations and unions",
+    "note": "Enums are integers with fenced values; unions hold one live member at a time.",
+    "children": [
+      {
+        "label": "Scoped vs unscoped",
+        "note": "enum class scopes its names and never converts implicitly.",
+        "children": [
+          { "label": "Unscoped promotes", "note": "Unscoped enumerators leak into the enclosing scope and promote to int." },
+          { "label": "Underlying type", "note": "Scoped defaults to int; unscoped without : T uses an implementation-defined type." },
+          { "label": "std::to_underlying", "note": "C++23 shorthand for static_cast to std::underlying_type_t<E>." },
+          { "label": "Deprecated arithmetic", "note": "Enum-enum and enum-float arithmetic deprecated in C++20, removed in C++26." }
+        ]
+      },
+      {
+        "label": "Range of values",
+        "note": "The set of values an enum may hold, defined in [dcl.enum].",
+        "children": [
+          { "label": "Fixed underlying type", "note": "Every value of the underlying type is valid, enumerator or not." },
+          { "label": "No fixed type", "note": "Values of the smallest bit-field holding all enumerators, e.g. 0 to 7." },
+          { "label": "Out-of-range cast", "note": "Undefined since C++17 (CWG 1766); an unspecified value before." }
+        ]
+      },
+      {
+        "label": "Enum initialization",
+        "note": "Ways to make an enum value without a cast.",
+        "children": [
+          { "label": "Id i{42} (C++17)", "note": "Direct-list-init from an integer works only with a fixed underlying type." },
+          { "label": "Not = {42} or (42)", "note": "Copy-list-init and parentheses still need static_cast; narrowing is rejected." },
+          { "label": "using enum (C++20)", "note": "Brings a scoped enum's enumerators into namespace, class or block scope." }
+        ]
+      },
+      {
+        "label": "Active member",
+        "note": "A union holds at most one live member; the language does not track which.",
+        "children": [
+          { "label": "Inactive read is UB", "note": "It reads an object outside its lifetime; constant evaluation rejects it." },
+          { "label": "Switching members", "note": "Trivial assignment switches; non-trivial members need construct_at and destroy_at." },
+          { "label": "Common initial sequence", "note": "Standard-layout structs sharing a prefix may read it through either member." },
+          { "label": "No type punning", "note": "Valid C and a GCC extension, but UB in C++; use std::bit_cast." }
+        ]
+      },
+      {
+        "label": "Union restrictions",
+        "note": "What a union may and may not contain or do.",
+        "children": [
+          { "label": "No virtuals or bases", "note": "No virtual functions, no base classes, no reference members; never a base." },
+          { "label": "Non-trivial members", "note": "Delete the matching special members; write the constructor and destructor yourself." },
+          { "label": "One default initializer", "note": "At most one variant member may have a default member initializer." },
+          { "label": "Anonymous unions", "note": "Members join the enclosing scope; only public data members, static at namespace scope." }
+        ]
+      },
+      {
+        "label": "std::variant",
+        "note": "A tagged union that constructs, destroys and checks the active alternative.",
+        "children": [
+          { "label": "Checked access", "note": "std::get with the wrong alternative throws std::bad_variant_access." }
+        ]
+      }
+    ]
+  }
+}

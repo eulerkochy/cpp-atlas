@@ -1,0 +1,144 @@
+{
+  "questions": [
+    {
+      "id": "mutexes-and-locks-relock",
+      "kind": "warmup",
+      "prompt": "What does the standard say about calling `f()`?",
+      "code": "#include <mutex>\n\nstd::mutex m;\n\nvoid g() { std::lock_guard lk(m); }\nvoid f() { std::lock_guard lk(m); g(); }\n\nint main() { f(); }",
+      "options": [
+        "It deadlocks, guaranteed",
+        "It works: a thread may relock a mutex it already owns",
+        "`g` throws `std::system_error` with `resource_deadlock_would_occur`",
+        "Undefined behavior"
+      ],
+      "answer": 3,
+      "explanation": "For `std::mutex`, the calling thread not owning the mutex is a precondition of `lock`, so the second lock in `g` is undefined behavior. Deadlock is the common outcome and a note allows an implementation that detects it to report `resource_deadlock_would_occur`, but neither is guaranteed, which is why the first and third options are wrong. Only the recursive mutex types allow the owner to lock again.",
+      "refs": [
+        "[thread.mutex.requirements.mutex]",
+        "[thread.mutex.class]"
+      ]
+    },
+    {
+      "id": "mutexes-and-locks-defer-lock",
+      "kind": "warmup",
+      "prompt": "In C++17 or later, what does this program print?",
+      "code": "#include <iostream>\n#include <mutex>\n\nstd::mutex m;\n\nint main() {\n  std::unique_lock lk(m, std::defer_lock);\n  std::cout << lk.owns_lock();\n  lk.lock();\n  std::cout << lk.owns_lock() << '\\n';\n}",
+      "options": [
+        "`11`",
+        "`01`",
+        "`00`",
+        "Nothing; `lk.lock()` deadlocks because the constructor already locked `m`"
+      ],
+      "answer": 1,
+      "explanation": "`std::defer_lock` associates the `unique_lock` with the mutex without locking it, so `owns_lock()` is false at first. The explicit `lk.lock()` then acquires `m`, and the destructor unlocks it at the end of `main`. The deadlock option assumes every `unique_lock` constructor locks, which is only true for the untagged one.",
+      "refs": [
+        "[thread.lock.unique]"
+      ]
+    },
+    {
+      "id": "mutexes-and-locks-scoped-lock-order",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <mutex>\n#include <thread>\n\nstd::mutex a, b;\nlong n = 0;\n\nvoid forward() {\n  for (int i = 0; i < 100000; ++i) {\n    std::scoped_lock lk(a, b);\n    ++n;\n  }\n}\n\nvoid backward() {\n  for (int i = 0; i < 100000; ++i) {\n    std::scoped_lock lk(b, a);\n    ++n;\n  }\n}\n\nint main() {\n  std::thread t1(forward), t2(backward);\n  t1.join();\n  t2.join();\n  std::printf(\"%ld\\n\", n);\n}",
+      "options": [
+        "It may deadlock, because the two threads take the mutexes in opposite orders",
+        "Some value up to 200000, because `++n` is not atomic",
+        "`200000`",
+        "Ill-formed: `scoped_lock` arguments must be listed in a consistent order"
+      ],
+      "answer": 2,
+      "explanation": "With more than one mutex, `scoped_lock` acquires them using the `std::lock` algorithm, which avoids deadlock whatever order the arguments are given in. Every `++n` happens while holding both mutexes, so the increments are serialized and ordered by unlock-to-lock synchronization, and no update is lost. Opposite-order deadlock is exactly the problem `std::lock` exists to solve; it would be the right answer with two nested `lock_guard`s.",
+      "refs": [
+        "[thread.lock.scoped]",
+        "[thread.lock.algorithm]"
+      ]
+    },
+    {
+      "id": "mutexes-and-locks-vexing-unique-lock",
+      "kind": "tricky",
+      "prompt": "What does the first statement of `bump` do?",
+      "code": "#include <mutex>\n\nstd::mutex m;\nint counter = 0;\n\nvoid bump() {\n  std::unique_lock<std::mutex>(m);\n  ++counter;\n}",
+      "options": [
+        "Locks `m` until the end of `bump`",
+        "Declares a default-constructed `unique_lock` named `m`, so nothing is locked",
+        "Locks `m` and unlocks it again at the end of the statement",
+        "Nothing: it is ill-formed because `unique_lock` has no default constructor"
+      ],
+      "answer": 1,
+      "explanation": "A statement that can be read as a declaration is a declaration, and `T(m);` declares a variable `m` of type `T` with redundant parentheses. So it declares a new local `unique_lock` named `m` that shadows the mutex and owns nothing, and `++counter` runs unprotected. The third option describes `std::unique_lock<std::mutex>{m};`, which creates a temporary. `unique_lock` does have a default constructor; `lock_guard` does not, which is why the compiler rejects the same mistake with `lock_guard`.",
+      "refs": [
+        "[stmt.ambig]",
+        "[dcl.ambig.res]",
+        "[thread.lock.unique]"
+      ]
+    },
+    {
+      "id": "mutexes-and-locks-try-lock-spurious",
+      "kind": "tricky",
+      "prompt": "No other thread exists. What does the standard guarantee this program prints?",
+      "code": "#include <cstdio>\n#include <mutex>\n\nstd::mutex m;\n\nint main() {\n  if (m.try_lock()) {\n    std::puts(\"locked\");\n    m.unlock();\n  } else {\n    std::puts(\"not locked\");\n  }\n}",
+      "options": [
+        "`locked`, because the mutex is free",
+        "`not locked`, because `try_lock` on a static mutex fails before `main`",
+        "Undefined behavior, because `try_lock` needs a `unique_lock`",
+        "Either `locked` or `not locked`"
+      ],
+      "answer": 3,
+      "explanation": "[thread.mutex.requirements.mutex] allows `try_lock` to fail to obtain the lock even when no thread owns the mutex. Implementations do this rarely, and on a quiet mutex you will practically always see `locked`, but the standard does not promise it. That is the reason a failed `try_lock` must never be read as evidence that another thread holds the lock.",
+      "refs": [
+        "[thread.mutex.requirements.mutex]"
+      ]
+    },
+    {
+      "id": "mutexes-and-locks-call-once-throw",
+      "kind": "tricky",
+      "prompt": "According to the standard, what does this program print?",
+      "code": "#include <iostream>\n#include <mutex>\n\nstd::once_flag flag;\nint calls = 0;\n\nvoid init() {\n  ++calls;\n  if (calls == 1) throw 1;\n}\n\nint main() {\n  for (int i = 0; i < 3; ++i) {\n    try {\n      std::call_once(flag, init);\n    } catch (int) {\n    }\n  }\n  std::cout << calls << '\\n';\n}",
+      "options": [
+        "`1`: the flag is set once `init` has been called, even if it threw",
+        "`2`",
+        "`3`: an exception makes the flag unusable, so every call runs `init`",
+        "Undefined behavior: the callable of `call_once` must not throw"
+      ],
+      "answer": 1,
+      "explanation": "The first call is an exceptional execution: the exception propagates and the flag is not set. The second call is then an active execution that returns normally, which makes it the returning execution and sets the flag, so the third call is passive and does not run `init`. Throwing is explicitly allowed. Be aware that libstdc++ on targets that implement `call_once` with `pthread_once` has a long-standing bug here: on this page's macOS test machine the GCC build was killed instead of printing, while the Clang build with libc++ printed `2`.",
+      "refs": [
+        "[thread.once.callonce]"
+      ]
+    },
+    {
+      "id": "mutexes-and-locks-recursive-static",
+      "kind": "standardese",
+      "prompt": "What does the standard say about calling `f(0)`?",
+      "code": "int f(int n) {\n  static int cached = f(n + 1);\n  return cached + n;\n}\n\nint main() { return f(0); }",
+      "options": [
+        "Undefined behavior",
+        "It returns 1, because `cached` is zero-initialized when the recursive call reads it",
+        "It is guaranteed to deadlock, because the static's guard waits for itself",
+        "It throws an exception reporting recursive initialization"
+      ],
+      "answer": 0,
+      "explanation": "[stmt.dcl] says that if control re-enters the declaration recursively while the variable is being initialized, the behavior is undefined. Deadlocking and throwing are both things real implementations do, but neither is required. The zero-initialized reading would be the answer only if recursion simply skipped the initializer, which the standard does not say.",
+      "refs": [
+        "[stmt.dcl]"
+      ]
+    },
+    {
+      "id": "mutexes-and-locks-thread-exits-owning",
+      "kind": "standardese",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <mutex>\n#include <thread>\n\nstd::mutex m;\n\nint main() {\n  std::thread t([] { m.lock(); });\n  t.join();\n}",
+      "options": [
+        "It is fine: the mutex is unlocked automatically when its owner exits",
+        "It is fine as long as no other thread tries to lock `m`",
+        "Undefined behavior",
+        "It is ill-formed, because `m.lock()` without a lock wrapper is not allowed"
+      ],
+      "answer": 2,
+      "explanation": "[thread.mutex.class] says the behavior is undefined if a thread terminates while owning a mutex, and also if a mutex owned by any thread is destroyed, which would happen later when `m` is destroyed at program exit. Nothing unlocks a mutex when its owner ends, which rules out the first option, and the undefined behavior does not depend on whether anyone else contends. Calling `lock` directly is legal; the wrappers are a convenience.",
+      "refs": [
+        "[thread.mutex.class]"
+      ]
+    }
+  ]
+}

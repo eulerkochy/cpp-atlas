@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "Structured bindings",
+    "note": "One hidden variable e is initialized from the expression; the names refer into it.",
+    "children": [
+      {
+        "label": "The hidden variable e",
+        "note": "Specifiers and ref-qualifiers you write declare e, not the names.",
+        "children": [
+          { "label": "auto", "note": "e is a copy of the initializer, so writes through the names do not reach the source." },
+          { "label": "auto&", "note": "e aliases an lvalue; it cannot bind to a prvalue." },
+          { "label": "const auto& and auto&&", "note": "e binds to anything, including temporaries, without copying." },
+          { "label": "Array exception", "note": "Without a reference, an array initializer is copied element by element into an array e." }
+        ]
+      },
+      {
+        "label": "Three protocols",
+        "note": "Chosen in order from E, the type of e without references.",
+        "children": [
+          { "label": "Array", "note": "Names refer to elements; their count must equal the bound." },
+          { "label": "Tuple-like", "note": "Used whenever std::tuple_size<E> is complete with a value member." },
+          { "label": "Data members", "note": "All non-static members, accessible at the declaration since C++20, in one class." }
+        ]
+      },
+      {
+        "label": "Names, not variables",
+        "note": "A binding is an alias with its own rules.",
+        "children": [
+          { "label": "decltype", "note": "Gives the referenced type: int for a pair<int, int> binding even with auto&." },
+          { "label": "std::tie", "note": "Element types are references, so plain auto still aliases the tied variables." },
+          { "label": "Bit-fields", "note": "A binding can name a bit-field, which no reference can." },
+          { "label": "Lambda capture", "note": "Forbidden in C++17, allowed in C++20; bit-field bindings cannot be captured by reference." },
+          { "label": "Specifiers", "note": "static and thread_local since C++20; constexpr only from C++26; never inline." }
+        ]
+      },
+      {
+        "label": "Lifetime",
+        "note": "Extension works through e, not through the names.",
+        "children": [
+          { "label": "Direct binding extends", "note": "const auto& [a, b] = make(); keeps the temporary alive to scope end." },
+          { "label": "Returned references dangle", "note": "If the initializer returns a reference into a temporary, nothing is extended." }
+        ]
+      },
+      {
+        "label": "Tuple protocol",
+        "note": "Specialize tuple_size and tuple_element and provide get.",
+        "children": [
+          { "label": "Member get first", "note": "Used if member lookup finds a get template whose first parameter is a non-type parameter." },
+          { "label": "ADL-only free get", "note": "Otherwise get<i>(e) is found only by argument-dependent lookup." },
+          { "label": "Value category of e", "note": "e is passed as an lvalue if it is an lvalue reference, else as an xvalue." }
+        ]
+      },
+      {
+        "label": "C++26 additions",
+        "note": "Implemented by GCC 16 in -std=c++26 mode.",
+        "children": [
+          { "label": "Per-binding attributes", "note": "auto [a, b [[maybe_unused]]] = f(); attaches an attribute to one name." },
+          { "label": "As a condition", "note": "if (auto [ok, v] = f()) tests e as bool before the bindings are initialized." },
+          { "label": "Binding packs", "note": "auto [h, ...t] = x; introduces a possibly empty pack, only inside templates." }
+        ]
+      }
+    ]
+  }
+}

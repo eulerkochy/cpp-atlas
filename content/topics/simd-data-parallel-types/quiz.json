@@ -1,0 +1,147 @@
+{
+  "questions": [
+    {
+      "id": "simd-data-parallel-types-generator-reduce",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, what does this program print?",
+      "code": "#include <simd>\n#include <cstdio>\n\nint main() {\n  std::simd::vec<int, 4> v([](int i) { return i * i; });\n  std::printf(\"%d\\n\", std::simd::reduce(v));\n}",
+      "options": [
+        "`14`",
+        "`6`",
+        "`9`",
+        "Nothing; it is ill-formed because the generator must take an `integral_constant` parameter"
+      ],
+      "answer": 0,
+      "explanation": "The generator constructor calls the callable once for each lane index `i`, passing `integral_constant<simd-size-type, i>`, which converts implicitly to `int`. So the lanes are 0, 1, 4 and 9. `reduce` with its default `std::plus<>` adds all lanes, giving 14. The answer 6 is the sum of the indices, not of the squares.",
+      "refs": [
+        "[simd.ctor]",
+        "[simd.reductions]"
+      ]
+    },
+    {
+      "id": "simd-data-parallel-types-mask-in-if",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, what happens with this function?",
+      "code": "#include <simd>\n\nusing V = std::simd::vec<float, 4>;\n\nbool smaller(V a, V b) {\n  if (a < b) return true;\n  return false;\n}",
+      "options": [
+        "It returns true if every lane of `a` is less than the matching lane of `b`",
+        "It returns true if any lane of `a` is less than the matching lane of `b`",
+        "It is ill-formed: `a < b` is a `basic_mask`, which has no conversion to `bool`",
+        "It compiles, but which lanes are tested is implementation-defined"
+      ],
+      "answer": 2,
+      "explanation": "Comparing two `vec` objects is an element-wise operation that returns `mask_type`, one boolean per lane. `basic_mask` deliberately has no `operator bool`, because \"all lanes\" and \"any lane\" are both plausible meanings. You state which one you want with `all_of(a < b)` or `any_of(a < b)`. For a per-lane choice instead of a branch, use `select`.",
+      "refs": [
+        "[simd.comparison]",
+        "[simd.mask.class]",
+        "[simd.mask.reductions]"
+      ]
+    },
+    {
+      "id": "simd-data-parallel-types-subscript-assign",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, what happens with this code?",
+      "code": "#include <simd>\n\nvoid f() {\n  std::simd::vec<float, 4> v(1.f);\n  v[0] = 5.f;\n}",
+      "options": [
+        "Lane 0 becomes 5 and the other lanes stay 1",
+        "All four lanes become 5",
+        "It compiles, but the assignment changes a temporary and has no effect",
+        "It is ill-formed: `operator[]` returns `value_type` by value, which cannot be assigned to"
+      ],
+      "answer": 3,
+      "explanation": "`basic_vec::operator[]` returns the element as a prvalue of `value_type`. Assigning to a prvalue of a scalar type is ill-formed, so the code does not compile, and the temporary answer is wrong for the same reason. This is intentional, because a lane inside a register is not an addressable object. To change some lanes, build a new vector with `select`, or use a generator.",
+      "refs": [
+        "[simd.subscr]",
+        "[expr.assign]"
+      ]
+    },
+    {
+      "id": "simd-data-parallel-types-int-broadcast",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, which line is ill-formed?",
+      "code": "#include <simd>\n\nusing VF = std::simd::vec<float, 4>;\nusing VD = std::simd::vec<double, 4>;\n\nvoid f(VF vf, VD vd) {\n  auto a = vf * 2.f;   // line A\n  auto b = vd * 2;     // line B\n  auto c = vf * 2;     // line C\n  (void)a; (void)b; (void)c;\n}",
+      "options": [
+        "Line A only",
+        "Line B only",
+        "Line C only",
+        "Lines B and C"
+      ],
+      "answer": 2,
+      "explanation": "The operands of `basic_vec`'s operators are vectors, so a scalar must be converted by the broadcast constructor. For an arithmetic argument, that constructor requires the conversion to be value-preserving, meaning every value of the source type is representable in the element type. `int` to `double` is value-preserving, but `int` to `float` is not, because `float` cannot represent every 32-bit `int`. So only line C is ill-formed. Writing `2.f` or `std::cw<2>` fixes it.",
+      "refs": [
+        "[simd.general]",
+        "[simd.ctor]",
+        "[simd.binary]"
+      ]
+    },
+    {
+      "id": "simd-data-parallel-types-partial-load",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, what are the four lanes of `v`?",
+      "code": "#include <simd>\n\nfloat data[3] = {1.f, 2.f, 3.f};\nauto v = std::simd::partial_load<std::simd::vec<float, 4>>(data, 3);",
+      "options": [
+        "`{1, 2, 3, 0}`",
+        "`{1, 2, 3, 3}`",
+        "`{1, 2, 3, ?}`, where the last lane is indeterminate",
+        "Undefined behavior: four elements are read from a three-element array"
+      ],
+      "answer": 0,
+      "explanation": "A partial load produces `mask[i] && i < size ? data[i] : T()` for each lane, with every lane enabled when no mask is given. Lane 3 is past the end of the range, so it is value-initialized to 0.0f and memory past the array is never read. That is the difference from `unchecked_load`, which requires at least `V::size()` elements and would have undefined behaviour here.",
+      "refs": [
+        "[simd.loadstore]"
+      ]
+    },
+    {
+      "id": "simd-data-parallel-types-narrowing-copy-init",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, which of these declarations is well-formed?",
+      "code": "#include <simd>\n\nusing VF = std::simd::vec<float, 4>;\nusing VD = std::simd::vec<double, 4>;\n\nvoid f(VF vf, VD vd) {\n  VD d1 = vf;      // (1)\n  VF f1 = vd;      // (2)\n  VF f2(vd);       // (3)\n  (void)d1; (void)f1; (void)f2;\n}",
+      "options": [
+        "Only (1)",
+        "(1) and (3), but not (2)",
+        "All three",
+        "None: different element types never convert"
+      ],
+      "answer": 1,
+      "explanation": "The converting constructor between `basic_vec` specializations of the same width is `explicit` exactly when the element conversion is not value-preserving or would lower the conversion rank. `float` to `double` is value-preserving, so (1) is an implicit conversion. `double` to `float` is not, so the constructor is explicit: copy-initialization (2) is ill-formed, while direct-initialization (3) is fine. Without (2) the function compiles.",
+      "refs": [
+        "[simd.ctor]",
+        "[simd.general]"
+      ]
+    },
+    {
+      "id": "simd-data-parallel-types-guaranteed-width",
+      "kind": "standardese",
+      "prompt": "Under the C++26 draft, which of these is guaranteed to name an enabled `basic_vec` specialization on every conforming implementation?",
+      "options": [
+        "`std::simd::vec<bool, 4>`",
+        "`std::simd::vec<long double, 2>`",
+        "`std::simd::vec<float, 128>`",
+        "`std::simd::vec<float, 64>`"
+      ],
+      "answer": 3,
+      "explanation": "`deduce-abi-t<T, N>` names an ABI tag for every vectorizable `T` and every `N` from 1 up to an implementation-defined maximum that is not smaller than 64, so `vec<float, 64>` must work. Widths above 64 may or may not be supported. `bool` and `long double` are not vectorizable types at all, so those specializations are disabled everywhere.",
+      "refs": [
+        "[simd.general]",
+        "[simd.expos.abi]"
+      ]
+    },
+    {
+      "id": "simd-data-parallel-types-masked-reduce-empty",
+      "kind": "standardese",
+      "prompt": "Under the C++26 draft, what does this program print?",
+      "code": "#include <simd>\n#include <cstdio>\n\nint main() {\n  std::simd::vec<float, 4> v(1.f);\n  float r = std::simd::reduce(v, v > 100.f);\n  std::printf(\"%g\\n\", r);\n}",
+      "options": [
+        "`4`",
+        "`0`",
+        "`1`",
+        "Nothing; it is ill-formed because the masked `reduce` always needs an explicit identity element"
+      ],
+      "answer": 1,
+      "explanation": "The masked `reduce` returns `identity_element` when `none_of(mask)` is true, and no lane exceeds 100 here. For `plus<>`, the default operation, the identity defaults to `T()`, which is 0. An explicit identity is required only for operations other than `plus<>`, `multiplies<>`, `bit_and<>`, `bit_or<>` and `bit_xor<>`. The answer 4 ignores the mask.",
+      "refs": [
+        "[simd.reductions]"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "root": {
+    "label": "Template argument deduction",
+    "note": "Match each parameter type P against its argument type A, independently, then require agreement.",
+    "children": [
+      {
+        "label": "P/A adjustments",
+        "note": "Both sides are adjusted to reflect how the argument is passed.",
+        "children": [
+          { "label": "By value", "note": "Arrays and functions decay to pointers; top-level cv on A is dropped." },
+          { "label": "By reference", "note": "The referred-to type is matched; arrays and const survive." },
+          { "label": "Forwarding reference", "note": "T&& with an lvalue deduces T as an lvalue reference." }
+        ]
+      },
+      {
+        "label": "Exact match rules",
+        "note": "Deduction never considers implicit conversions.",
+        "children": [
+          { "label": "Conflicts fail", "note": "biggest(1, 2.5) deduces int and double for T, so deduction fails." },
+          { "label": "Allowed differences", "note": "Extra cv through references, qualification conversions, and derived-to-base." },
+          { "label": "No user conversions", "note": "Wrapper<T> cannot be deduced from an int through a converting constructor." }
+        ]
+      },
+      {
+        "label": "Non-deduced contexts",
+        "note": "Positions from which deduction learns nothing.",
+        "children": [
+          { "label": "Nested names", "note": "Anything left of :: such as typename Id<T>::type." },
+          { "label": "Expressions", "note": "decltype operands and template arguments like A<N + 1>." },
+          { "label": "type_identity_t", "note": "Blocks deduction on purpose so that parameter accepts conversions." }
+        ]
+      },
+      {
+        "label": "Other sources",
+        "note": "Deduction also runs outside ordinary typed arguments.",
+        "children": [
+          { "label": "Braced lists", "note": "Deduce only into std::initializer_list<T> or a reference to an array." },
+          { "label": "Function addresses", "note": "A target function pointer type deduces the template's arguments." },
+          { "label": "Overload set arguments", "note": "Trial deduction per member; more than one success makes it non-deduced." },
+          { "label": "Conversion templates", "note": "operator T() deduces T from the required type, reference and cv stripped." }
+        ]
+      },
+      {
+        "label": "Explicit and default",
+        "note": "Arguments not deduced must come from somewhere.",
+        "children": [
+          { "label": "Explicit from left", "note": "Given arguments fill leading parameters; fully specified parameters convert." },
+          { "label": "Defaults last resort", "note": "A default template argument is used only if nothing was deduced or given." }
+        ]
+      },
+      {
+        "label": "After deduction",
+        "note": "Substitution and the relatives that reuse the rules.",
+        "children": [
+          { "label": "Deduction failure", "note": "Invalid types in the immediate context drop the candidate: SFINAE." },
+          { "label": "Hard errors", "note": "Errors in instantiated bodies, such as for auto return types, are not SFINAE." },
+          { "label": "auto and CTAD", "note": "auto deduces like a template parameter; CTAD deduces from constructors and guides." }
+        ]
+      }
+    ]
+  }
+}

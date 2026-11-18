@@ -1,0 +1,63 @@
+{
+  "root": {
+    "label": "Customization points",
+    "note": "How generic code calls the right operation for a type it has never seen.",
+    "children": [
+      {
+        "label": "ADL two-step",
+        "note": "using std::swap; swap(a, b); lets ADL find a better swap, with std::swap as fallback.",
+        "children": [
+          { "label": "Qualified call", "note": "std::swap(a, b) suppresses ADL and silently skips the type's own swap." },
+          { "label": "Missing using", "note": "Without the using-declaration, ints and types lacking swap fail to compile." },
+          { "label": "Hijacking", "note": "Any same-named template in an associated namespace can win or cause ambiguity." }
+        ]
+      },
+      {
+        "label": "CPOs",
+        "note": "Const semiregular function objects that do the lookup, check it, and fall back.",
+        "children": [
+          { "label": "ranges::swap order", "note": "ADL swap with a deleted swap(T&, T&) candidate, then equal-extent arrays, then moves." },
+          { "label": "ranges::begin order", "note": "Array, then member begin(), then ADL-only begin(); result must be an iterator." },
+          { "label": "ranges::size order", "note": "Array extent, member size(), ADL size(), then end minus begin for sized sentinels." },
+          { "label": "P2602 cleanup", "note": "Defect report against C++20 replaced poison pills for begin, end, size with ADL-only wording." }
+        ]
+      },
+      {
+        "label": "Why objects",
+        "note": "Objects can be passed around and are immune to ADL.",
+        "children": [
+          { "label": "ADL suppression", "note": "If unqualified lookup finds a variable, [basic.lookup.argdep] performs no ADL." },
+          { "label": "Passable", "note": "ranges::size can be an algorithm argument; most std functions cannot be addressed." },
+          { "label": "All instances equal", "note": "Calling a CPO does not depend on the object's value category or constness." }
+        ]
+      },
+      {
+        "label": "Niebloids",
+        "note": "The std::ranges algorithms, named after Eric Niebler's range-v3 technique.",
+        "children": [
+          { "label": "C++20 and C++23", "note": "Not found by ADL, and they inhibit ADL when found by unqualified lookup." },
+          { "label": "C++26", "note": "P3136 specifies them directly as algorithm function objects." },
+          { "label": "Stricter constraints", "note": "ranges::find needs indirect_binary_predicate; some std::find calls do not port." }
+        ]
+      },
+      {
+        "label": "tag_invoke",
+        "note": "P1895: one ADL name for all customizations, with the CPO passed as a tag.",
+        "children": [
+          { "label": "Costs", "note": "One giant overload set: slow compiles, long errors, hard-to-read definitions." },
+          { "label": "Not adopted", "note": "C++26 std::execution moved to member functions and environment queries." }
+        ]
+      },
+      {
+        "label": "Customizing today",
+        "note": "Hidden friends for operations; narrow rules for specializing std templates.",
+        "children": [
+          { "label": "Hidden friends", "note": "Defined in the class, found only by ADL; no conversions from unrelated types." },
+          { "label": "Class templates", "note": "Specialize hash, formatter, tuple_size for program-defined types only." },
+          { "label": "Type traits", "note": "Specializing <type_traits> templates is UB except common_type and basic_common_reference." },
+          { "label": "Function templates", "note": "Specializing them is undefined behavior since C++20 (P0551)." }
+        ]
+      }
+    ]
+  }
+}

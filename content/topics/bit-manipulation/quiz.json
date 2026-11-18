@@ -1,0 +1,144 @@
+{
+  "questions": [
+    {
+      "id": "bit-pow2-helpers",
+      "kind": "warmup",
+      "prompt": "In C++20 or later, assuming a 32-bit `unsigned int`, what is printed?",
+      "code": "#include <bit>\n#include <cstdio>\n\nint main() {\n  std::printf(\"%d %d %u %u\\n\", std::has_single_bit(0u), std::has_single_bit(8u),\n              std::bit_floor(37u), std::bit_ceil(37u));\n}",
+      "options": [
+        "1 1 32 64",
+        "0 0 32 38",
+        "0 1 32 64",
+        "0 1 37 37"
+      ],
+      "answer": 2,
+      "explanation": "Zero is not a power of two, so `has_single_bit(0u)` is false, and 8 has a single set bit. `bit_floor(37u)` is the largest power of two not above 37, which is 32, and `bit_ceil(37u)` is the smallest one not below it, which is 64. The option starting with 1 treats zero as a power of two.",
+      "refs": [
+        "[bit.pow.two]"
+      ]
+    },
+    {
+      "id": "bit-right-shift-negative",
+      "kind": "warmup",
+      "prompt": "In C++20 or later, assuming a 32-bit `int`, what is printed?",
+      "code": "#include <cstdio>\n\nint main() {\n  std::printf(\"%d %d\\n\", -7 >> 1, -7 / 2);\n}",
+      "options": [
+        "-3 -3",
+        "-4 -3",
+        "-4 -4",
+        "-3 -4"
+      ],
+      "answer": 1,
+      "explanation": "Since C++20, right shift of a negative signed value is the arithmetic shift, which rounds toward negative infinity, so `-7 >> 1` is -4. Division truncates toward zero, so `-7 / 2` is -3. Before C++20 the shift result was implementation-defined, and the tempting `-3 -3` assumes the two operators agree.",
+      "refs": [
+        "[expr.shift]",
+        "[expr.mul]"
+      ]
+    },
+    {
+      "id": "bit-rotl-uint8",
+      "kind": "warmup",
+      "prompt": "In C++20 or later, what is printed?",
+      "code": "#include <bit>\n#include <cstdint>\n#include <cstdio>\n\nint main() {\n  std::uint8_t x = 0x81;\n  std::printf(\"%d %d\\n\", std::rotl(x, 1), std::rotl(x, -1));\n}",
+      "options": [
+        "258 192",
+        "3 3",
+        "Ill-formed: `rotl` does not accept `std::uint8_t`",
+        "3 192"
+      ],
+      "answer": 3,
+      "explanation": "`rotl` rotates within the width of its argument type, which is 8 bits here, so 0x81 rotated left by one is 0x03 because the top bit wraps around. A negative count rotates the other way, so `rotl(x, -1)` is 0xC0, which is 192. The answer 258 treats the operand as an `int` and lets the bit escape.",
+      "refs": [
+        "[bit.rotate]"
+      ]
+    },
+    {
+      "id": "bit-countl-zero-width",
+      "kind": "tricky",
+      "prompt": "In C++20 or later, assuming a 32-bit `unsigned int`, what is printed?",
+      "code": "#include <bit>\n#include <cstdint>\n#include <cstdio>\n\nint main() {\n  std::printf(\"%d %d\\n\", std::countl_zero(std::uint8_t{1}), std::countl_zero(1u));\n}",
+      "options": [
+        "31 31",
+        "7 7",
+        "7 31",
+        "8 32"
+      ],
+      "answer": 2,
+      "explanation": "The `<bit>` functions look at the width of the exact type, so `countl_zero(std::uint8_t{1})` counts the seven leading zeros of an 8-bit value, and `countl_zero(1u)` counts 31 of a 32-bit value. Unlike the built-in operators, they do not promote a narrow operand to `int` first, which is why `31 31` is wrong.",
+      "refs": [
+        "[bit.count]"
+      ]
+    },
+    {
+      "id": "bit-promoted-complement",
+      "kind": "tricky",
+      "prompt": "Assume a 32-bit `int`. What is printed?",
+      "code": "#include <cstdint>\n#include <cstdio>\n\nint main() {\n  std::uint8_t b = 0x0F;\n  std::printf(\"%d\\n\", ~b);\n}",
+      "options": [
+        "240",
+        "-16",
+        "-241",
+        "Undefined behavior: `~` overflows"
+      ],
+      "answer": 1,
+      "explanation": "A `std::uint8_t` operand of `~` is promoted to `int` first, so `~b` complements all 32 bits of the value 15, giving -16. The result is not converted back to 8 bits unless you write `std::uint8_t(~b)`, which is what the tempting answer 240 assumes. There is no overflow, since complementing an `int` is always defined.",
+      "refs": [
+        "[expr.unary.op]",
+        "[conv.prom]"
+      ]
+    },
+    {
+      "id": "bit-signed-left-shift",
+      "kind": "tricky",
+      "prompt": "In C++20, assuming a 32-bit `int`, what does this program print?",
+      "code": "#include <cstdio>\n\nint main() {\n  int a = -1;\n  std::printf(\"%d\\n\", a << 3);\n}",
+      "options": [
+        "-8",
+        "Undefined behavior: the left operand is negative",
+        "8",
+        "Implementation-defined"
+      ],
+      "answer": 0,
+      "explanation": "Since C++20 a left shift of a signed value is defined modulo 2 to the power of the width, and the two's complement result is read back as signed. For `-1 << 3` that gives -8. Before C++20 a negative left operand made the shift undefined, which is the answer a C++17 reader would give, and it is not a matter of implementation choice now.",
+      "refs": [
+        "[expr.shift]"
+      ]
+    },
+    {
+      "id": "bit-shift-count-width",
+      "kind": "standardese",
+      "prompt": "In C++23, assuming a 32-bit `unsigned int`, what is the status of this declaration?",
+      "code": "constexpr unsigned x = 1u << 32;\n\nint main() { return 0; }",
+      "options": [
+        "Well-formed, and `x` is 0",
+        "Well-formed, and `x` is 1",
+        "Ill-formed: the initializer is not a constant expression",
+        "Well-formed, and `x` has an unspecified value"
+      ],
+      "answer": 2,
+      "explanation": "A shift whose count is greater than or equal to the width of the promoted left operand has undefined behaviour, even for unsigned types. Undefined behaviour is never allowed in a constant expression, so initializing a `constexpr` variable this way is ill-formed. Shifting out all the bits to leave zero is a common expectation, and it is not what the language says.",
+      "refs": [
+        "[expr.shift]",
+        "[expr.const]"
+      ]
+    },
+    {
+      "id": "bit-ceil-overflow",
+      "kind": "standardese",
+      "prompt": "In C++23, assuming a 32-bit `unsigned int`, what is the status of this program?",
+      "code": "#include <bit>\n\nstatic_assert(std::bit_ceil(0x80000001u) == 0);\n\nint main() { return 0; }",
+      "options": [
+        "`bit_ceil` returns 0 and the assertion passes",
+        "`bit_ceil` returns 0x80000000 and the assertion fails",
+        "`bit_ceil` throws `std::overflow_error`",
+        "The call has undefined behaviour, so it is not a constant expression and the program is ill-formed"
+      ],
+      "answer": 3,
+      "explanation": "The next power of two above 0x80000001 would be 2 to the 32nd power, which does not fit in a 32-bit `unsigned int`. [bit.pow.two] makes that case undefined behaviour, and a `constexpr` function may not be used with undefined behaviour in constant evaluation, so the `static_assert` is rejected. Wraparound to 0 is what a hand-written loop would give, but the library function promises nothing of the kind.",
+      "refs": [
+        "[bit.pow.two]",
+        "[expr.const]"
+      ]
+    }
+  ]
+}

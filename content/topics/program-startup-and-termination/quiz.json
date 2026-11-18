@@ -1,0 +1,144 @@
+{
+  "questions": [
+    {
+      "id": "startup-exit-skips-locals",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <cstdlib>\n\nstruct T {\n  const char* n;\n  ~T() { std::printf(\"~%s\\n\", n); }\n};\n\nT g{\"global\"};\n\nint main() {\n  T l{\"local\"};\n  std::exit(0);\n}",
+      "options": [
+        "`~local` then `~global`",
+        "`~global` only",
+        "Nothing: `std::exit` runs no destructors",
+        "`~global` then `~local`"
+      ],
+      "answer": 1,
+      "explanation": "`std::exit` destroys objects with static storage duration, and thread-locals of the calling thread, but it never returns to its caller, so the automatic object `l` is never destroyed. `return 0;` would print `~local` first, because returning from `main` leaves the function, destroying its locals, before calling `std::exit`. The third option describes `std::quick_exit` or `std::abort`.",
+      "refs": [
+        "[support.start.term]",
+        "[basic.start.main]",
+        "[basic.start.term]"
+      ]
+    },
+    {
+      "id": "startup-main-declarations",
+      "kind": "warmup",
+      "prompt": "Which of these definitions of `main` is well-formed in C++23?",
+      "options": [
+        "`auto main() { return 0; }`",
+        "`static int main() { return 0; }`",
+        "`auto main() -> int { }`",
+        "`constexpr int main() { return 0; }`"
+      ],
+      "answer": 2,
+      "explanation": "`main` must have a declared return type of `int`, and a trailing return type counts as declaring it, so `auto main() -> int` is fine. Falling off the end of `main` is equivalent to `return 0;`, so the empty body is fine too. A deduced return type is not a declared `int`, and `main` may not be `static`, `inline`, `constexpr` or `consteval`; GCC rejects all three of the others.",
+      "refs": [
+        "[basic.start.main]"
+      ]
+    },
+    {
+      "id": "startup-static-local-retry",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nint attempts = 0;\n\nint init() {\n  if (++attempts < 3) throw attempts;\n  return attempts * 10;\n}\n\nint get() {\n  static int v = init();\n  return v;\n}\n\nint main() {\n  for (int i = 0; i < 5; ++i) {\n    try { get(); } catch (int) {}\n  }\n  std::printf(\"%d\\n\", attempts);\n}",
+      "options": [
+        "`3`",
+        "`1`",
+        "`5`",
+        "Undefined behavior: `v` is used after its initialization failed"
+      ],
+      "answer": 0,
+      "explanation": "[stmt.dcl] says that if the initialization of a block-scope static exits by an exception, the variable is not initialized, and initialization is attempted again the next time control enters the declaration. The first two calls throw, the third succeeds and sets `v` to 30, and the last two calls skip the initializer. `1` would be right only if a failed initialization were never retried.",
+      "refs": [
+        "[stmt.dcl]"
+      ]
+    },
+    {
+      "id": "startup-atexit-interleave",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <cstdlib>\n\nstruct T {\n  const char* n;\n  T(const char* s) : n(s) { std::printf(\"+%s \", n); }\n  ~T() { std::printf(\"~%s \", n); }\n};\n\nvoid handler() { std::printf(\"handler \"); }\n\nT a(\"a\");\nint reg = (std::atexit(handler), 0);\nT b(\"b\");\n\nint main() { std::printf(\"main \"); }",
+      "options": [
+        "`+a +b main handler ~b ~a`",
+        "`+a +b main ~b ~a handler`",
+        "`+a +b main ~b handler ~a`",
+        "The relative order of `handler` and the destructors is unspecified"
+      ],
+      "answer": 2,
+      "explanation": "The three dynamic initializations are ordered by definition in one file: `a` completes, then `handler` is registered, then `b` completes. [basic.start.term] runs destructors and `atexit` functions as one sequence in reverse: what completed after a registration is destroyed before that handler runs, and what completed before it is destroyed after. So `~b`, `handler`, `~a`. Treating `atexit` handlers as a separate stack gives either of the first two answers.",
+      "refs": [
+        "[basic.start.term]",
+        "[basic.start.dynamic]"
+      ]
+    },
+    {
+      "id": "startup-quick-exit",
+      "kind": "tricky",
+      "prompt": "When this program calls `std::quick_exit(0)`, which of the following run?",
+      "code": "#include <cstdio>\n#include <cstdlib>\n\nstruct T {\n  const char* n;\n  ~T() { std::printf(\"~%s\\n\", n); }\n};\n\nT g{\"global\"};\n\nvoid on_exit_fn() { std::puts(\"atexit\"); }\nvoid on_quick() { std::puts(\"at_quick_exit\"); std::fflush(stdout); }\n\nint main() {\n  T l{\"local\"};\n  std::atexit(on_exit_fn);\n  std::at_quick_exit(on_quick);\n  std::quick_exit(0);\n}",
+      "options": [
+        "Only `on_quick`",
+        "`on_quick`, then `on_exit_fn`",
+        "`on_quick`, then the destructor of `g`",
+        "Nothing: `quick_exit` is like `abort`"
+      ],
+      "answer": 0,
+      "explanation": "`std::quick_exit` calls the functions registered with `at_quick_exit` in reverse order of registration and then calls `std::_Exit`. It destroys no objects and calls no `atexit` handlers, and whether `_Exit` flushes streams is implementation-defined, which is why the handler flushes `stdout` itself. The second and third options mix in parts of `std::exit`.",
+      "refs": [
+        "[support.start.term]"
+      ]
+    },
+    {
+      "id": "startup-constant-init-cross-tu",
+      "kind": "tricky",
+      "prompt": "Two files, `a.cpp` and `b.cpp`, are linked into one program. When `main` starts, what is the value of `x`?",
+      "code": "// file a.cpp\nint f();\nint x = f();\nint main() { return x; }\n\n// file b.cpp\nint y = 5;\nint f() { return y; }",
+      "options": [
+        "Unspecified: 0 or 5, depending on which file is initialized first",
+        "0, because `x` is initialized first",
+        "Undefined behavior: `y` is read before its initialization",
+        "5, guaranteed"
+      ],
+      "answer": 3,
+      "explanation": "`y` is constant-initialized, and [basic.start.static] says all static initialization strongly happens before any dynamic initialization. So `y` already holds 5 when the dynamic initializer of `x` calls `f`, whichever file's dynamic initialization runs first. The unspecified answer would be right if `y` had a dynamic initializer, such as `int y = compute();`.",
+      "refs": [
+        "[basic.start.static]",
+        "[basic.start.dynamic]"
+      ]
+    },
+    {
+      "id": "startup-dynamic-done-statically",
+      "kind": "standardese",
+      "prompt": "These are the only definitions in one file. What does the C++23 standard say about the value of `d2` once initialization is complete?",
+      "code": "inline double fd() { return 1.0; }\nextern double d1;\ndouble d2 = d1;\ndouble d1 = fd();",
+      "options": [
+        "It is 0.0, because `d2` is initialized before `d1` in the same file",
+        "It is unspecified whether it is 0.0 or 1.0",
+        "It is 1.0, because `fd()` can be evaluated at compile time",
+        "Undefined behavior: `d1` is read before its lifetime begins"
+      ],
+      "answer": 1,
+      "explanation": "Both variables have dynamic initializers, since `fd` is not `constexpr`. But [basic.start.static] lets an implementation perform a dynamic initialization statically when the result is the same, and doing that for `d1` is allowed. If it does, `d2` sees 1.0; if not, `d2` is initialized first and sees the zero-initialized 0.0. This is the standard's own example; GCC and Clang give 0.0, which is why the first option is tempting. There is no undefined behavior, because a zero-initialized `double` may be read.",
+      "refs": [
+        "[basic.start.static]"
+      ]
+    },
+    {
+      "id": "startup-uncaught-unwind",
+      "kind": "standardese",
+      "prompt": "The exception escapes `main` and no handler exists. Is the destructor of `local` guaranteed to run?",
+      "code": "#include <cstdio>\n\nstruct T { ~T() { std::puts(\"~T\"); } };\n\nint main() {\n  T local;\n  throw 42;\n}",
+      "options": [
+        "Yes: the stack is always unwound before `std::terminate` is called",
+        "No: it is guaranteed not to run, because `std::terminate` is called at the throw",
+        "Undefined behavior: throwing out of `main` is not allowed",
+        "It is implementation-defined whether the stack is unwound before `std::terminate` is called"
+      ],
+      "answer": 3,
+      "explanation": "When no matching handler is found, [except.handle] says `std::terminate` is called and whether the stack is unwound first is implementation-defined. GCC does not unwind, so `~T` is not printed there, but another implementation may unwind. This is why long-running programs catch everything in `main` when they need destructors to run.",
+      "refs": [
+        "[except.handle]",
+        "[except.terminate]"
+      ]
+    }
+  ]
+}

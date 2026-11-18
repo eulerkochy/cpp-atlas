@@ -1,0 +1,66 @@
+{
+  "root": {
+    "label": "chrono",
+    "note": "Durations, time points and clocks with units in the type, plus C++20 calendars and time zones.",
+    "children": [
+      {
+        "label": "Durations",
+        "note": "A count of type rep and a compile-time period in seconds.",
+        "children": [
+          { "label": "Implicit conversion", "note": "Allowed only when lossless: to a finer integer unit or to a floating-point rep." },
+          { "label": "duration_cast", "note": "Explicit conversion that truncates toward zero, even for negative values." },
+          { "label": "floor ceil round", "note": "C++17 helpers: round goes to nearest and breaks ties toward the even value." },
+          { "label": "Common type", "note": "Mixed arithmetic uses the finer unit, so 2h + 30min is minutes{150}." },
+          { "label": "Division", "note": "Duration divided by duration is a unitless number, and integer reps truncate." }
+        ]
+      },
+      {
+        "label": "Overflow",
+        "note": "Duration arithmetic does not check for overflow.",
+        "children": [
+          { "label": "Signed rep", "note": "Overflow of the signed count is undefined behavior, with no saturation." },
+          { "label": "Nanosecond range", "note": "A 64-bit count of nanoseconds spans only about 292 years." },
+          { "label": "Constant evaluation", "note": "A constexpr overflow is rejected, which makes a handy compile-time check." }
+        ]
+      },
+      {
+        "label": "Clocks and time points",
+        "note": "A time point is a duration since a clock's epoch.",
+        "children": [
+          { "label": "system_clock", "note": "Wall-clock time that can jump; its epoch is Unix time since C++20." },
+          { "label": "steady_clock", "note": "Monotonic and the right clock for measuring intervals." },
+          { "label": "high_resolution_clock", "note": "May be an alias of system_clock or steady_clock, so prefer the other two." },
+          { "label": "C++20 clocks", "note": "utc_clock counts leap seconds; tai_clock and gps_clock do not; file_clock has an unspecified epoch." },
+          { "label": "Time point arithmetic", "note": "point minus point is a duration; point plus point does not compile." }
+        ]
+      },
+      {
+        "label": "Calendar types",
+        "note": "C++20 value types for year, month, day and weekday.",
+        "children": [
+          { "label": "Slash syntax", "note": "2024y/February/29 builds a date; plain 2024/2/29 is integer division." },
+          { "label": "ok()", "note": "Invalid dates such as February 30 can be constructed, so check ok()." },
+          { "label": "Month arithmetic", "note": "Adding months keeps the day without clamping, so January 31 plus a month is invalid." },
+          { "label": "sys_days", "note": "Day-precision system time point; an out-of-range day in a valid month normalizes." }
+        ]
+      },
+      {
+        "label": "Time zones",
+        "note": "The IANA database reached through zoned_time.",
+        "children": [
+          { "label": "sys vs local", "note": "sys_time is UTC and local_time has no zone, and they are distinct types." },
+          { "label": "Gap", "note": "A nonexistent local time makes the zoned_time constructor throw nonexistent_local_time." },
+          { "label": "Overlap", "note": "An ambiguous local time throws ambiguous_local_time unless choose is given." }
+        ]
+      },
+      {
+        "label": "Formatting",
+        "note": "std::format understands durations, time points and dates.",
+        "children": [
+          { "label": "Duration suffix", "note": "A duration prints its count followed by a unit suffix such as s or ms." },
+          { "label": "Chrono specs", "note": "Specs such as %F, %T, %H:%M and %Z select the fields to print." }
+        ]
+      }
+    ]
+  }
+}

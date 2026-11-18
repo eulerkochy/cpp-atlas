@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "Access control and friends",
+    "note": "Access is a permission on names, checked after lookup and overload resolution.",
+    "children": [
+      {
+        "label": "Checked last",
+        "note": "Lookup and overload resolution ignore access; the chosen name is then checked.",
+        "children": [
+          { "label": "Private best match", "note": "A private overload that wins resolution makes the call ill-formed, not redirected." },
+          { "label": "Private still hides", "note": "A private base member hides a global of the same name; qualify with ::." },
+          { "label": "Names, not types", "note": "auto can hold a private nested type because the private name is never spelled." },
+          { "label": "Virtual calls", "note": "Access is checked on the static type's function; a private override still runs." }
+        ]
+      },
+      {
+        "label": "Protected rule",
+        "note": "Protected non-static members are reachable only through the accessing class or its derived classes.",
+        "children": [
+          { "label": "Not through Base&", "note": "Derived may not read a protected member through a plain Base reference." },
+          { "label": "Pointer to member", "note": "Must be formed as &Derived::m, which still has type T Base::*." },
+          { "label": "Static members exempt", "note": "The extra check applies only to non-static members." }
+        ]
+      },
+      {
+        "label": "Friends",
+        "note": "A friend gets the same access as the granting class's own members.",
+        "children": [
+          { "label": "Kinds", "note": "Functions, member functions, classes, and class or function templates can be friends." },
+          { "label": "Not inherited", "note": "A class derived from a friend gets no access." },
+          { "label": "Not transitive", "note": "A friend of a friend gets nothing, and friendship is not reciprocal." },
+          { "label": "Hidden friends", "note": "Defined in the class, found only by ADL, so they stay out of unrelated overload sets." }
+        ]
+      },
+      {
+        "label": "Base access",
+        "note": "Inheritance access caps the access of inherited members and controls conversion to the base.",
+        "children": [
+          { "label": "Defaults", "note": "class inherits privately and struct publicly; members default the same way." },
+          { "label": "Derived-to-base", "note": "Converting to a private base outside the class and its friends is ill-formed." },
+          { "label": "using-declaration", "note": "Can make an accessible inherited member public, protected or private in the derived class." },
+          { "label": "Injected-class-name", "note": "Inherited through a private base, the plain class name becomes inaccessible; use ::A." }
+        ]
+      },
+      {
+        "label": "Templates",
+        "note": "Access checks interact with substitution and with explicit instantiation.",
+        "children": [
+          { "label": "SFINAE", "note": "Since C++11 access is checked during substitution, so a private member reads as absent." },
+          { "label": "Explicit instantiation", "note": "Names in its declaration skip access checks, so a private member can be a template argument." }
+        ]
+      },
+      {
+        "label": "Nested and local",
+        "note": "Classes inside classes and functions inherit the access of their surroundings.",
+        "children": [
+          { "label": "Nested class", "note": "A member of the enclosing class, so it may use all its private names (C++11)." },
+          { "label": "One-way only", "note": "The enclosing class has no special access to the nested class's private members." },
+          { "label": "Local class", "note": "May use the names its enclosing function may use, including that class's private members." }
+        ]
+      }
+    ]
+  }
+}

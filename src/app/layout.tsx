@@ -5,6 +5,8 @@ import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import { ProgressProvider } from "@/components/ProgressProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SITE } from "@/lib/site";
+import { getSiteStats, siteDescription } from "@/lib/site-stats";
 import "./globals.css";
 import "./cppref.css";
 
@@ -27,38 +29,50 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://cpp-atlas.vercel.app"
-  ),
-  title: {
-    default: "C++ Atlas — Every cppreference Page Mapped 1:1",
-    template: "%s | C++ Atlas",
-  },
-  description:
-    "33 visual C++ study topics, 11 interactive memory and layout simulators, 220 ISO standardese traps, and every page of cppreference.com mapped 1:1.",
-  robots: {
-    index: true,
-    follow: true,
-  },
-  openGraph: {
-    title: "C++ Atlas — Every cppreference Page Mapped 1:1",
-    description:
-      "33 visual C++ study topics, 11 interactive memory and layout simulators, 220 ISO standardese traps, and every page of cppreference.com mapped 1:1.",
-    siteName: "C++ Atlas",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "C++ Atlas — Every cppreference Page Mapped 1:1",
-    description:
-      "33 visual C++ study topics, 11 interactive memory and layout simulators, 220 ISO standardese traps, and every page of cppreference.com mapped 1:1.",
-  },
-};
+const SITE_TITLE = "C++ Atlas — Every cppreference Page Mapped 1:1";
+
+export function generateMetadata(): Metadata {
+  const description = siteDescription();
+  return {
+    metadataBase: new URL(SITE.url),
+    title: {
+      default: SITE_TITLE,
+      template: `%s | ${SITE.name}`,
+    },
+    description,
+    applicationName: SITE.name,
+    robots: {
+      index: true,
+      follow: true,
+    },
+    openGraph: {
+      title: SITE_TITLE,
+      description,
+      siteName: SITE.name,
+      type: "website",
+      url: "/",
+      locale: "en",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: SITE_TITLE,
+      description,
+    },
+  };
+}
+
+/**
+ * Runs before first paint so the page never flashes the wrong theme. The
+ * reader's choice (ThemeToggle) wins; otherwise the system setting decides.
+ */
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");var d=t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.classList.toggle("dark",d)}catch(e){}})()`;
 
 export const viewport: Viewport = {
-  themeColor: "#fbfaf6",
-  colorScheme: "light",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fbfaf6" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c1220" },
+  ],
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({
@@ -70,7 +84,11 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col">
         <a
           href="#main"
@@ -81,7 +99,7 @@ export default function RootLayout({
         <TooltipProvider delay={0}>
           <ProgressProvider>
             <Navbar />
-            <CommandPalette />
+            <CommandPalette referencePages={getSiteStats().referencePages} />
             <main id="main" className="flex-1">
               {children}
             </main>

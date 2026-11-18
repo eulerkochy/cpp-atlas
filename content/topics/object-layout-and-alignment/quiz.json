@@ -1,0 +1,150 @@
+{
+  "questions": [
+    {
+      "id": "layout-member-order-padding",
+      "kind": "warmup",
+      "prompt": "On x86-64 Linux (System V ABI, GCC or Clang), what are `sizeof(A)` and `sizeof(B)`?",
+      "code": "struct A { char c; double d; char e; };\nstruct B { double d; char c; char e; };",
+      "options": [
+        "10 and 10",
+        "16 and 16",
+        "24 and 16",
+        "24 and 24"
+      ],
+      "answer": 2,
+      "explanation": "`double` is 8-byte aligned on this ABI. In `A`, `c` is followed by 7 padding bytes so that `d` lands at offset 8, and `e` at offset 16 needs 7 tail-padding bytes so that the size is a multiple of 8: 24 in total. In `B`, `d` comes first, then `c` and `e` at offsets 8 and 9, and the size rounds up to 16. The compiler may not reorder members to save space, because members are allocated in declaration order, so the answer 16 and 16 is wrong.",
+      "refs": [
+        "[class.mem]",
+        "[basic.align]",
+        "[expr.sizeof]"
+      ]
+    },
+    {
+      "id": "layout-sizeof-guarantee",
+      "kind": "warmup",
+      "prompt": "Which statement does the C++ standard guarantee for every complete object type `T`?",
+      "options": [
+        "`sizeof(bool) == 1`",
+        "`alignof(T) <= alignof(std::max_align_t)`",
+        "For a standard-layout `T`, `sizeof(T)` equals the sum of the sizes of its members",
+        "`sizeof(T)` is a multiple of `alignof(T)`"
+      ],
+      "answer": 3,
+      "explanation": "Arrays have no gaps, and an array of `n` elements has size `n * sizeof(T)`, yet every element must be suitably aligned. Together these force `sizeof(T)` to be a multiple of `alignof(T)`. `sizeof(bool)` is implementation-defined even though it is 1 on every mainstream ABI. `alignas` can create over-aligned types beyond `max_align_t`, and standard-layout types can still contain padding.",
+      "refs": [
+        "[expr.sizeof]",
+        "[basic.align]",
+        "[dcl.array]"
+      ]
+    },
+    {
+      "id": "layout-no-unique-address",
+      "kind": "warmup",
+      "prompt": "With GCC or Clang on x86-64 Linux (Itanium C++ ABI), what is `sizeof(S)`?",
+      "code": "struct Empty {};\nstruct S {\n  [[no_unique_address]] Empty e;\n  int x;\n};",
+      "options": [
+        "4",
+        "8",
+        "5",
+        "1"
+      ],
+      "answer": 0,
+      "explanation": "`[[no_unique_address]]` (C++20) makes `e` a potentially-overlapping subobject, and the Itanium ABI places it at offset 0, overlapping `x`, so `S` is the size of one `int`. Without the attribute, `e` would take at least one byte, and `x`'s alignment would make the struct 8. The attribute only permits overlap: MSVC ignores it and needs `[[msvc::no_unique_address]]`, which is why the prompt pins the ABI.",
+      "refs": [
+        "[dcl.attr.nouniqueaddr]",
+        "[intro.object]"
+      ]
+    },
+    {
+      "id": "layout-two-empty-same-type",
+      "kind": "tricky",
+      "prompt": "With GCC or Clang on x86-64 Linux (Itanium C++ ABI), what is `sizeof(T)`?",
+      "code": "struct Empty {};\nstruct T {\n  [[no_unique_address]] Empty a;\n  [[no_unique_address]] Empty b;\n  int x;\n};",
+      "options": [
+        "8, because `a` and `b` cannot overlap so they need their own storage before `x`",
+        "4, with `a` and `b` at the same offset",
+        "4, with `a` at offset 0 and `b` at offset 1, both overlapping `x`",
+        "Ill-formed: two `[[no_unique_address]]` members of the same type"
+      ],
+      "answer": 2,
+      "explanation": "Two distinct objects of the same type must have distinct addresses, so `a` and `b` cannot share an offset. Nothing stops either from overlapping `x`, though. The Itanium ABI puts `a` at 0 and `b` at 1, both inside `x`'s bytes, and the size stays 4. GCC 16 and Clang 21 both report offsets 0, 1 and 0. The tempting answer 'same offset' breaks the distinct-address rule, and 8 assumes overlap with a non-empty member is forbidden.",
+      "refs": [
+        "[intro.object]",
+        "[dcl.attr.nouniqueaddr]"
+      ]
+    },
+    {
+      "id": "layout-memcmp-padding",
+      "kind": "tricky",
+      "prompt": "Assume an ABI where `P` has 3 padding bytes after `c`. What can you say about `same`?",
+      "code": "#include <cstring>\nstruct P { char c; int i; };\n\nbool same() {\n  P a{'x', 1};\n  P b{'x', 1};\n  return std::memcmp(&a, &b, sizeof(P)) == 0;\n}",
+      "options": [
+        "It is always `true`, because the members are equal and `P` is trivially copyable",
+        "It is not guaranteed to be `true`: brace-initializing the members says nothing about the padding bytes",
+        "It is always `false`, because padding bytes are poisoned",
+        "Ill-formed: `memcmp` requires a type with unique object representations"
+      ],
+      "answer": 1,
+      "explanation": "The padding bytes are not part of the value representation, and aggregate initialization of the members does not set them, so two equal `P` objects may differ in bytes 1 to 3. Trivially copyable only guarantees that copying the bytes reproduces the value, not that equal values have equal bytes. `std::has_unique_object_representations_v<P>` is `false` on such an ABI, and checking it is how you guard byte-wise comparison or hashing. Zero-initialization, for example of a static `P` or of `P()`, would zero the padding.",
+      "refs": [
+        "[basic.types.general]",
+        "[dcl.init.general]",
+        "[meta.unary.prop]"
+      ]
+    },
+    {
+      "id": "layout-offsetof-polymorphic",
+      "kind": "tricky",
+      "prompt": "What is the status of `offsetof(V, x)` in C++23?",
+      "code": "#include <cstddef>\nstruct V {\n  virtual ~V() = default;\n  int x;\n};\nstd::size_t off = offsetof(V, x);",
+      "options": [
+        "Ill-formed: `offsetof` requires a standard-layout type",
+        "Undefined behavior",
+        "Conditionally-supported, because `V` is not standard-layout",
+        "Well-defined and equal to `sizeof(void*)`"
+      ],
+      "answer": 2,
+      "explanation": "Since C++17, using `offsetof` with a type that is not standard-layout is conditionally-supported. An implementation may accept it with its own meaning, or reject it with a diagnostic. Before C++17 it was undefined behavior, which is where the tempting UB answer comes from. GCC and Clang accept it with a `-Winvalid-offsetof` warning and give 8 on 64-bit Itanium targets, because the vtable pointer sits at offset 0, but that number is an ABI fact.",
+      "refs": [
+        "[support.types.layout]",
+        "[class.prop]"
+      ]
+    },
+    {
+      "id": "layout-access-order-cxx23",
+      "kind": "standardese",
+      "prompt": "In C++23, given an object `s` of type `S`, is `&s.a < &s.b && &s.b < &s.c` (comparing as `void*` inside a member function) guaranteed to be true?",
+      "code": "struct S {\npublic:\n  int a;\nprivate:\n  int b;\npublic:\n  int c;\n};",
+      "options": [
+        "Yes: since C++23, non-zero-size members are allocated in declaration order regardless of access",
+        "No: only `a` before `c` is guaranteed, because `b` has different access control",
+        "Unspecified: member order is entirely up to the implementation",
+        "Implementation-defined, and it must be documented"
+      ],
+      "answer": 0,
+      "explanation": "C++23 adopted P1847, which removed the access-control exception: non-static data members of non-zero size of a non-union class are now allocated so that later members have higher addresses. Before C++23, the guarantee only covered members with the same access control, so the first option describes C++20. In practice no major compiler ever reordered members across access specifiers, which is why the change was uncontroversial.",
+      "refs": [
+        "[class.mem]",
+        "[expr.rel]"
+      ]
+    },
+    {
+      "id": "layout-trivially-copyable",
+      "kind": "standardese",
+      "prompt": "Which of these class types is **not** trivially copyable?",
+      "options": [
+        "`struct R { int& r; };`",
+        "`struct D { int x; ~D() {} };`",
+        "`struct E { E(); int x; };`",
+        "`struct A { int x; A(const A&) = default; A& operator=(const A&) = delete; };`"
+      ],
+      "answer": 1,
+      "explanation": "A trivially copyable class needs at least one eligible copy or move operation, every eligible one trivial, and a trivial, non-deleted destructor. `D`'s user-provided destructor is non-trivial, so it fails. `R` and `A` are tempting because their copy assignment is deleted, but deleted functions are not eligible, and each still has a trivial copy constructor. `E`'s user-provided default constructor is not a copy or move operation, so it does not matter.",
+      "refs": [
+        "[class.prop]",
+        "[special]",
+        "[class.copy.ctor]"
+      ]
+    }
+  ]
+}

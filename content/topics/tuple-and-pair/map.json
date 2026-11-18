@@ -1,0 +1,61 @@
+{
+  "root": {
+    "label": "pair, tuple, tuple protocol",
+    "note": "Structs with numbered members, plus the protocol that lets any type behave like one.",
+    "children": [
+      {
+        "label": "Construction",
+        "note": "Element-wise, converting and piecewise ways to build pairs and tuples.",
+        "children": [
+          { "label": "Conditional explicit", "note": "The element-wise constructor is explicit only when some element conversion is explicit." },
+          { "label": "Deduction", "note": "tuple t{1, 2.5} deduces element types, and a single tuple argument is copied, not nested." },
+          { "label": "Piecewise", "note": "piecewise_construct with forward_as_tuple builds each member in place, as map::emplace needs." }
+        ]
+      },
+      {
+        "label": "Tuples of references",
+        "note": "A bundle of aliases that supports multiple assignment.",
+        "children": [
+          { "label": "make_tuple", "note": "Decays and copies arguments, and unwraps reference_wrapper into references." },
+          { "label": "tie", "note": "Makes a tuple of lvalue references, so assigning to it assigns the variables." },
+          { "label": "forward_as_tuple", "note": "Forwarding references with no copies; storing the result can dangle." },
+          { "label": "Assignment through", "note": "Assigning tuples of references assigns the referents; C++23 adds const assignment for proxies." },
+          { "label": "std::ignore", "note": "Accepts any assignment and discards it, to skip a position in tie." }
+        ]
+      },
+      {
+        "label": "Comparison",
+        "note": "Lexicographic ordering with a derived comparison category.",
+        "children": [
+          { "label": "Lexicographic", "note": "The first differing element decides; sizes must match." },
+          { "label": "Spaceship category", "note": "The result is the weakest category of the elements, so a double gives partial_ordering." }
+        ]
+      },
+      {
+        "label": "Tuple algorithms",
+        "note": "Functions that consume or combine tuple-like values.",
+        "children": [
+          { "label": "apply", "note": "Calls a function with the elements of a tuple-like object as arguments." },
+          { "label": "make_from_tuple", "note": "Constructs a T from the elements of a tuple-like object." },
+          { "label": "tuple_cat", "note": "Flattens one level, concatenating tuples, pairs and arrays into one tuple." }
+        ]
+      },
+      {
+        "label": "Tuple protocol",
+        "note": "tuple_size, tuple_element and get make any type tuple-like.",
+        "children": [
+          { "label": "Structured bindings", "note": "Bindings use the protocol whenever tuple_size is complete, before the struct rule." },
+          { "label": "tuple-like in C++23", "note": "array, pair, tuple and subrange qualify, and tuple and pair convert from any of them." }
+        ]
+      },
+      {
+        "label": "Practice",
+        "note": "Where tuples help and where a named struct is better.",
+        "children": [
+          { "label": "No layout guarantee", "note": "Member order and padding are unspecified, so never reinterpret a tuple." },
+          { "label": "Prefer a struct", "note": "Once fields cross an interface, names beat first and second." }
+        ]
+      }
+    ]
+  }
+}

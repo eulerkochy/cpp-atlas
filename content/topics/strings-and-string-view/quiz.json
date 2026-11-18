@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "strings-and-string-view-view-to-string",
+      "kind": "warmup",
+      "prompt": "Which statement in `main` is ill-formed in C++23?",
+      "code": "#include <string>\n#include <string_view>\n\nvoid takes_view(std::string_view);\n\nint main() {\n  std::string s = \"text\";\n  std::string_view v = s;\n  takes_view(s);          // (1)\n  std::string a{v};       // (2)\n  std::string b = v;      // (3)\n  s = v;                  // (4)\n}",
+      "options": [
+        "(1), because string to string_view needs a cast",
+        "(2), because the string constructor from a view is deleted",
+        "(3), because the constructor taking a view is explicit",
+        "(4), because string has no assignment from a view"
+      ],
+      "answer": 2,
+      "explanation": "`std::string` converts to `std::string_view` through a conversion operator, so (1) is fine. The constructor from a view-like object is `explicit`, so direct-initialization in (2) works but copy-initialization in (3) is rejected. Assignment from a view is provided as its own overload, which is why (4) compiles even though (3) does not.",
+      "refs": [
+        "[string.cons]",
+        "[basic.string]"
+      ]
+    },
+    {
+      "id": "strings-and-string-view-shared-buffer",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <string>\n#include <string_view>\n\nint main() {\n  std::string t = \"hello\";\n  std::string_view sv = t;\n  t[0] = 'J';\n  std::cout << sv << '\\n';\n}",
+      "options": [
+        "`hello`, because the view copied the characters",
+        "`Jello`",
+        "Undefined behavior, because the string was modified while a view existed",
+        "The program is ill-formed"
+      ],
+      "answer": 1,
+      "explanation": "A `string_view` is a pointer and a length into `t`; it copies nothing. Writing through `operator[]` neither reallocates nor invalidates anything, so the view simply observes the new character. The view would only be at risk if `t` were modified in a way that can reallocate.",
+      "refs": [
+        "[string.view]",
+        "[string.require]"
+      ]
+    },
+    {
+      "id": "strings-and-string-view-npos-wrap",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <string>\n\nint main() {\n  std::string s = \"abc\";\n  std::size_t i = s.find('z');\n  std::cout << (i + 1) << '\\n';\n}",
+      "options": [
+        "`0`",
+        "`-1`",
+        "`4`",
+        "Undefined behavior"
+      ],
+      "answer": 0,
+      "explanation": "`find` returns `std::string::npos`, which is `static_cast<size_type>(-1)`. `size_type` is unsigned, so adding one wraps around to zero, and unsigned wraparound is well-defined. The value `-1` is not representable in an unsigned type, which rules out the second option.",
+      "refs": [
+        "[string.capacity]",
+        "[basic.string]"
+      ]
+    },
+    {
+      "id": "strings-and-string-view-view-not-terminated",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <string_view>\n\nint main() {\n  std::string_view whole = \"hello world\";\n  std::string_view w = whole.substr(0, 5);\n  std::printf(\"%s\\n\", w.data());\n}",
+      "options": [
+        "`hello`",
+        "`hello world`",
+        "Undefined behavior, because `w.data()` is not null-terminated",
+        "Unspecified: it depends on the implementation"
+      ],
+      "answer": 1,
+      "explanation": "`w` points into the same literal as `whole`, and `data()` returns that pointer without any terminator being added at the end of the slice. `printf` reads until the next `'\\0'`, which is the literal's own terminator, so the whole text is printed. The read is well-defined here only because the underlying array is null-terminated; a view onto an unterminated buffer would read out of bounds.",
+      "refs": [
+        "[string.view]",
+        "[string.view.cons]"
+      ]
+    },
+    {
+      "id": "strings-and-string-view-subscript-size",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <string>\n\nint main() {\n  const std::string s = \"abc\";\n  std::cout << (s[s.size()] == '\\0') << ' ';\n  try {\n    (void)s.at(s.size());\n    std::cout << \"no throw\";\n  } catch (const std::out_of_range&) {\n    std::cout << \"out_of_range\";\n  }\n  std::cout << '\\n';\n}",
+      "options": [
+        "`0 out_of_range`",
+        "Undefined behavior from `s[s.size()]`",
+        "`1 out_of_range`",
+        "`1 no throw`"
+      ],
+      "answer": 2,
+      "explanation": "Since C++11, `operator[]` accepts `pos == size()` and returns a reference to the terminating `charT()`, so the comparison is true. `at` still checks `pos < size()` and throws `std::out_of_range`. Only `pos > size()` for `operator[]` is undefined, and writing a non-null value through the non-const version at `size()` is undefined too.",
+      "refs": [
+        "[string.access]"
+      ]
+    },
+    {
+      "id": "strings-and-string-view-dangling-temp",
+      "kind": "tricky",
+      "prompt": "What can be said about the second line of `use`?",
+      "code": "#include <iostream>\n#include <string>\n#include <string_view>\n\nvoid use(const std::string& s) {\n  std::string_view sv = s + \"x\";\n  std::cout << sv << '\\n';\n}",
+      "options": [
+        "It prints `s` followed by `x`, because the view extends the temporary's lifetime",
+        "Undefined behavior: the string temporary is destroyed at the end of the first line",
+        "It does not compile, because `string_view` cannot be built from a temporary",
+        "Well-defined only for strings short enough for small string optimization"
+      ],
+      "answer": 1,
+      "explanation": "`s + \"x\"` creates a temporary `std::string`, and a conversion to `string_view` binds no reference, so lifetime extension does not apply. The temporary dies at the end of the full expression and `sv` then points into destroyed storage. Small string optimization does not help: the string object itself is the destroyed thing, and the standard says nothing that would make reading it valid.",
+      "refs": [
+        "[class.temporary]",
+        "[string.view]"
+      ]
+    },
+    {
+      "id": "strings-and-string-view-nullptr-string",
+      "kind": "standardese",
+      "prompt": "In C++23, what is the status of `std::string s(nullptr);`?",
+      "code": "#include <string>\n\nint main() {\n  std::string s(nullptr);\n}",
+      "options": [
+        "Undefined behavior, as for a null `const char*`",
+        "Well-formed, and `s` is empty",
+        "Implementation-defined",
+        "Ill-formed: the constructor taking `nullptr_t` is deleted"
+      ],
+      "answer": 3,
+      "explanation": "C++23 (P2166) added `basic_string(nullptr_t) = delete`, so the call is diagnosed at compile time. Before that, `nullptr` converted to `const char*` and the call was undefined behavior because the pointer was not a valid null-terminated string. The same deletion exists for `basic_string_view`.",
+      "refs": [
+        "[string.cons]",
+        "[string.view.cons]"
+      ]
+    },
+    {
+      "id": "strings-and-string-view-overwrite-indeterminate",
+      "kind": "standardese",
+      "prompt": "In C++23, what does the standard say about this call?",
+      "code": "#include <string>\n\nint main() {\n  std::string s;\n  s.resize_and_overwrite(16, [](char* p, std::size_t n) {\n    p[0] = 'a';\n    p[1] = 'b';\n    return n;\n  });\n}",
+      "options": [
+        "`s` has size 16; the last 14 characters are value-initialized",
+        "`s` has size 2, because only two characters were written",
+        "Undefined behavior: the callable reported 16 characters but wrote only 2",
+        "Ill-formed, because the callable must return `void`"
+      ],
+      "answer": 2,
+      "explanation": "`resize_and_overwrite` makes the string exactly as long as the integer the callable returns, and the characters of that range must all hold determinate values. The buffer beyond the old contents is indeterminate, and the callable wrote only two of the 16 it reported, so the string would hold indeterminate characters. The size is taken from the return value, never inferred from what was written, and the callable returns the new size, not `void`.",
+      "refs": [
+        "[string.capacity]"
+      ]
+    }
+  ]
+}

@@ -1,152 +1,199 @@
-import fullCppIndexData from "@/data/cppref-full-index.json";
-import fullCIndexData from "@/data/c-full-index.json";
 import { getCompanionForPath } from "@/data/companions";
+import {
+  getReferenceChildren,
+  getReferenceEntry,
+  listedReferenceEntries,
+  referenceHref,
+} from "@/lib/reference";
 import { CppRefDomain, CppRefIndexEntry, ReferenceLang } from "@/types/cpp";
 
-interface RawIndexPayload {
-  entries: CppRefIndexEntry[];
-  types: CppRefDomain[];
+/*
+ * Directory, search and "in this section" views over the imported reference
+ * index (data/reference/index.json, data/reference-c/index.json). Every listed
+ * page belongs to exactly one domain, derived from its first path segment: the
+ * title of that top-level page ("Containers library" -> "Containers"), with a
+ * few groups for the small top-level pages (revisions, keywords, indexes).
+ */
+
+const DOMAIN_GROUPS: Record<ReferenceLang, Record<string, string>> = {
+  cpp: {
+    language: "Language",
+    preprocessor: "Language",
+    comment: "Language",
+    identifier_with_special_meaning: "Language",
+    keyword: "Keywords",
+    keywords: "Keywords",
+    "11": "Standards & support",
+    "14": "Standards & support",
+    "17": "Standards & support",
+    "20": "Standards & support",
+    "23": "Standards & support",
+    "26": "Standards & support",
+    current_status: "Standards & support",
+    compiler_support: "Standards & support",
+    feature_test: "Standards & support",
+    freestanding: "Standards & support",
+    standard_library: "Standard library",
+    header: "Standard headers",
+    symbol_index: "Indexes",
+    index: "Indexes",
+    links: "Resources",
+    meta: "Type support",
+    experimental: "Technical specifications",
+  },
+  c: {
+    language: "Language",
+    preprocessor: "Language",
+    comment: "Language",
+    keyword: "Keywords",
+    "95": "Standards & support",
+    "99": "Standards & support",
+    "11": "Standards & support",
+    "17": "Standards & support",
+    "23": "Standards & support",
+    current_status: "Standards & support",
+    compiler_support: "Standards & support",
+    header: "Standard headers",
+    symbol_index: "Indexes",
+    index: "Indexes",
+    links: "Resources",
+    experimental: "Technical specifications",
+  },
+};
+
+function cleanDomainTitle(title: string): string {
+  return title
+    .replace(/\s*\((?:since )?C\+\+\d\d\)/g, "")
+    .replace(/\s*\([^)]*\)$/, "")
+    .replace(/\s+library$/i, "")
+    .trim();
+}
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** "std::vector<T,Allocator>::push_back" -> "vector::push_back" (lower case). */
+function normalizeName(s: string): string {
+  let out = "";
+  let depth = 0;
+  const lower = s
+    .toLowerCase()
+    .replace(/\s*\((?:since|until|deprecated|removed|c\+\+)[^)]*\)/g, "");
+  for (let i = 0; i < lower.length; i++) {
+    const c = lower[i];
+    if ((c === "<" || c === ">") && depth === 0) {
+      // "operator<", "operator<=>", "operator->" are names, not template arguments.
+      let j = i;
+      while (j > 0 && "<>=-".includes(lower[j - 1])) j--;
+      if (lower.slice(0, j).trimEnd().endsWith("operator")) {
+        out += c;
+        continue;
+      }
+    }
+    if (c === "<") depth++;
+    else if (c === ">" && depth > 0) depth--;
+    else if (depth === 0) out += c;
+  }
+  return out.replace(/\bstd::/g, "").replace(/\s+/g, " ").trim();
+}
+
+interface IndexedEntry extends CppRefIndexEntry {
+  section: string;
+  search: { name: string; normalized: string; path: string };
 }
 
 interface LangIndexStore {
-  entries: CppRefIndexEntry[];
+  entries: IndexedEntry[];
   domains: CppRefDomain[];
-  uniquePaths: string[];
-  entryByPathMap: Map<string, CppRefIndexEntry[]>;
-  domainEntriesMap: Map<string, CppRefIndexEntry[]>;
+  domainEntriesMap: Map<string, IndexedEntry[]>;
+  byPath: Map<string, IndexedEntry>;
 }
 
-function buildLangStore(raw: RawIndexPayload): LangIndexStore {
-  const entryByPathMap = new Map<string, CppRefIndexEntry[]>();
-  const domainEntriesMap = new Map<string, CppRefIndexEntry[]>();
-  const uniquePathSet = new Set<string>();
+function buildLangStore(lang: ReferenceLang): LangIndexStore {
+  const listed = listedReferenceEntries(lang).filter((e) => e.path !== "");
+  const topTitles = new Map(
+    listed.filter((e) => !e.path.includes("/")).map((e) => [e.path, e.title])
+  );
+  const domainOf = (p: string) => {
+    const seg = p.split("/")[0];
+    return (
+      DOMAIN_GROUPS[lang][seg] ?? cleanDomainTitle(topTitles.get(seg) ?? seg)
+    );
+  };
 
-  for (const entry of raw.entries) {
-    const cleanPath = entry.path.split("#")[0];
-    uniquePathSet.add(cleanPath);
+  const entries: IndexedEntry[] = listed.map((e) => ({
+    name: e.title,
+    path: e.path,
+    type: domainOf(e.path),
+    section: e.path.split("/")[0],
+    search: {
+      name: e.title.toLowerCase(),
+      normalized: normalizeName(e.title),
+      path: e.path.toLowerCase(),
+    },
+  }));
 
-    const existingForPath = entryByPathMap.get(cleanPath);
-    if (existingForPath) {
-      existingForPath.push(entry);
-    } else {
-      entryByPathMap.set(cleanPath, [entry]);
-    }
-
-    const existingForDomain = domainEntriesMap.get(entry.type);
-    if (existingForDomain) {
-      existingForDomain.push(entry);
-    } else {
-      domainEntriesMap.set(entry.type, [entry]);
-    }
+  const domainEntriesMap = new Map<string, IndexedEntry[]>();
+  for (const e of entries) {
+    const list = domainEntriesMap.get(e.type);
+    if (list) list.push(e);
+    else domainEntriesMap.set(e.type, [e]);
   }
 
   return {
-    entries: raw.entries,
-    domains: [...raw.types].sort((a, b) => a.name.localeCompare(b.name)),
-    uniquePaths: Array.from(uniquePathSet).sort(),
-    entryByPathMap,
+    entries,
+    domains: [...domainEntriesMap]
+      .map(([name, list]) => ({ name, count: list.length, slug: slugify(name) }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
     domainEntriesMap,
+    byPath: new Map(entries.map((e) => [e.path, e])),
   };
 }
 
-const cppStore = buildLangStore(fullCppIndexData as RawIndexPayload);
-const cStore = buildLangStore(fullCIndexData as RawIndexPayload);
+const stores = new Map<ReferenceLang, LangIndexStore>();
 
 function getStore(lang: ReferenceLang): LangIndexStore {
-  return lang === "c" ? cStore : cppStore;
-}
-
-export const ALL_CPPREF_ENTRIES = cppStore.entries;
-export const ALL_CPPREF_DOMAINS = cppStore.domains;
-export const UNIQUE_CPPREF_PATHS = cppStore.uniquePaths;
-
-export const ALL_CREF_ENTRIES = cStore.entries;
-export const ALL_CREF_DOMAINS = cStore.domains;
-export const UNIQUE_CREF_PATHS = cStore.uniquePaths;
-
-export const INDEX_STATS = {
-  totalEntries: cppStore.entries.length,
-  uniquePages: cppStore.uniquePaths.length,
-  domainCount: cppStore.domains.length,
-};
-
-export const C_INDEX_STATS = {
-  totalEntries: cStore.entries.length,
-  uniquePages: cStore.uniquePaths.length,
-  domainCount: cStore.domains.length,
-};
-
-export const TOTAL_COMBINED_STATS = {
-  totalEntries: cppStore.entries.length + cStore.entries.length,
-  uniquePages: cppStore.uniquePaths.length + cStore.uniquePaths.length,
-  domainCount: cppStore.domains.length + cStore.domains.length,
-};
-
-const PATH_ALIASES: Record<string, string> = {
-  header: "headers",
-  headers: "header",
-};
-
-function normalizeLookupPath(rawPath: string): string {
-  return rawPath.split("#")[0].replace(/^\/+|\/+$/g, "");
-}
-
-function lookupEntriesByLangPath(
-  store: LangIndexStore,
-  rawPath: string
-): CppRefIndexEntry[] {
-  const cleanPath = normalizeLookupPath(rawPath);
-  if (!cleanPath) return [];
-  const direct = store.entryByPathMap.get(cleanPath);
-  if (direct && direct.length > 0) return direct;
-  const alias = PATH_ALIASES[cleanPath];
-  return alias ? store.entryByPathMap.get(alias) ?? [] : [];
-}
-
-function collectDirectChildren(
-  store: LangIndexStore,
-  prefix: string
-): CppRefIndexEntry[] {
-  const childPrefix = `${prefix}/`;
-  const seenPaths = new Set<string>();
-  const matches: CppRefIndexEntry[] = [];
-
-  for (const entry of store.entries) {
-    const p = entry.path.split("#")[0];
-    if (p.startsWith(childPrefix)) {
-      const remainder = p.slice(childPrefix.length);
-      if (remainder.length > 0 && !remainder.includes("/") && !seenPaths.has(p)) {
-        seenPaths.add(p);
-        matches.push(entry);
-      }
-    }
+  let store = stores.get(lang);
+  if (!store) {
+    store = buildLangStore(lang);
+    stores.set(lang, store);
   }
+  return store;
+}
 
-  return matches.sort(
-    (a, b) => a.name.localeCompare(b.name) || a.path.localeCompare(b.path)
-  );
+export interface IndexStats {
+  /** Listed pages (excluding redirects and the root page). */
+  pages: number;
+  domainCount: number;
+}
+
+export function getIndexStats(lang: ReferenceLang | "all"): IndexStats {
+  if (lang === "all") {
+    const cpp = getIndexStats("cpp");
+    const c = getIndexStats("c");
+    return {
+      pages: cpp.pages + c.pages,
+      domainCount: cpp.domainCount + c.domainCount,
+    };
+  }
+  const store = getStore(lang);
+  return { pages: store.entries.length, domainCount: store.domains.length };
+}
+
+/** Listed pages at or below a path ("container" -> container and everything under it). */
+export function countPagesUnderPrefix(lang: ReferenceLang, prefix: string): number {
+  const p = prefix.replace(/\/+$/, "");
+  return getStore(lang).entries.filter(
+    (e) => e.path === p || e.path.startsWith(`${p}/`)
+  ).length;
 }
 
 export function getDomainsForLang(lang: ReferenceLang): CppRefDomain[] {
   return getStore(lang).domains;
-}
-
-export function countUniquePagesUnderPrefix(
-  lang: ReferenceLang,
-  prefix: string
-): number {
-  const paths = getStore(lang).uniquePaths;
-  const cleanPrefix = normalizeLookupPath(prefix);
-  if (!cleanPrefix) {
-    return paths.length;
-  }
-  let count = 0;
-  for (const p of paths) {
-    if (p === cleanPrefix || p.startsWith(`${cleanPrefix}/`)) {
-      count++;
-    }
-  }
-  return count;
 }
 
 export function getEntriesForLangDomain(
@@ -156,25 +203,12 @@ export function getEntriesForLangDomain(
   return getStore(lang).domainEntriesMap.get(domainName) ?? [];
 }
 
-export function getEntriesForDomain(domainName: string): CppRefIndexEntry[] {
-  return cppStore.domainEntriesMap.get(domainName) ?? [];
-}
-
-export function getEntriesForPath(cleanPath: string): CppRefIndexEntry[] {
-  return lookupEntriesByLangPath(cppStore, cleanPath);
-}
-
-export function getPrimaryEntryForPath(
-  cleanPath: string
-): CppRefIndexEntry | undefined {
-  return lookupEntriesByLangPath(cppStore, cleanPath)[0];
-}
-
-export function getPrimaryEntryForLangPath(
+/** Directory entry for a page: its title and domain (undefined for the root). */
+export function getIndexEntry(
   lang: ReferenceLang,
   cleanPath: string
 ): CppRefIndexEntry | undefined {
-  return lookupEntriesByLangPath(getStore(lang), cleanPath)[0];
+  return getStore(lang).byPath.get(cleanPath);
 }
 
 export interface SearchResultItem {
@@ -187,6 +221,28 @@ export interface SearchResultItem {
   companionShortTitle?: string;
 }
 
+/** Sections that rarely hold the page someone is looking for. */
+const SECTION_PENALTY: Record<string, number> = {
+  experimental: 30,
+  symbol_index: 35,
+  compiler_support: 15,
+  header: 6,
+  keyword: 4,
+};
+
+function toResult(lang: ReferenceLang, entry: CppRefIndexEntry): SearchResultItem {
+  const companion = lang === "cpp" ? getCompanionForPath(entry.path) : undefined;
+  return {
+    lang,
+    name: entry.name,
+    path: entry.path,
+    urlPath: referenceHref(lang, entry.path),
+    type: entry.type,
+    hasCompanion: Boolean(companion),
+    companionShortTitle: companion?.shortTitle,
+  };
+}
+
 export function searchCppRefIndex(
   query: string,
   domain?: string,
@@ -194,105 +250,78 @@ export function searchCppRefIndex(
   langFilter: "all" | ReferenceLang = "all"
 ): SearchResultItem[] {
   const trimmed = query.trim().toLowerCase();
+  const normalizedQuery = normalizeName(trimmed);
   const hasDomainFilter = Boolean(domain && domain !== "all");
 
-  const pools: { lang: ReferenceLang; entries: CppRefIndexEntry[] }[] = [];
-  if (langFilter === "all" || langFilter === "cpp") {
-    const entries = hasDomainFilter
-      ? cppStore.domainEntriesMap.get(domain!) ?? []
-      : cppStore.entries;
-    pools.push({ lang: "cpp", entries });
-  }
-  if (langFilter === "all" || langFilter === "c") {
-    const entries = hasDomainFilter
-      ? cStore.domainEntriesMap.get(domain!) ?? []
-      : cStore.entries;
-    pools.push({ lang: "c", entries });
+  const pools: { lang: ReferenceLang; entries: IndexedEntry[] }[] = [];
+  for (const lang of ["cpp", "c"] as const) {
+    if (langFilter !== "all" && langFilter !== lang) continue;
+    const store = getStore(lang);
+    pools.push({
+      lang,
+      entries: hasDomainFilter
+        ? store.domainEntriesMap.get(domain!) ?? []
+        : store.entries,
+    });
   }
 
   if (!trimmed) {
-    const prioritized: SearchResultItem[] = [];
-    const seen = new Set<string>();
+    // Pages with a study companion first, then tree order.
+    const out: SearchResultItem[] = [];
     for (const { lang, entries } of pools) {
       if (lang !== "cpp") continue;
-      for (const entry of entries) {
-        const cleanPath = entry.path.split("#")[0];
-        const companion = getCompanionForPath(cleanPath);
-        const key = `${lang}:${entry.path}:${entry.name}`;
-        if (companion && !seen.has(key)) {
-          seen.add(key);
-          prioritized.push({
-            lang,
-            name: entry.name,
-            path: entry.path,
-            urlPath: `/w/${lang}/${entry.path}`,
-            type: entry.type,
-            hasCompanion: true,
-            companionShortTitle: companion.shortTitle,
-          });
-        }
+      for (const e of entries) {
+        if (getCompanionForPath(e.path)) out.push(toResult(lang, e));
       }
     }
     for (const { lang, entries } of pools) {
-      for (const entry of entries) {
-        if (prioritized.length >= limit) break;
-        const key = `${lang}:${entry.path}:${entry.name}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        prioritized.push({
-          lang,
-          name: entry.name,
-          path: entry.path,
-          urlPath: `/w/${lang}/${entry.path}`,
-          type: entry.type,
-          hasCompanion: false,
-        });
+      for (const e of entries) {
+        if (out.length >= limit) break;
+        if (lang === "cpp" && getCompanionForPath(e.path)) continue;
+        out.push(toResult(lang, e));
       }
     }
-    return prioritized.slice(0, limit);
+    return out.slice(0, limit);
   }
 
   const scored: { item: SearchResultItem; score: number }[] = [];
 
   for (const { lang, entries } of pools) {
     for (const entry of entries) {
-      const nameLower = entry.name.toLowerCase();
-      const pathLower = entry.path.toLowerCase();
+      const { name, normalized, path } = entry.search;
       let score = 0;
 
-      if (nameLower === trimmed || pathLower === trimmed) {
+      if (
+        name === trimmed ||
+        normalized === normalizedQuery ||
+        path === trimmed
+      ) {
         score = 100;
-      } else if (nameLower.startsWith(trimmed)) {
+      } else if (
+        name.startsWith(trimmed) ||
+        normalized.startsWith(normalizedQuery)
+      ) {
         score = 80;
       } else if (
-        nameLower.includes("::" + trimmed) ||
-        pathLower.endsWith("/" + trimmed)
+        normalized.includes("::" + normalizedQuery) ||
+        path.endsWith("/" + trimmed)
       ) {
         score = 70;
-      } else if (nameLower.includes(trimmed)) {
+      } else if (
+        name.includes(trimmed) ||
+        normalized.includes(normalizedQuery)
+      ) {
         score = 50;
-      } else if (pathLower.includes(trimmed)) {
+      } else if (path.includes(trimmed)) {
         score = 35;
       }
 
       if (score > 0) {
-        const cleanPath = entry.path.split("#")[0];
-        const companion =
-          lang === "cpp" ? getCompanionForPath(cleanPath) : undefined;
-        if (companion) score += 8;
+        const item = toResult(lang, entry);
+        if (item.hasCompanion) score += 8;
         if (lang === "cpp") score += 2;
-        scored.push({
-          score,
-          item: {
-            lang,
-            name: entry.name,
-            path: entry.path,
-            urlPath: `/w/${lang}/${entry.path}`,
-            type: entry.type,
-            hasCompanion: Boolean(companion),
-            companionShortTitle: companion?.shortTitle,
-          },
-        });
+        score -= SECTION_PENALTY[entry.section] ?? 0;
+        scored.push({ score, item });
       }
     }
   }
@@ -304,97 +333,14 @@ export function searchCppRefIndex(
   return scored.slice(0, limit).map((s) => s.item);
 }
 
-export interface RelatedPages {
-  parent: CppRefIndexEntry | null;
-  children: CppRefIndexEntry[];
-  siblings: CppRefIndexEntry[];
-  totalChildren: number;
-  totalSiblings: number;
-}
-
-export function getRelatedPagesForLangPath(
+/** Other listed pages under the same parent, in tree order. */
+export function getSiblingPages(
   lang: ReferenceLang,
-  cleanPath: string,
-  limits?: { children?: number; siblings?: number }
-): RelatedPages {
-  const normalized = normalizeLookupPath(cleanPath);
-  if (!normalized || normalized === "index") {
-    return {
-      parent: null,
-      children: [],
-      siblings: [],
-      totalChildren: 0,
-      totalSiblings: 0,
-    };
-  }
-
-  const store = getStore(lang);
-  const segments = normalized.split("/");
-  const parentPath = segments.length > 1 ? segments.slice(0, -1).join("/") : null;
-  const parent = parentPath
-    ? lookupEntriesByLangPath(store, parentPath)[0] ?? null
-    : null;
-
-  let allChildren = collectDirectChildren(store, normalized);
-  if (allChildren.length === 0 && PATH_ALIASES[normalized]) {
-    allChildren = collectDirectChildren(store, PATH_ALIASES[normalized]);
-  }
-
-  let allSiblings: CppRefIndexEntry[] = [];
-  if (parentPath) {
-    allSiblings = collectDirectChildren(store, parentPath).filter(
-      (entry) => entry.path.split("#")[0] !== normalized
-    );
-    if (allSiblings.length === 0 && PATH_ALIASES[parentPath]) {
-      allSiblings = collectDirectChildren(store, PATH_ALIASES[parentPath]).filter(
-        (entry) => entry.path.split("#")[0] !== normalized
-      );
-    }
-  }
-
-  const childLimit = limits?.children ?? 28;
-  const siblingLimit = limits?.siblings ?? 20;
-
-  return {
-    parent,
-    children: allChildren.slice(0, childLimit),
-    siblings: allSiblings.slice(0, siblingLimit),
-    totalChildren: allChildren.length,
-    totalSiblings: allSiblings.length,
-  };
-}
-
-export function getRelatedPagesForPath(
-  cleanPath: string,
-  limits?: { children?: number; siblings?: number }
-): RelatedPages {
-  return getRelatedPagesForLangPath("cpp", cleanPath, limits);
-}
-
-export function getChildrenUnderPrefix(
-  lang: ReferenceLang,
-  prefix: string
+  cleanPath: string
 ): CppRefIndexEntry[] {
-  const store = getStore(lang);
-  const cleanPrefix = normalizeLookupPath(prefix);
-  if (!cleanPrefix) return [];
-
-  const collectUnder = (pPrefix: string): CppRefIndexEntry[] => {
-    const searchPrefix = `${pPrefix}/`;
-    const seen = new Set<string>();
-    const matches: CppRefIndexEntry[] = [];
-    for (const entry of store.entries) {
-      const p = entry.path.split("#")[0];
-      if (p.startsWith(searchPrefix) && !seen.has(p)) {
-        seen.add(p);
-        matches.push(entry);
-      }
-    }
-    return matches.sort((a, b) => a.path.localeCompare(b.path));
-  };
-
-  const direct = collectUnder(cleanPrefix);
-  if (direct.length > 0) return direct;
-  const alias = PATH_ALIASES[cleanPrefix];
-  return alias ? collectUnder(alias) : [];
+  const entry = getReferenceEntry(lang, cleanPath);
+  if (!entry || entry.parent === null) return [];
+  return getReferenceChildren(lang, entry.parent)
+    .filter((c) => c.kind !== "redirect" && c.path !== entry.path)
+    .map((c) => getStore(lang).byPath.get(c.path) ?? { name: c.title, path: c.path, type: "" });
 }

@@ -1,0 +1,120 @@
+{
+  "root": {
+    "label": "Integer arithmetic and overflow",
+    "note": "Unsigned wraps by definition; signed overflow is undefined; promotion hides which one you are doing.",
+    "children": [
+      {
+        "label": "Overflow contracts",
+        "note": "Unsigned arithmetic is modular; signed overflow leaves the language rules.",
+        "children": [
+          {
+            "label": "Unsigned wraparound",
+            "note": "Results are reduced modulo 2 to the width, so UINT_MAX + 1u is 0."
+          },
+          {
+            "label": "Signed overflow",
+            "note": "Undefined behavior under [expr.pre]; compilers may assume it never happens."
+          },
+          {
+            "label": "Two's complement, C++20",
+            "note": "The representation is now fixed, but signed overflow is still undefined."
+          },
+          {
+            "label": "Constant evaluation",
+            "note": "Overflow in a constexpr initializer is not a constant expression, so it is diagnosed."
+          }
+        ]
+      },
+      {
+        "label": "Promotion trap",
+        "note": "Narrow unsigned operands become int before arithmetic.",
+        "children": [
+          {
+            "label": "unsigned short product",
+            "note": "Both operands promote to int, so 65535 * 65535 overflows with a 32-bit int."
+          },
+          {
+            "label": "The fix",
+            "note": "Cast an operand to unsigned first, or write 1u * a * b."
+          }
+        ]
+      },
+      {
+        "label": "Division and remainder",
+        "note": "Quotients truncate toward zero and the remainder follows the dividend.",
+        "children": [
+          {
+            "label": "Truncation, C++11",
+            "note": "-7 / 2 is -3 and -7 % 2 is -1; (a / b) * b + a % b equals a."
+          },
+          {
+            "label": "INT_MIN / -1",
+            "note": "The quotient does not fit, so both division and remainder are undefined."
+          },
+          {
+            "label": "Division by zero",
+            "note": "Undefined for both / and %."
+          },
+          {
+            "label": "abs(INT_MIN)",
+            "note": "The result is not representable, so the behavior is undefined."
+          }
+        ]
+      },
+      {
+        "label": "Comparing integers",
+        "note": "Mixed-sign comparison converts to unsigned; C++20 adds value-based helpers.",
+        "children": [
+          {
+            "label": "-1 < 1u is false",
+            "note": "The signed operand converts to unsigned, so -1 becomes UINT_MAX."
+          },
+          {
+            "label": "cmp_less family",
+            "note": "std::cmp_* compare mathematical values; they reject char types and bool."
+          },
+          {
+            "label": "in_range",
+            "note": "std::in_range<R>(v) tells whether v fits in type R without converting it."
+          },
+          {
+            "label": "ssize and loops",
+            "note": "Use std::ssize or i-- > 0 to avoid size_t underflow in reverse loops."
+          }
+        ]
+      },
+      {
+        "label": "Conversions",
+        "note": "Conversion to unsigned is modular; to signed it is modular since C++20.",
+        "children": [
+          {
+            "label": "Narrowing to signed",
+            "note": "200 to int8_t is -56 in C++20; it was implementation-defined before."
+          },
+          {
+            "label": "List-initialization",
+            "note": "Narrowing is ill-formed unless the source is a constant that fits."
+          }
+        ]
+      },
+      {
+        "label": "Safe arithmetic, C++26",
+        "note": "Library tools that handle overflow without undefined behavior.",
+        "children": [
+          {
+            "label": "Saturating operations",
+            "note": "C++26 clamps to the type's limits; libstdc++ 16 spells them saturating_add and so on."
+          },
+          {
+            "label": "ckd_add and ckd_mul",
+            "note": "From <stdckdint.h>: return true on overflow and store the wrapped result."
+          },
+          {
+            "label": "Compiler builtins",
+            "note": "__builtin_add_overflow does the same job in GCC and Clang today."
+          }
+        ]
+      }
+    ]
+  }
+}

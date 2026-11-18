@@ -1,0 +1,112 @@
+{
+  "root": {
+    "label": "Adaptors and flat containers",
+    "note": "Narrow interfaces over real containers, and sorted vectors with a map interface.",
+    "children": [
+      {
+        "label": "What an adaptor is",
+        "note": "It wraps an underlying container as a member and exposes a restricted interface.",
+        "children": [
+          {
+            "label": "Underlying container",
+            "note": "A template parameter: deque for stack and queue, vector for priority_queue."
+          },
+          {
+            "label": "Required operations",
+            "note": "queue needs pop_front, so vector fails at pop(); priority_queue needs random access."
+          },
+          {
+            "label": "No iteration",
+            "note": "There are no iterators; pop() returns void, and top, front, pop on empty are undefined."
+          }
+        ]
+      },
+      {
+        "label": "priority_queue",
+        "note": "A heap kept in a random access container with push_heap and pop_heap.",
+        "children": [
+          {
+            "label": "Comparator direction",
+            "note": "The top is the element that comes last: less gives a max-heap, greater a min-heap."
+          },
+          {
+            "label": "Const top",
+            "note": "top() is const to protect the heap, so std::move(top()) copies instead of moving."
+          },
+          {
+            "label": "Moving out",
+            "note": "Derive and use protected c and comp with pop_heap, then move from back()."
+          },
+          {
+            "label": "Complexity",
+            "note": "push and pop are logarithmic, top is constant, building from a range is linear."
+          }
+        ]
+      },
+      {
+        "label": "Flat container layout",
+        "note": "C++23 flat_map and flat_set wrap sorted sequence containers.",
+        "children": [
+          {
+            "label": "Two vectors",
+            "note": "A flat_map keeps sorted keys and a parallel vector of values; flat_set keeps one sorted vector."
+          },
+          {
+            "label": "Trade-offs",
+            "note": "Lookup is a cache-friendly binary search; insert and erase are linear; iteration is fast."
+          },
+          {
+            "label": "No nodes",
+            "note": "No node handles or merge; insert and erase invalidate iterators and references like vector."
+          }
+        ]
+      },
+      {
+        "label": "Construction and access",
+        "note": "Bulk operations that trust the caller.",
+        "children": [
+          {
+            "label": "sorted_unique",
+            "note": "Skips sorting; input that is unsorted or has duplicates is undefined behavior."
+          },
+          {
+            "label": "extract and replace",
+            "note": "extract() moves out the keys and values containers; replace() needs equal sizes and sorted unique keys."
+          },
+          {
+            "label": "sorted_equivalent",
+            "note": "The tag for multi variants: sorted input, equal keys allowed."
+          }
+        ]
+      },
+      {
+        "label": "flat_map reference type",
+        "note": "Dereferencing yields a prvalue pair of references.",
+        "children": [
+          {
+            "label": "Pair of references",
+            "note": "reference is pair<const K&, V&> returned by value; value_type is pair<K, V>."
+          },
+          {
+            "label": "auto& fails",
+            "note": "for (auto& [k, v] : m) is ill-formed; use auto&&, and know that auto still writes through."
+          }
+        ]
+      },
+      {
+        "label": "Status and safety",
+        "note": "Caveats for real-world use.",
+        "children": [
+          {
+            "label": "Exception safety",
+            "note": "Two containers must stay in step; the reference documents no-effect only for single-element insertion."
+          },
+          {
+            "label": "Implementation status",
+            "note": "GCC 16.2 libstdc++ and libc++ 21.1 ship the flat containers in C++23 mode."
+          }
+        ]
+      }
+    ]
+  }
+}

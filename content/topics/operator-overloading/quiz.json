@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "operator-overloading-must-be-member",
+      "kind": "warmup",
+      "prompt": "Which of these operators can only be overloaded as a member function?",
+      "options": [
+        "`operator+`",
+        "`operator<<`",
+        "`operator=`",
+        "`operator==`",
+        "`operator!`"
+      ],
+      "answer": 2,
+      "explanation": "Assignment, function call, subscript and `->` must be member functions; every class already has an implicitly declared copy assignment operator, and a free `operator=` is rejected outright. The others may be members or non-members. `operator<<` is tempting because it is usually a non-member, but that is a convention forced by the stream being the left operand, not a rule in either direction.",
+      "refs": [
+        "[over.oper]",
+        "[over.ass]"
+      ]
+    },
+    {
+      "id": "operator-overloading-member-asymmetry",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "struct V {\n  int x;\n  V operator+(int n) const { return {x + n}; }\n};\n\nint main() {\n  V v{1};\n  V w = 2 + v;\n  (void)w;\n}",
+      "options": [
+        "Well-formed: addition is commutative, so the compiler swaps the operands",
+        "Ill-formed: no `operator+` accepts an `int` on the left and a `V` on the right",
+        "Well-formed: `2` is converted to `V` and the member is called on it",
+        "Well-formed only since C++20, which adds reversed candidates for `+`"
+      ],
+      "answer": 1,
+      "explanation": "A member `operator+` makes the left operand the implicit object argument, so it only matches `V + int`. The compiler never swaps the operands of `+`; C++20 reversed candidates exist only for `==` and the relational operators via `<=>`. Converting `2` to `V` is not possible here, and user-defined conversions are never applied to the implicit object argument anyway.",
+      "refs": [
+        "[over.match.oper]",
+        "[over.match.funcs]"
+      ]
+    },
+    {
+      "id": "operator-overloading-postfix-dummy",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct C {\n  int n = 0;\n  C& operator++() { ++n; return *this; }\n  C operator++(int k) {\n    std::printf(\"k=%d\\n\", k);\n    C old = *this;\n    ++n;\n    return old;\n  }\n};\n\nint main() {\n  C c;\n  c++;\n  c.operator++(5);\n  std::printf(\"%d\\n\", c.n);\n}",
+      "options": [
+        "`k=1`, `k=5`, `2`",
+        "`k=0`, `2` only; an explicit call to the postfix form is ill-formed",
+        "`k=5`, `1`; `c++` calls the prefix overload",
+        "`k=0`, `k=5`, `2`"
+      ],
+      "answer": 3,
+      "explanation": "The `int` parameter only distinguishes postfix from prefix. When the postfix form is invoked through `c++`, the standard says it is called with the argument zero. Calling `operator++` by name is an ordinary member function call, so you may pass any `int`, here 5. Each call increments `n` once, so the final value is 2.",
+      "refs": [
+        "[over.inc]"
+      ]
+    },
+    {
+      "id": "operator-overloading-and-no-short-circuit",
+      "kind": "tricky",
+      "prompt": "In C++23, what does this program print?",
+      "code": "#include <cstdio>\n\nstruct B { bool v; };\nB f() { std::puts(\"f\"); return {false}; }\nB g() { std::puts(\"g\"); return {true}; }\nbool operator&&(B a, B b) { std::puts(\"&&\"); return a.v && b.v; }\n\nint main() {\n  bool r = f() && g();\n  std::printf(\"%d\\n\", r);\n}",
+      "options": [
+        "`f`, `g`, `&&`, `0`",
+        "`f`, `0`: `g()` is skipped because the left operand is false",
+        "`f`, `g`, `&&`, `0`, but `f` and `g` may appear in either order",
+        "`g`, `f`, `&&`, `0`: function arguments are evaluated right to left"
+      ],
+      "answer": 0,
+      "explanation": "An overloaded `&&` is a function call, and both arguments are evaluated before the body runs, so there is no short-circuit. Since C++17, [over.match.oper] sequences the operands of an overloaded operator in the order prescribed for the built-in one, so `f()` is evaluated before `g()`. The third option describes the pre-C++17 rule, when the order was unspecified.",
+      "refs": [
+        "[over.match.oper]",
+        "[expr.log.and]",
+        "[expr.call]"
+      ]
+    },
+    {
+      "id": "operator-overloading-arrow-drilldown",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct Raw { int x = 42; };\nstruct Inner {\n  Raw r;\n  Raw* operator->() { std::puts(\"Inner->\"); return &r; }\n};\nstruct Outer {\n  Inner i;\n  Inner& operator->() { std::puts(\"Outer->\"); return i; }\n};\n\nint main() {\n  Outer o;\n  std::printf(\"%d\\n\", o->x);\n}",
+      "options": [
+        "Nothing: ill-formed, because `operator->` must return a pointer",
+        "`Outer->`, then `42`",
+        "`Outer->`, `Inner->`, then `42`",
+        "Nothing: ill-formed, because `Inner` has no member `x`"
+      ],
+      "answer": 2,
+      "explanation": "`o->x` is interpreted as `(o.operator->())->x`. The result is an `Inner` lvalue, which is a class type, so `->` is applied to it again, calling `Inner::operator->`, which yields a `Raw*`, and the built-in `->` finishes the job. `operator->` may return any class type that itself supports `->`; only the final step must produce a pointer.",
+      "refs": [
+        "[over.ref]",
+        "[over.match.oper]"
+      ]
+    },
+    {
+      "id": "operator-overloading-udl-integer",
+      "kind": "tricky",
+      "prompt": "Is this program well-formed?",
+      "code": "long double operator\"\"_km(long double x) { return x * 1000; }\n\nint main() {\n  auto d = 12_km;\n  (void)d;\n}",
+      "options": [
+        "Well-formed: `12` is converted to `long double` and `d` is 12000",
+        "Ill-formed: an integer literal never selects the `long double` literal operator",
+        "Well-formed, but `d` has type `unsigned long long`",
+        "Ill-formed: literal operators must be declared `constexpr`"
+      ],
+      "answer": 1,
+      "explanation": "The literal operator is chosen from the kind of literal, with no conversions. For the integer literal `12_km`, lookup tries `operator\"\"_km(unsigned long long)`, then the raw form taking `const char*`, then a numeric literal operator template; none exists, so the program is ill-formed. Writing `12.0_km` or adding an `unsigned long long` overload fixes it. `constexpr` is optional.",
+      "refs": [
+        "[lex.ext]",
+        "[over.literal]"
+      ]
+    },
+    {
+      "id": "operator-overloading-not-overloadable",
+      "kind": "standardese",
+      "prompt": "Which of these operators cannot be overloaded?",
+      "options": [
+        "`->*`",
+        "`,` (comma)",
+        "`co_await`",
+        "`.*`",
+        "`&&`"
+      ],
+      "answer": 3,
+      "explanation": "The pointer-to-member operator `.*` is on the short list of operators that cannot be overloaded, with `::`, `.` and `?:`. Its sibling `->*` can be overloaded, as an ordinary binary operator with no drill-down. The comma, `co_await` and `&&` are all overloadable, although overloading the comma or `&&` loses the built-in short-circuit behaviour.",
+      "refs": [
+        "[over.oper]"
+      ]
+    },
+    {
+      "id": "operator-overloading-static-call",
+      "kind": "standardese",
+      "prompt": "In C++23, what does `main` return?",
+      "code": "struct Grid {\n  static int operator()(int a, int b) { return a * b; }\n  int operator[](int i = 7) const { return i; }\n};\n\nint main() {\n  return Grid{}(3, 4) + Grid{}[];\n}",
+      "options": [
+        "19",
+        "Ill-formed: `operator()` cannot be a static member function",
+        "Ill-formed: `operator[]` cannot have a default argument",
+        "Ill-formed: a subscript expression needs at least one operand"
+      ],
+      "answer": 0,
+      "explanation": "C++23 (P1169 and P2589) allows `operator()` and `operator[]` to be static member functions, and P2128 lets `operator[]` take any number of parameters, including zero, with default arguments. So `Grid{}(3, 4)` is 12 and `Grid{}[]` uses the default 7, giving 19. Each of the other options was true in C++20.",
+      "refs": [
+        "[over.call]",
+        "[over.sub]",
+        "[over.oper]"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "root": {
+    "label": "noexcept",
+    "note": "A no-throw promise in the type system, read at compile time and enforced by std::terminate.",
+    "children": [
+      {
+        "label": "Specifier",
+        "note": "noexcept or noexcept(true) is non-throwing; noexcept(false) or nothing is potentially throwing.",
+        "children": [
+          { "label": "Constant bool argument", "note": "The argument is a constant expression and may depend on template parameters." },
+          { "label": "Conditional idiom", "note": "noexcept(noexcept(expr)): the outer is the specifier, the inner is the operator." },
+          { "label": "Not checked statically", "note": "Calling throwing code from a noexcept function is well-formed; compilers only warn." }
+        ]
+      },
+      {
+        "label": "Operator",
+        "note": "noexcept(expr) is an unevaluated bool constant: false if expr is potentially throwing.",
+        "children": [
+          { "label": "Unevaluated", "note": "Like sizeof, the operand never runs, so side effects never happen." },
+          { "label": "Hidden calls count", "note": "Temporaries' destructors, conversions and operator new all make the result false." },
+          { "label": "Traits", "note": "is_nothrow_move_constructible and friends are built on the operator." }
+        ]
+      },
+      {
+        "label": "Violation",
+        "note": "An exception reaching a noexcept boundary calls std::terminate.",
+        "children": [
+          { "label": "Unwinding unspecified", "note": "Implementation-defined whether the stack is unwound fully, partially or not at all." },
+          { "label": "Inner handlers work", "note": "Only exceptions that would cross the noexcept boundary terminate." }
+        ]
+      },
+      {
+        "label": "Implicit noexcept",
+        "note": "Some functions get a non-throwing specification without the keyword.",
+        "children": [
+          { "label": "Destructors", "note": "Non-throwing unless a base or member destructor is potentially throwing." },
+          { "label": "Defaulted specials", "note": "Non-throwing exactly when every function they would call is non-throwing." },
+          { "label": "C++20 explicit default", "note": "A written specifier on a defaulted function now wins; before, a mismatch deleted it." }
+        ]
+      },
+      {
+        "label": "Type system (C++17)",
+        "note": "The exception specification is part of the function type.",
+        "children": [
+          { "label": "One-way conversion", "note": "Pointers to noexcept functions convert to plain pointers, never the reverse." },
+          { "label": "No overloading", "note": "f() and f() noexcept conflict as redeclarations; they cannot overload." },
+          { "label": "Virtual overrides", "note": "An overrider of a noexcept virtual must be noexcept; adding noexcept is fine." },
+          { "label": "Deducible", "note": "Templates can deduce B from void(*)() noexcept(B)." }
+        ]
+      },
+      {
+        "label": "Why it matters",
+        "note": "Libraries choose algorithms based on the answer.",
+        "children": [
+          { "label": "move_if_noexcept", "note": "vector reallocation copies copyable elements whose move may throw." },
+          { "label": "Dynamic specs removed", "note": "throw(T) removed in C++17, throw() removed in C++20." },
+          { "label": "Narrow contracts", "note": "The standard leaves functions with preconditions potentially throwing; vendors may add noexcept." }
+        ]
+      }
+    ]
+  }
+}

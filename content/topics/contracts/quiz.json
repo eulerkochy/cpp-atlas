@@ -1,0 +1,153 @@
+{
+  "questions": [
+    {
+      "id": "ct-post-param-const",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, is this declaration well-formed?",
+      "code": "int isqrt(int x)\n  pre(x >= 0)\n  post(r: r * r <= x && (r + 1) * (r + 1) > x);",
+      "options": [
+        "Well-formed",
+        "Ill-formed: a postcondition cannot refer to function parameters",
+        "Ill-formed: the postcondition odr-uses `x`, so `x` must be declared `const` on every declaration",
+        "Well-formed, but undefined behavior if the body modifies `x`"
+      ],
+      "answer": 2,
+      "explanation": "Postconditions may name parameters, but if a postcondition odr-uses a non-reference parameter, that parameter must have `const` type on every declaration of the function, including declarations without the postcondition. Otherwise the body could change `x` and the check would test a different value from the one the caller passed. Writing `const int x` fixes it. The \"undefined behavior\" answer is tempting because it describes what would go wrong without the rule, but the language makes the declaration ill-formed instead of leaving it to run-time behavior.",
+      "refs": [
+        "[dcl.contract.func]",
+        "[dcl.contract.res]"
+      ]
+    },
+    {
+      "id": "ct-post-on-exception",
+      "kind": "warmup",
+      "prompt": "With the enforce semantic for every contract assertion, what does this program print?",
+      "code": "#include <cstdio>\n#include <stdexcept>\n\nint parse(const int x) post(r: r > 0) {\n  if (x < 0) throw std::invalid_argument(\"negative\");\n  return x;\n}\n\nint main() {\n  try {\n    parse(-1);\n  } catch (const std::invalid_argument&) {\n    std::puts(\"invalid_argument\");\n  }\n}",
+      "options": [
+        "`invalid_argument`",
+        "A contract-violation diagnostic, then the program is contract-terminated",
+        "A contract-violation diagnostic, then `invalid_argument`",
+        "Nothing; `std::terminate` is called because an exception passes through a postcondition"
+      ],
+      "answer": 0,
+      "explanation": "A postcondition assertion is associated only with exiting the function normally. When `parse` exits via an exception, its postconditions are not evaluated at all, so there is no violation and the exception reaches the handler in `main`. The answers with a diagnostic assume the postcondition is checked on every exit, which is wrong. A postcondition that a function does or does not throw is one of the features P2900 deliberately leaves out.",
+      "refs": [
+        "[dcl.contract.func]",
+        "[expr.call]"
+      ]
+    },
+    {
+      "id": "ct-order",
+      "kind": "warmup",
+      "prompt": "Assume a checking semantic, and assume each predicate is evaluated exactly once. What does this program print?",
+      "code": "#include <cstdio>\n\nbool say(const char* s) { std::puts(s); return true; }\n\nint f()\n  pre(say(\"pre a\"))\n  post(r: say(\"post b\"))\n  pre(say(\"pre c\"))\n{\n  std::puts(\"body\");\n  return 0;\n}\n\nint main() { f(); }",
+      "options": [
+        "`pre a`, `post b`, `pre c`, `body`",
+        "Nothing: the program is ill-formed because `pre` must come before `post`",
+        "`pre c`, `pre a`, `body`, `post b`",
+        "`pre a`, `pre c`, `body`, `post b`"
+      ],
+      "answer": 3,
+      "explanation": "`pre` and `post` specifiers may appear in any order, so the declaration is fine. The preconditions are evaluated in sequence, in lexical order, after the parameters are initialized and before the body runs. The postconditions are evaluated in sequence after the body returns normally. The `pre a`, `post b`, `pre c` answer reads the specifiers as a single list evaluated left to right. The assumption in the question matters: under a checking semantic it is unspecified whether a predicate is actually evaluated, and an implementation may repeat assertions, so side effects like these `puts` calls are not guaranteed in general.",
+      "refs": [
+        "[expr.call]",
+        "[basic.contract.eval]",
+        "[dcl.contract.func]"
+      ]
+    },
+    {
+      "id": "ct-constification",
+      "kind": "tricky",
+      "prompt": "Which of these declarations is ill-formed under the C++26 draft?",
+      "code": "struct Buffer {\n  int n = 0;\n  int size() { return n; }\n  int csize() const { return n; }\n};\n\nvoid a(Buffer& b) pre(b.csize() > 0);\nvoid b(Buffer& b) pre(b.size() > 0);\nvoid c(Buffer* p) pre(p != nullptr);\nvoid d(const Buffer& b) post(b.n >= 0);",
+      "options": [
+        "`a`",
+        "`b`",
+        "`c`",
+        "`d`"
+      ],
+      "answer": 1,
+      "explanation": "Inside a contract predicate, an id-expression that names a variable declared outside the assertion has `const` type, and that includes reference parameters. So `b` is a `const Buffer` lvalue in the predicate, and calling the non-const `size()` on it is ill-formed. In `c`, only the pointer `p` becomes const, which does not stop a comparison. In `d`, the parameter is a reference, so the postcondition does not require it to be declared `const`. The const requirement for postconditions applies only to non-reference parameters.",
+      "refs": [
+        "[expr.prim.id.unqual]",
+        "[basic.contract.general]",
+        "[dcl.contract.func]"
+      ]
+    },
+    {
+      "id": "ct-handler-throws-noexcept",
+      "kind": "tricky",
+      "prompt": "Assume the implementation lets you replace the contract-violation handler, and the enforce semantic is used. What happens?",
+      "code": "#include <contracts>\n#include <cstdio>\n#include <stdexcept>\n\nvoid handle_contract_violation(const std::contracts::contract_violation& v) {\n  throw std::logic_error(v.comment());\n}\n\nvoid g(int x) noexcept pre(x > 0) {}\n\nint main() {\n  try {\n    g(0);\n  } catch (const std::logic_error&) {\n    std::puts(\"caught\");\n  }\n}",
+      "options": [
+        "`std::terminate` is called",
+        "`caught` is printed: the precondition is checked by the caller, outside the `noexcept` boundary",
+        "The handler returns via the exception, so the program is contract-terminated without unwinding",
+        "Undefined behavior"
+      ],
+      "answer": 0,
+      "explanation": "If a handler invoked from a function contract assertion exits via an exception, the behavior is as if the function body had exited via that exception. `g` is `noexcept`, so the search for a handler leaves a non-throwing function and `std::terminate` is called. This happens even though implementations may emit precondition checks at the call site, which is why `caught` is tempting. A handler that throws from a plain `contract_assert` instead propagates the exception from that statement.",
+      "refs": [
+        "[basic.contract.eval]",
+        "[except.terminate]",
+        "[basic.contract.handler]"
+      ]
+    },
+    {
+      "id": "ct-lambda-capture",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft, which lambda makes the program ill-formed?",
+      "code": "void test() {\n  int i = 1;\n  auto f1 = [i] pre(i > 0) {};\n  auto f2 = [=] pre(i > 0) {};\n  auto f3 = [=] { contract_assert(i > 0); (void)i; };\n  auto f4 = [&] { return i; };\n}",
+      "options": [
+        "`f1`: explicit captures cannot be used in a precondition",
+        "`f2`",
+        "`f3`: `contract_assert` cannot appear in a lambda body",
+        "None of them"
+      ],
+      "answer": 1,
+      "explanation": "If every potential reference to an implicitly captured local entity appears inside contract assertions, the program is ill-formed. Adding a check must never cause a new capture, because a capture would change the closure's layout. `f2` uses `i` only in its precondition, so it breaks the rule. `f1` captures `i` explicitly, and `f3` also uses `i` outside the assertion, so both are fine. GCC 16 rejects `f2` with \"not implicitly captured by a contract assertion\".",
+      "refs": [
+        "[expr.prim.lambda.closure]",
+        "[dcl.contract.func]"
+      ]
+    },
+    {
+      "id": "ct-constant-evaluation",
+      "kind": "standardese",
+      "prompt": "Under the C++26 draft, what is true of the declaration of `a`?",
+      "code": "constexpr int half(int x) pre(x % 2 == 0) { return x / 2; }\n\nconstexpr int a = half(3);",
+      "options": [
+        "It is always ill-formed, because a precondition is false in a constant expression",
+        "`a` falls back to dynamic initialization, and the handler runs at program startup",
+        "It is ill-formed if the evaluation uses enforce or quick-enforce. With observe, a diagnostic is issued and `a` is 1. With ignore, it is accepted silently",
+        "It is always accepted, because contract assertions are not evaluated during constant evaluation"
+      ],
+      "answer": 2,
+      "explanation": "Contract assertions are evaluated during constant evaluation, with an implementation-chosen semantic. A violation in a manifestly constant-evaluated context makes the program ill-formed under a terminating semantic. Under observe, the implementation must issue a diagnostic but keeps going. The dynamic-initialization answer is wrong because constant-initializability is decided as if every assertion used ignore, so `a` is still constant-initialized, and there is no handler at compile time. GCC 16 shows exactly this pattern: an error under enforce and quick_enforce, a warning under observe, and silence under ignore.",
+      "refs": [
+        "[basic.contract.eval]",
+        "[expr.const]",
+        "[intro.compliance.general]"
+      ]
+    },
+    {
+      "id": "ct-where-allowed",
+      "kind": "standardese",
+      "prompt": "In C++26, as specified in the final draft N5050, which of these may *not* have a function contract specifier?",
+      "options": [
+        "A constructor, as in `S(int n) pre(n > 0);`",
+        "A coroutine whose precondition reads a by-value parameter",
+        "The function `main`",
+        "A virtual member function, as in `virtual void f(int i) pre(i > 0);`",
+        "A redeclaration that repeats exactly the same specifiers as the first declaration"
+      ],
+      "answer": 3,
+      "explanation": "In C++26, [dcl.contract.func] says a virtual function, a deleted function, or a function defaulted on its first declaration shall not have a function-contract-specifier-seq. Contracts for virtual functions (P3097R3) were adopted only into the C++29 working draft, in June 2026. Constructors, coroutines, and `main` may have contracts. Coroutines are restricted only in that a postcondition may not odr-use a non-reference parameter, and a predicate may not contain `co_await`. A non-first declaration may either omit the specifiers or repeat the same sequence.",
+      "refs": [
+        "[dcl.contract.func]",
+        "[dcl.fct.def.coroutine]",
+        "[expr.await]"
+      ]
+    }
+  ]
+}

@@ -103,9 +103,12 @@ function sourceEndpoint(item: SelectedSource, ansFlag: string): string {
   if (item.kind === "topic") {
     return `/api/notebook/topic/${item.slug}?answers=${ansFlag}`;
   }
-  return item.lang === "c"
-    ? `/api/notebook/c/${item.path}?answers=${ansFlag}`
-    : `/api/notebook/${item.path}?answers=${ansFlag}`;
+  const encoded = item.path
+    .split("/")
+    .filter(Boolean)
+    .map(encodeURIComponent)
+    .join("/");
+  return `/api/notebook/${item.lang}${encoded ? `/${encoded}` : ""}?answers=${ansFlag}`;
 }
 
 export function NotebookStudioClient({
@@ -544,7 +547,7 @@ export function NotebookStudioClient({
       >
         <ScrollArea className="h-[600px] rounded-[var(--radius-panel)] border border-line bg-paper p-5">
           {displayedMarkdown ? (
-            <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-[#262626]">
+            <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-[var(--code-ink)]">
               {displayedMarkdown}
             </pre>
           ) : loadingMd ? (

@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "pp-stringize-two-level",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\n#define STR(x) #x\n#define XSTR(x) STR(x)\n#define N 42\n\nint main() {\n  std::puts(STR(N));\n  std::puts(XSTR(N));\n}",
+      "options": [
+        "`42` then `42`",
+        "`N` then `N`",
+        "`N` then `42`",
+        "`42` then `N`"
+      ],
+      "answer": 2,
+      "explanation": "An argument is macro-expanded before substitution unless the parameter is an operand of `#` or `##`. In `STR(N)` the parameter is stringized directly, giving `\"N\"`. In `XSTR(N)` the parameter is not an operand of `#`, so `N` becomes `42` first, and the inner `STR(42)` then produces `\"42\"`. Expecting `42` twice is the usual mistake.",
+      "refs": [
+        "[cpp.subst]",
+        "[cpp.stringize]"
+      ]
+    },
+    {
+      "id": "pp-comment-splice",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nint main() {\n  int x = 1;\n  // add one to x \\\n  x = x + 1;\n  std::printf(\"%d\\n\", x);\n}",
+      "options": [
+        "`2`",
+        "Nothing: it is ill-formed because a comment cannot end in a backslash",
+        "It is unspecified whether it prints `1` or `2`",
+        "`1`"
+      ],
+      "answer": 3,
+      "explanation": "Line splicing happens in phase 2 and comments are recognized in phase 3. The backslash at the end of the comment line joins it with the next line, so `x = x + 1;` becomes part of the `//` comment and never executes. GCC warns about a multi-line comment, but the program is well-formed and prints `1`.",
+      "refs": [
+        "[lex.phases]",
+        "[lex.comment]"
+      ]
+    },
+    {
+      "id": "pp-maximal-munch",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "int main() {\n  int x = 1, y = 2;\n  int z = x+++++y;\n  return z;\n}",
+      "options": [
+        "Well-formed: it parses as `x++ + ++y`, so `z` is 4",
+        "Ill-formed: it tokenizes as `x ++ ++ + y`, and `x++` is not an lvalue",
+        "Undefined behavior: `x` and `y` are modified without sequencing",
+        "Well-formed: it parses as `x + ++(++y)`"
+      ],
+      "answer": 1,
+      "explanation": "Tokenization is greedy: each preprocessing token is the longest sequence that could be one, regardless of whether the parse then succeeds. So the five pluses become `++`, `++`, `+`. The expression is `(x++)++ + y`, and the outer increment needs an lvalue, which the prvalue `x++` is not. Writing `x++ + ++y` with spaces gives the intended meaning.",
+      "refs": [
+        "[lex.pptoken]",
+        "[expr.post.incr]"
+      ]
+    },
+    {
+      "id": "pp-if-arithmetic",
+      "kind": "tricky",
+      "prompt": "What does this program print? `UNDEFINED_NAME` is not defined anywhere.",
+      "code": "#include <cstdio>\n\nint main() {\n#if -1 < 0u\n  std::puts(\"less\");\n#else\n  std::puts(\"not less\");\n#endif\n#if UNDEFINED_NAME == 0\n  std::puts(\"zero\");\n#endif\n}",
+      "options": [
+        "`less` then `zero`",
+        "`not less` then `zero`",
+        "`less` only",
+        "Nothing: it is ill-formed because `UNDEFINED_NAME` is not declared"
+      ],
+      "answer": 1,
+      "explanation": "In `#if`, unsigned operands behave as `std::uintmax_t`, so `-1` converts to the largest unsigned value and `-1 < 0u` is false. After macro expansion, any remaining identifier other than `true` and `false` is replaced by `0`, so `UNDEFINED_NAME == 0` is true rather than an error. The tempting `less` comes from thinking of the comparison as mathematical integers.",
+      "refs": [
+        "[cpp.cond]"
+      ]
+    },
+    {
+      "id": "pp-mutual-recursion",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nint a = 1, b = 2;\n#define a b\n#define b a\n\nint main() { std::printf(\"%d %d\\n\", a, b); }",
+      "options": [
+        "`1 2`",
+        "`2 1`",
+        "Nothing: it is ill-formed because the macros are recursive",
+        "`2 2`"
+      ],
+      "answer": 0,
+      "explanation": "While a macro's replacement is rescanned, its own name is not replaced again. In `main`, `a` becomes `b`, which becomes `a`, and that `a` is inside the expansion of `a`, so it stays `a`. Likewise `b` ends up as `b`. The definitions on the line before the `#define`s are untouched because macros only apply after their definition. Expecting a swap to `2 1` assumes only one level of expansion.",
+      "refs": [
+        "[cpp.rescan]"
+      ]
+    },
+    {
+      "id": "pp-paste-no-expand",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\n#define CAT(a, b) a ## b\n#define VAL 7\n#define VAL2 99\n\nint main() { std::printf(\"%d\\n\", CAT(VAL, 2)); }",
+      "options": [
+        "`72`",
+        "`7`",
+        "Nothing: it is ill-formed because `72` is pasted from two tokens",
+        "`99`"
+      ],
+      "answer": 3,
+      "explanation": "An argument whose parameter is an operand of `##` is substituted as written, not macro-expanded. So the tokens `VAL` and `2` are pasted into the identifier `VAL2`, and rescanning then expands that to `99`. The tempting `72` requires `VAL` to be expanded first, which needs an extra level of indirection, as in `#define XCAT(a, b) CAT(a, b)`.",
+      "refs": [
+        "[cpp.concat]",
+        "[cpp.subst]",
+        "[cpp.rescan]"
+      ]
+    },
+    {
+      "id": "pp-func-not-macro",
+      "kind": "standardese",
+      "prompt": "Which branch of the conditional is compiled?",
+      "code": "#include <cstdio>\n\nint main() {\n#ifdef __func__\n  std::puts(\"macro\");\n#else\n  std::puts(__func__);\n#endif\n}",
+      "options": [
+        "The `#ifdef` branch: `__func__` is a predefined macro",
+        "The `#else` branch: `__func__` is a function-local variable, not a macro",
+        "It is implementation-defined which branch is compiled",
+        "Neither: `__func__` may not appear in a preprocessing directive"
+      ],
+      "answer": 1,
+      "explanation": "The standard defines `__func__` in [dcl.fct.def.general] as if each function body began with `static const char __func__[] = \"function-name\";`. It is a variable that exists from phase 7, so the preprocessor knows nothing about it and `#ifdef __func__` is false. The contents of the string are implementation-defined, although GCC and Clang give `main` here. `__FILE__` and `__LINE__` really are macros, which is why the first option is tempting.",
+      "refs": [
+        "[dcl.fct.def.general]",
+        "[cpp.predefined]"
+      ]
+    },
+    {
+      "id": "pp-raw-string-splice",
+      "kind": "standardese",
+      "prompt": "In C++23, what does this program print? The backslash is the last character on its line.",
+      "code": "#include <cstdio>\n#include <cstring>\n\nint main() {\n  const char* s = R\"(a\\\nb)\";\n  std::printf(\"%zu\\n\", std::strlen(s));\n}",
+      "options": [
+        "`2`, because phase 2 spliced the lines into `ab`",
+        "`3`, because the backslash and newline form one escape",
+        "`4`",
+        "Nothing: the raw string literal is ill-formed"
+      ],
+      "answer": 2,
+      "explanation": "Phase 2 does splice the lines, but [lex.pptoken] says that between the quotes of a raw string literal any line splicing is reverted. The literal therefore contains `a`, a backslash, a newline and `b`, and raw strings process no escape sequences. So `strlen` is 4. The answer 2 is what an ordinary string literal written across the same two lines would give.",
+      "refs": [
+        "[lex.pptoken]",
+        "[lex.phases]",
+        "[lex.string]"
+      ]
+    }
+  ]
+}

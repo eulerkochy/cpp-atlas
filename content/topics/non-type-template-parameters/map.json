@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "Non-type template parameters",
+    "note": "Compile-time values that become part of a specialization's identity.",
+    "children": [
+      {
+        "label": "Allowed types",
+        "note": "The set grew from integers and addresses to floating point and classes.",
+        "children": [
+          { "label": "C++98 and C++11", "note": "Integral, enumeration, object and function pointers, lvalue references, member pointers, nullptr_t." },
+          { "label": "C++20 additions", "note": "Floating-point types and structural literal class types." },
+          { "label": "Structural class", "note": "Literal, with all bases and non-static members public, non-mutable and structural." },
+          { "label": "Type adjustments", "note": "Arrays and functions decay to pointers and top-level cv is dropped." }
+        ]
+      },
+      {
+        "label": "Acceptable arguments",
+        "note": "Each argument must be a converted constant expression of the parameter type.",
+        "children": [
+          { "label": "No narrowing", "note": "Byte<300> for an unsigned char parameter is ill-formed." },
+          { "label": "No int to double", "note": "Floating-integral conversions are not allowed, so Scale<1> fails for a double parameter." },
+          { "label": "Class arguments", "note": "A class parameter is copy-initialized, so constexpr converting constructors work." }
+        ]
+      },
+      {
+        "label": "Pointers and references",
+        "note": "What an address argument may designate changed in C++17 and C++20.",
+        "children": [
+          { "label": "Before C++17", "note": "Only the address or name of a complete object or function with linkage." },
+          { "label": "Never allowed", "note": "String literals, temporaries, typeid results and __func__." },
+          { "label": "Subobjects", "note": "Array elements and members became valid arguments in C++20." }
+        ]
+      },
+      {
+        "label": "auto parameters",
+        "note": "C++17 placeholders deduce the parameter type from the argument.",
+        "children": [
+          { "label": "Type is identity", "note": "X<1> and X<1u> are different specializations." },
+          { "label": "decltype(auto)", "note": "Deduces like decltype, so a parenthesized name can give a reference parameter." },
+          { "label": "Heterogeneous packs", "note": "template<auto... Vs> can hold values of different types." }
+        ]
+      },
+      {
+        "label": "Argument equivalence",
+        "note": "[temp.type] decides when two argument lists name the same specialization.",
+        "children": [
+          { "label": "Same type required", "note": "Values must have the same type before they are compared." },
+          { "label": "Floating point identical", "note": "Identical, not ==, so 0.0 and -0.0 give different specializations." },
+          { "label": "Classes member-wise", "note": "Class values are equivalent when their subobjects are, recursively." }
+        ]
+      },
+      {
+        "label": "Template parameter objects",
+        "note": "How class-type parameters exist at run time.",
+        "children": [
+          { "label": "One static object", "note": "A class NTTP names a const object with static storage duration, one per value." },
+          { "label": "Scalars are prvalues", "note": "&N is ill-formed for template<int N>." },
+          { "label": "fixed_string idiom", "note": "A class holding a char array, deduced by CTAD, carries text as an argument." },
+          { "label": "Lambda arguments", "note": "C++20 allows capture-less lambdas as arguments; each lambda is a distinct value." }
+        ]
+      }
+    ]
+  }
+}

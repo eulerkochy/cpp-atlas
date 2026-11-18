@@ -1,0 +1,152 @@
+{
+  "questions": [
+    {
+      "id": "conversion-functions-and-explicit-copy-init-skips-explicit",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct S {\n  explicit S(int) { std::puts(\"int\"); }\n  S(double)       { std::puts(\"double\"); }\n};\n\nint main() {\n  S a = 1;\n  S b(1);\n  (void)a; (void)b;\n}",
+      "options": [
+        "`int` then `int`",
+        "Nothing: `S a = 1;` is ill-formed because the best constructor is explicit",
+        "`double` then `int`",
+        "`double` then `double`"
+      ],
+      "answer": 2,
+      "explanation": "In copy-initialization from a non-class type, only converting constructors are candidates, and an explicit constructor is not a converting constructor. So `S a = 1;` calls `S(double)` after converting `1`, and direct-initialization `S b(1);` considers every constructor and picks the exact match `S(int)`. The second option describes copy-list-initialization, `S a = {1};`, which does consider explicit constructors and is ill-formed if one wins.",
+      "refs": [
+        "[over.match.copy]",
+        "[over.match.ctor]",
+        "[class.conv.ctor]"
+      ]
+    },
+    {
+      "id": "conversion-functions-and-explicit-two-hops",
+      "kind": "warmup",
+      "prompt": "Is the call in `main` well-formed?",
+      "code": "#include <string>\n\nstruct Name { Name(std::string) {} };\nvoid greet(Name) {}\n\nint main() { greet(\"bob\"); }",
+      "options": [
+        "Ill-formed: it needs two user-defined conversions",
+        "Well-formed: `const char*` converts to `std::string`, which converts to `Name`",
+        "Well-formed, because the first conversion is a standard library one",
+        "Ill-formed: string literals cannot initialize class parameters"
+      ],
+      "answer": 0,
+      "explanation": "An implicit conversion sequence may contain at most one user-defined conversion. Turning `const char*` into `std::string` is one, through a constructor, and turning `std::string` into `Name` is a second, so no viable conversion exists. Library types get no special treatment, which rules out the third option. `greet(std::string(\"bob\"))` or `greet(Name(\"bob\"))` each need only one implicit hop and are fine.",
+      "refs": [
+        "[class.conv.general]",
+        "[over.best.ics]"
+      ]
+    },
+    {
+      "id": "conversion-functions-and-explicit-return-explicit-bool",
+      "kind": "warmup",
+      "prompt": "Given `struct F { explicit operator bool() const; };` and `F f;`, which of these is ill-formed?",
+      "options": [
+        "`if (f) {}`",
+        "`bool a = !f;`",
+        "`bool b(f);`",
+        "`bool c = f;`"
+      ],
+      "answer": 3,
+      "explanation": "An explicit conversion function is used only by direct-initialization and by contexts that contextually convert to `bool`. The `if` condition and the operand of `!` are contextual conversions, and `bool b(f);` is direct-initialization, so all three work. `bool c = f;` is copy-initialization, which does not consider explicit conversion functions; `return f;` from a function returning `bool` fails for the same reason.",
+      "refs": [
+        "[class.conv.fct]",
+        "[conv.general]",
+        "[over.match.conv]"
+      ]
+    },
+    {
+      "id": "conversion-functions-and-explicit-copy-list-init",
+      "kind": "tricky",
+      "prompt": "Is this declaration well-formed?",
+      "code": "struct S {\n  explicit S(int) {}\n  S(double) {}\n};\n\nS s = {1};",
+      "options": [
+        "Well-formed: it calls `S(double)`, as `S s = 1;` would",
+        "Ill-formed: `S(int)` is selected and it is explicit",
+        "Ill-formed: narrowing from `int` to `double` in a braced list",
+        "Well-formed: it calls `S(int)`, because braces allow explicit constructors"
+      ],
+      "answer": 1,
+      "explanation": "Copy-list-initialization considers all constructors, including explicit ones, and [over.match.list] says that if an explicit constructor is chosen, the initialization is ill-formed. `S(int)` is the exact match, so it wins and then fails. This differs from `S s = 1;`, where explicit constructors are not candidates and `S(double)` is called. There is no narrowing issue because `S(double)` is not selected, and `1` to `double` would not narrow anyway, since the constant fits exactly.",
+      "refs": [
+        "[over.match.list]",
+        "[dcl.init.list]"
+      ]
+    },
+    {
+      "id": "conversion-functions-and-explicit-ctor-vs-conv-fn",
+      "kind": "tricky",
+      "prompt": "Under the C++23 standard, is the declaration of `a` well-formed?",
+      "code": "struct B;\nstruct A { A() = default; A(const B&); };\nstruct B { operator A() const; };\n\nA a = B{};",
+      "options": [
+        "Well-formed: constructors are always preferred over conversion functions",
+        "Well-formed: guaranteed elision makes the conversion function the better match",
+        "Implementation-defined",
+        "Ill-formed: the conversion is ambiguous"
+      ],
+      "answer": 3,
+      "explanation": "Copy-initialization of `A` from a `B` makes both `A(const B&)` and `B::operator A() const` candidates. Each binds the `B` prvalue to a `const B&`, one as the constructor parameter and one as the implicit object parameter, so the conversion sequences are indistinguishable and no tie-breaker applies. Clang reports the ambiguity; GCC 16 accepts it by default as an extension and calls the constructor, which is where the first option comes from, but rejects it with `-pedantic-errors`.",
+      "refs": [
+        "[over.match.copy]",
+        "[over.ics.rank]",
+        "[over.match.best]"
+      ]
+    },
+    {
+      "id": "conversion-functions-and-explicit-to-base",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct B {};\nstruct D : B {\n  operator B() const { std::puts(\"conv\"); return {}; }\n};\n\nint main() {\n  D d;\n  B b = d;\n  (void)b;\n  std::puts(\"done\");\n}",
+      "options": [
+        "`conv` then `done`",
+        "`done`",
+        "Nothing: the program is ill-formed because the conversion is ambiguous",
+        "Either output; it is unspecified which conversion is used"
+      ],
+      "answer": 1,
+      "explanation": "A conversion function is never used to convert an object to its own type or to a base class; that job belongs to the derived-to-base conversion. So `B b = d;` binds `B`'s copy constructor to the `B` subobject of `d` and the conversion function is not a candidate. Calling `d.operator B()` explicitly would still work, which is why the declaration is legal, and compilers warn with `-Wclass-conversion`.",
+      "refs": [
+        "[class.conv.fct]",
+        "[dcl.init.general]"
+      ]
+    },
+    {
+      "id": "conversion-functions-and-explicit-direct-init-qualification",
+      "kind": "standardese",
+      "prompt": "Which declaration in `use` is ill-formed?",
+      "code": "struct E { explicit operator int() const { return 4; } };\n\nvoid use(E e) {\n  int a(e);                   // #1\n  int b = static_cast<int>(e); // #2\n  long c(e);                  // #3\n}",
+      "options": [
+        "#1 only: explicit conversion functions need a cast",
+        "#3 only",
+        "#1 and #3",
+        "None of them"
+      ],
+      "answer": 1,
+      "explanation": "For direct-initialization of a non-class type, [over.match.conv] adds explicit conversion functions to the candidates, but only those whose result reaches the target type by at most a qualification conversion. #1 and #2 (a static_cast is defined as a direct-initialization) target `int` exactly. #3 would need an integral conversion from `int` to `long` after the explicit function, which is not allowed, so there is no viable conversion. The same rule makes `int i(f);` ill-formed for an `explicit operator bool`.",
+      "refs": [
+        "[over.match.conv]",
+        "[expr.static.cast]",
+        "[dcl.init.general]"
+      ]
+    },
+    {
+      "id": "conversion-functions-and-explicit-template-deduction",
+      "kind": "standardese",
+      "prompt": "For the initialization of `r`, what is `T` deduced as?",
+      "code": "struct Any {\n  template<class T> operator T() const { return T{}; }\n};\n\nconst int& r = Any{};",
+      "options": [
+        "`const int&`",
+        "`const int`",
+        "`int`",
+        "Deduction fails, so the program is ill-formed"
+      ],
+      "answer": 2,
+      "explanation": "A conversion function template deduces `T` from the type required as the result of the conversion. [temp.deduct.conv] uses the referred-to type when that type is a reference, and then ignores its top-level cv-qualifiers, so `const int&` becomes `const int` and then `int`. The conversion returns an `int` prvalue, which is materialized as a temporary and bound to `r`, with its lifetime extended.",
+      "refs": [
+        "[temp.deduct.conv]",
+        "[over.match.ref]",
+        "[dcl.init.ref]"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "Iostreams",
+    "note": "Formatting streams over stream buffers, with a state word and persistent formatting state.",
+    "children": [
+      {
+        "label": "Layers",
+        "note": "Streams format and track state; stream buffers move characters.",
+        "children": [
+          { "label": "basic_ios and streambuf", "note": "basic_ios holds a pointer to a streambuf that does the actual buffering and transport." },
+          { "label": "Buffer types", "note": "filebuf, stringbuf, spanbuf and syncbuf are the standard stream buffers." },
+          { "label": "Locale per stream", "note": "Each stream copies the global locale at construction and uses it for number formatting." }
+        ]
+      },
+      {
+        "label": "State bits",
+        "note": "A state word records what went wrong with the last operation.",
+        "children": [
+          { "label": "failbit", "note": "The operation did not succeed; it makes the stream convert to false." },
+          { "label": "eofbit", "note": "A read hit the end of input; it can be set even when the read succeeded." },
+          { "label": "badbit", "note": "The stream buffer lost integrity; a parse error never sets it." },
+          { "label": "while (in >> x)", "note": "Put the extraction in the condition; looping on eof() repeats the last value." },
+          { "label": "clear()", "note": "A failed stream ignores operations until clear(); str() does not reset the bits." }
+        ]
+      },
+      {
+        "label": "Input styles",
+        "note": "Formatted and unformatted input behave differently around whitespace.",
+        "children": [
+          { "label": "Formatted operator>>", "note": "Skips leading whitespace and parses a value; failure stores 0 for numbers." },
+          { "label": "Unformatted functions", "note": "get, getline, read, ignore and peek take characters as they are." },
+          { "label": "Newline after >>", "note": "operator>> leaves the newline, so a following getline returns an empty line." }
+        ]
+      },
+      {
+        "label": "Output formatting",
+        "note": "Manipulators change formatting state, mostly permanently.",
+        "children": [
+          { "label": "Sticky manipulators", "note": "hex, fixed, setfill, setprecision and alignment persist until changed." },
+          { "label": "setw is one-shot", "note": "Width applies to the next formatted output only and never truncates." },
+          { "label": "endl versus newline", "note": "endl writes a newline and flushes; '\\n' does not flush." }
+        ]
+      },
+      {
+        "label": "Performance and threads",
+        "note": "Standard streams are synchronized with C stdio by default.",
+        "children": [
+          { "label": "sync_with_stdio(false)", "note": "Call before any I/O; it drops C stdio mixing and the concurrent-access guarantee." },
+          { "label": "cin.tie(nullptr)", "note": "Stops cout being flushed before every cin read." },
+          { "label": "osyncstream", "note": "C++20 stream that emits its buffered text to the target as one unit." }
+        ]
+      },
+      {
+        "label": "Streams over memory and files",
+        "note": "Memory and file streams share the stream interface.",
+        "children": [
+          { "label": "String streams", "note": "str() returns a copy and does not clear the state bits." },
+          { "label": "spanstream (C++23)", "note": "Streams over a caller-owned buffer with no allocation; span() shows the written part." },
+          { "label": "File open modes", "note": "in|out requires an existing file and keeps content; out truncates; app appends." },
+          { "label": "Exceptions mask", "note": "exceptions(failbit) throws ios_base::failure, including at the end of a read loop." }
+        ]
+      }
+    ]
+  }
+}

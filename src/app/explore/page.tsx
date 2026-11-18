@@ -8,20 +8,21 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { getCompanionForPath } from "@/data/companions";
 import {
-  C_INDEX_STATS,
   getDomainsForLang,
   getEntriesForLangDomain,
-  INDEX_STATS,
-  TOTAL_COMBINED_STATS,
+  getIndexStats,
 } from "@/lib/cppref-index";
 import { cn } from "@/lib/utils";
 import type { ReferenceLang } from "@/types/cpp";
 
-export const metadata: Metadata = {
-  title: "Complete C++ & C Directory",
-  description:
-    "Browse all 46 official C++ and C domains with 1:1 correspondence to en.cppreference.com.",
-};
+export function generateMetadata(): Metadata {
+  const all = getIndexStats("all");
+  return {
+    title: "Complete C++ & C Directory",
+    description: `Browse all ${all.pages.toLocaleString("en-US")} C++ and C reference pages across ${all.domainCount} domains, with 1:1 correspondence to en.cppreference.com.`,
+    alternates: { canonical: "/explore" },
+  };
+}
 
 async function DirectoryContent({
   searchParams,
@@ -31,7 +32,9 @@ async function DirectoryContent({
   const { lang: rawLang, domain } = await searchParams;
   const lang: ReferenceLang = rawLang === "c" ? "c" : "cpp";
   const domains = getDomainsForLang(lang);
-  const stats = lang === "c" ? C_INDEX_STATS : INDEX_STATS;
+  const stats = getIndexStats(lang);
+  const cppStats = getIndexStats("cpp");
+  const cStats = getIndexStats("c");
 
   const activeDomain =
     domain && domains.some((d) => d.name === domain)
@@ -60,7 +63,7 @@ async function DirectoryContent({
                   : "text-ink-soft hover:text-ink"
               )}
             >
-              C++ Reference ({INDEX_STATS.totalEntries.toLocaleString("en-US")})
+              C++ Reference ({cppStats.pages.toLocaleString("en-US")})
             </Link>
             <Link
               href="/explore?lang=c"
@@ -69,12 +72,12 @@ async function DirectoryContent({
                 lang === "c" ? "bg-sun text-ink" : "text-ink-soft hover:text-ink"
               )}
             >
-              C Reference ({C_INDEX_STATS.totalEntries.toLocaleString("en-US")})
+              C Reference ({cStats.pages.toLocaleString("en-US")})
             </Link>
           </div>
           <span className="text-sm text-ink-faint tabular-nums">
             {stats.domainCount} domains /{" "}
-            {stats.uniquePages.toLocaleString("en-US")} pages
+            {stats.pages.toLocaleString("en-US")} pages
           </span>
         </div>
 
@@ -113,11 +116,12 @@ export default function ExplorePage({
 }: {
   searchParams: Promise<{ lang?: string; domain?: string }>;
 }) {
+  const all = getIndexStats("all");
   return (
     <>
       <PageHeader title="Full reference directory">
-        All {TOTAL_COMBINED_STATS.totalEntries.toLocaleString("en-US")} symbols
-        across {TOTAL_COMBINED_STATS.domainCount} official domains of{" "}
+        All {all.pages.toLocaleString("en-US")} pages across{" "}
+        {all.domainCount} domains of{" "}
         <span className="font-mono text-[0.9em] text-ink">
           en.cppreference.com
         </span>

@@ -1,0 +1,108 @@
+{
+  "root": {
+    "label": "Iterator invalidation",
+    "note": "An iterator dies when storage or navigation structure changes; derive the rules from the layout.",
+    "children": [
+      {
+        "label": "Three questions",
+        "note": "Ask: did elements move, did one die, did the structure used to find elements change.",
+        "children": [
+          {
+            "label": "Singular state",
+            "note": "An invalidated iterator may only be assigned to or destroyed; any other use is undefined."
+          },
+          {
+            "label": "Iterators vs references",
+            "note": "Iterators also depend on index structures, so they can die while references survive."
+          }
+        ]
+      },
+      {
+        "label": "vector",
+        "note": "Contiguous storage: reallocation moves everything, shifting moves the tail.",
+        "children": [
+          {
+            "label": "Reallocation",
+            "note": "When size would exceed capacity, all iterators, pointers, references and end() are invalidated."
+          },
+          {
+            "label": "No reallocation",
+            "note": "Insert or erase invalidates iterators and references at or after the change, plus end()."
+          },
+          {
+            "label": "reserve guarantee",
+            "note": "After reserve(n), appends up to capacity do not reallocate, so earlier iterators survive."
+          }
+        ]
+      },
+      {
+        "label": "deque",
+        "note": "Blocks plus an index: asymmetric rules for iterators and references.",
+        "children": [
+          {
+            "label": "End insertion",
+            "note": "Push at either end invalidates all iterators including end(), but no references or pointers."
+          },
+          {
+            "label": "Erase at an end",
+            "note": "Erasing the first (not last) element hits only that element; erasing the last also kills end()."
+          },
+          {
+            "label": "Middle edit",
+            "note": "Any insertion or erasure in the middle invalidates all iterators and references."
+          }
+        ]
+      },
+      {
+        "label": "Node containers",
+        "note": "list, forward_list, set, map and multi versions never move elements.",
+        "children": [
+          {
+            "label": "Insert",
+            "note": "Insertion invalidates nothing."
+          },
+          {
+            "label": "Erase",
+            "note": "Only iterators and references to the erased elements are invalidated; end() survives."
+          },
+          {
+            "label": "splice",
+            "note": "Iterators remain valid but now belong to the destination list."
+          }
+        ]
+      },
+      {
+        "label": "Unordered containers",
+        "note": "Stable nodes, rebuildable bucket array.",
+        "children": [
+          {
+            "label": "Rehash",
+            "note": "A rehash invalidates all iterators but not pointers or references to elements."
+          },
+          {
+            "label": "No rehash",
+            "note": "Insertion without rehash invalidates nothing; erase affects only erased elements."
+          }
+        ]
+      },
+      {
+        "label": "Special cases",
+        "note": "Swap, move, string and end() need separate care.",
+        "children": [
+          {
+            "label": "swap and move",
+            "note": "Iterators stay valid and refer into the other container; array swap exchanges values instead."
+          },
+          {
+            "label": "string",
+            "note": "Conservative: almost any non-const member may invalidate; operator[], at, data and iterator getters do not."
+          },
+          {
+            "label": "Erase loops",
+            "note": "Use it = c.erase(it) or std::erase_if; never reuse the erased iterator."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "questions": [
+    {
+      "id": "constexpr-in-cpp26-void-cast",
+      "kind": "warmup",
+      "prompt": "Under the C++26 draft, what is true of this program?",
+      "code": "constexpr int roundtrip() {\n  int x = 42;\n  void* p = &x;\n  return *static_cast<int*>(p);\n}\n\nstatic_assert(roundtrip() == 42);\n\nint main() {}",
+      "options": [
+        "Ill-formed: a cast from `void*` is never allowed in a constant expression",
+        "Ill-formed: `static_cast` from `void*` must be written as `reinterpret_cast`",
+        "Well-formed: the `void*` points to an `int`, so casting it back to `int*` is allowed",
+        "Undefined behavior, because the type information is lost in `void*`"
+      ],
+      "answer": 2,
+      "explanation": "C++26 (P2738R1) allows a conversion from `void*` to an object pointer type in a constant expression when the pointer is null or points to an object whose type is similar to the target type. Here it points to an `int` and is cast to `int*`, so the assertion is a valid constant expression. The first option was the rule through C++23. A cast to an unrelated type such as `short*` is still not a constant expression, and `reinterpret_cast` is still banned outright.",
+      "refs": [
+        "[expr.const.core]",
+        "[expr.static.cast]"
+      ]
+    },
+    {
+      "id": "constexpr-in-cpp26-caught-exception",
+      "kind": "warmup",
+      "prompt": "In C++26, is this program well-formed?",
+      "code": "#include <stdexcept>\n\nconstexpr int digit(char c) {\n  if (c < '0' || c > '9') throw std::invalid_argument(\"not a digit\");\n  return c - '0';\n}\n\nconstexpr int digit_or(char c, int fallback) {\n  try { return digit(c); }\n  catch (const std::invalid_argument&) { return fallback; }\n}\n\nstatic_assert(digit_or('x', -1) == -1);\n\nint main() {}",
+      "options": [
+        "Yes: the exception is thrown and caught within the constant evaluation",
+        "No: a throw-expression is never a core constant expression",
+        "No: `std::invalid_argument` is not a literal type, so it cannot be constructed at compile time",
+        "Yes, but only because the compiler skips the `throw` in constant evaluation"
+      ],
+      "answer": 0,
+      "explanation": "P3068R6 lets an exception be thrown and caught during constant evaluation, provided the exception object and any copies of it are destroyed before the evaluation ends. Here the handler in `digit_or` catches it, so the whole call is a constant expression with value -1. The `std::invalid_argument` objection was true before C++26, but P3378R2 made the `<stdexcept>` classes constexpr. An exception that escaped, as in `constexpr int bad = digit('x');`, would still make the initialization ill-formed.",
+      "refs": [
+        "[expr.const.core]",
+        "[except.throw]",
+        "[std.exceptions]"
+      ]
+    },
+    {
+      "id": "constexpr-in-cpp26-static-assert-message",
+      "kind": "warmup",
+      "prompt": "In C++26, what happens, and what text does the standard's recommended practice say the diagnostic should include?",
+      "code": "#include <cstddef>\n\nstruct Msg {\n  constexpr std::size_t size() const { return 5; }\n  constexpr const char* data() const { return \"hello world\"; }\n};\n\nstatic_assert(sizeof(char) == 2, Msg{});\n\nint main() {}",
+      "options": [
+        "Ill-formed, and the diagnostic should include `hello world`",
+        "Ill-formed, and the diagnostic should include `hello`",
+        "Ill-formed, because a `static_assert` message must be a string literal",
+        "Well-formed, because the message object makes the assertion non-fatal"
+      ],
+      "answer": 1,
+      "explanation": "`sizeof(char)` is 1 by definition, so the assertion fails and the program is ill-formed. Since C++26 (P2741R3), the message can be any constant expression with `size()` and `data()` members. Its text is the first `size()` code units starting at `data()`, which here is `hello`, not the whole null-terminated string. The string-literal-only rule held through C++23.",
+      "refs": [
+        "[dcl.pre]"
+      ]
+    },
+    {
+      "id": "constexpr-in-cpp26-ref-to-local",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft N5050, which of the two declarations in `f` is ill-formed?",
+      "code": "void f() {\n  int x = 0;\n  constexpr int& r = x;         // #1\n  static constexpr int& s = x;  // #2\n  (void)r; (void)s;\n}\n\nint main() {}",
+      "options": [
+        "Neither",
+        "Only #1",
+        "Only #2",
+        "Both"
+      ],
+      "answer": 2,
+      "explanation": "P2686R5 made an automatic object constexpr-referenceable from points in the same function invocation, so a `constexpr` reference to the local `x` is allowed (#1). A `static` reference outlives the invocation, and the draft checks it against the nearest namespace-scope point after the declaration, where `x` is not constexpr-referenceable, so #2 is ill-formed. N5050 uses this exact pair as an example in [dcl.constexpr]. \"Both\" is the C++23 answer, and it is also what GCC 16 does, because GCC has not implemented this part of P2686.",
+      "refs": [
+        "[dcl.constexpr]",
+        "[expr.const.init]"
+      ]
+    },
+    {
+      "id": "constexpr-in-cpp26-current-exception",
+      "kind": "tricky",
+      "prompt": "Under the C++26 draft N5050, is this program well-formed?",
+      "code": "#include <exception>\n\nconstexpr bool handling() {\n  try {\n    throw 1;\n  } catch (...) {\n    return std::current_exception() != nullptr;\n  }\n}\n\nstatic_assert(handling());\n\nint main() {}",
+      "options": [
+        "Yes: P3068 made `std::current_exception` constexpr",
+        "No: a `catch (...)` handler cannot appear in a constexpr function",
+        "Yes, but the value of `handling()` is unspecified",
+        "No: `std::current_exception` is not constexpr, so calling it is not a constant expression"
+      ],
+      "answer": 3,
+      "explanation": "P3068 originally marked `std::current_exception` and `std::uncaught_exceptions` constexpr. Because both read global exception state, P3842R2 removed that before C++26 was finalized, and in N5050 only an exposition-only constexpr helper remains. Calling a non-constexpr function disqualifies the expression, so the `static_assert` is ill-formed. Throwing, catching and `throw;` are still fine, which is why the first option is tempting. GCC 16 rejects the call to the non-constexpr function.",
+      "refs": [
+        "[propagation]",
+        "[exception.syn]",
+        "[expr.const.core]"
+      ]
+    },
+    {
+      "id": "constexpr-in-cpp26-cmath",
+      "kind": "tricky",
+      "prompt": "In C++26, on an implementation that uses IEEE 754 `double`, which of these declarations is ill-formed?",
+      "code": "#include <cmath>\n\nconstexpr double a = std::sqrt(2.0);\nconstexpr double b = std::sqrt(-1.0);\n\nint main() {}",
+      "options": [
+        "Neither: both calls return a value, so both are constant",
+        "Only `b`: it raises `FE_INVALID`",
+        "Only `a`: its result is inexact, so it is not a constant",
+        "Both: `<cmath>` functions are not constexpr"
+      ],
+      "answer": 1,
+      "explanation": "P1383R2 made most of `<cmath>` constexpr. [library.c] says a call is a non-constant library call if it raises a floating-point exception other than `FE_INEXACT`. `sqrt(2.0)` raises only `FE_INEXACT`, so `a` is fine. `sqrt(-1.0)` raises `FE_INVALID` under Annex F, so `b` is not constant-initialized, even though at run time the call would just return a NaN. The \"Both\" answer describes C++23, where only a small set of functions such as `fabs` were constexpr.",
+      "refs": [
+        "[library.c]",
+        "[c.math]",
+        "[expr.const.core]"
+      ]
+    },
+    {
+      "id": "constexpr-in-cpp26-static-assert-unevaluated",
+      "kind": "standardese",
+      "prompt": "Under the C++26 draft, is this declaration well-formed?",
+      "code": "#include <cstddef>\n\nstd::size_t runtime_size();\n\nstruct RT {\n  std::size_t size() const { return runtime_size(); }\n  const char* data() const { return \"x\"; }\n};\n\nstatic_assert(sizeof(int) >= 1, RT{});\n\nint main() {}",
+      "options": [
+        "Yes: the condition is true, so the message is an unevaluated operand",
+        "No: `size()` must be a converted constant expression",
+        "No: `RT` is not a literal type",
+        "Yes, but only if `runtime_size()` is defined"
+      ],
+      "answer": 0,
+      "explanation": "[dcl.pre] only requires that `M.size()` be implicitly convertible to `std::size_t` and that `M.data()` be implicitly convertible to `const char*`, which is true here. The constant-expression requirements on `size()` and `data()` apply only when the assertion fails. When the condition is true, the declaration has no effect and the message is an unevaluated operand, so nothing is odr-used. GCC 16 accepts the declaration. Clang 21 reports it through a warning that is an error by default, `-Winvalid-static-assert-message`, which is stricter than the draft.",
+      "refs": [
+        "[dcl.pre]",
+        "[expr.context]"
+      ]
+    },
+    {
+      "id": "constexpr-in-cpp26-is-within-lifetime",
+      "kind": "standardese",
+      "prompt": "Which statement about `std::is_within_lifetime` matches the C++26 draft?",
+      "options": [
+        "It is `constexpr`, and at run time it inspects the object's bytes to find the active union member",
+        "It reads `*p` and returns `false` instead of failing if the read would be undefined",
+        "It is `consteval`, returns whether `p` points to an object within its lifetime, and does not read the object",
+        "It works for any pointer, including pointers to globals that are not usable in constant expressions"
+      ],
+      "answer": 2,
+      "explanation": "[meta.const.eval] declares `template<class U = void, class T> consteval bool is_within_lifetime(const T* p) noexcept`. It returns true if `p` points to an object within its lifetime, without performing a read, which is how it can detect the active member of a union. Because it is `consteval`, run-time code needs `if consteval` and a separate path. A call is ill-formed unless `p` points to an object usable in constant expressions or to one whose complete object's lifetime began within the evaluation. That rules out the last option.",
+      "refs": [
+        "[meta.const.eval]",
+        "[basic.life]"
+      ]
+    }
+  ]
+}

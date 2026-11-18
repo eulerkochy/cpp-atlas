@@ -1,0 +1,143 @@
+{
+  "questions": [
+    {
+      "id": "ii-reserve-then-push",
+      "kind": "warmup",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <iostream>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3};\n  v.reserve(100);\n  auto it = v.begin();\n  v.push_back(4);\n  std::cout << *it << '\\n';\n}",
+      "options": [
+        "It prints 1",
+        "Undefined behavior: `push_back` invalidates all iterators",
+        "It prints 4",
+        "Implementation-defined"
+      ],
+      "answer": 0,
+      "explanation": "After `reserve(100)`, no reallocation takes place until the size would exceed the capacity. Appending a fourth element therefore leaves every iterator before the insertion point valid, so `it` still refers to the element 1. Only `end()` is invalidated. The second option would be right if `push_back` had to reallocate.",
+      "refs": [
+        "[vector.capacity]",
+        "[vector.modifiers]"
+      ]
+    },
+    {
+      "id": "ii-list-erase",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <iterator>\n#include <list>\n\nint main() {\n  std::list<int> l{1, 2, 3};\n  auto a = l.begin();\n  auto b = std::next(a);\n  auto c = std::next(b);\n  l.erase(b);\n  std::cout << *a << ' ' << *c << '\\n';\n}",
+      "options": [
+        "Undefined behavior: `erase` invalidates every iterator",
+        "Undefined behavior: `erase` invalidates iterators after the erased element",
+        "1 3"
+      ],
+      "answer": 2,
+      "explanation": "`list` has one node per element and erasing one node touches only its neighbours' links. Only iterators and references to the erased element are invalidated, so `a` and `c` are still valid and the output is `1 3`. The other options describe `vector::erase`, where elements after the erase point shift.",
+      "refs": [
+        "[list.modifiers]",
+        "[container.reqmts]"
+      ]
+    },
+    {
+      "id": "ii-range-for-push-back",
+      "kind": "warmup",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3};\n  for (int x : v)\n    if (x == 2) v.push_back(4);\n}",
+      "options": [
+        "It visits 1, 2, 3 and then 4",
+        "Undefined behavior: the loop's cached `end()` iterator is invalidated",
+        "It visits 1, 2, 3 and stops, because the range was fixed on entry",
+        "Ill-formed: a container cannot be modified inside a range-for"
+      ],
+      "answer": 1,
+      "explanation": "A range-for evaluates `begin()` and `end()` once, then keeps using those iterators. `push_back` invalidates `end()` even when it does not reallocate, and invalidates every iterator when it does, so the loop increments and compares invalidated iterators. The third option is the intuition the standard does not back, and the fourth is wrong because the code compiles.",
+      "refs": [
+        "[vector.modifiers]",
+        "[stmt.ranged]"
+      ]
+    },
+    {
+      "id": "ii-deque-erase-front",
+      "kind": "tricky",
+      "prompt": "What does the standard guarantee this program prints?",
+      "code": "#include <deque>\n#include <iostream>\n\nint main() {\n  std::deque<int> d{1, 2, 3, 4};\n  auto it = d.begin() + 2;  // refers to 3\n  d.erase(d.begin());\n  std::cout << *it << '\\n';\n}",
+      "options": [
+        "4",
+        "Unspecified",
+        "Undefined behavior: erase invalidates all deque iterators",
+        "3"
+      ],
+      "answer": 3,
+      "explanation": "Erasing the first element of a `deque` (but not the last) invalidates only iterators and references to the erased element, because the other elements do not move. `it` still refers to the element 3. The third option is the rule for erasing in the middle, where every iterator is invalidated; the first imagines elements shifting down as in a `vector`.",
+      "refs": [
+        "[deque.modifiers]"
+      ]
+    },
+    {
+      "id": "ii-rehash-ref",
+      "kind": "tricky",
+      "prompt": "Which of the two uses after `reserve` is valid?",
+      "code": "#include <iostream>\n#include <unordered_map>\n\nint main() {\n  std::unordered_map<int, int> m{{1, 10}};\n  auto it = m.find(1);\n  int& r = it->second;\n  m.reserve(1000);\n  std::cout << r << '\\n';          // use A\n  std::cout << it->second << '\\n'; // use B\n}",
+      "options": [
+        "Both",
+        "Only A",
+        "Only B",
+        "Neither"
+      ],
+      "answer": 1,
+      "explanation": "`reserve` may rehash, and a rehash invalidates all iterators but not pointers or references to elements, because the elements live in nodes that are not moved. Use A is valid and use B is undefined behavior. The tempting answer \"Both\" assumes that if the element survives, the iterator does too.",
+      "refs": [
+        "[unord.req]",
+        "[container.reqmts]"
+      ]
+    },
+    {
+      "id": "ii-vector-swap",
+      "kind": "tricky",
+      "prompt": "What does the standard guarantee this program prints?",
+      "code": "#include <iostream>\n#include <vector>\n\nint main() {\n  std::vector<int> a{1, 2, 3}, b{4, 5};\n  auto it = a.begin();\n  a.swap(b);\n  std::cout << *it << ' ' << (it == b.begin()) << '\\n';\n}",
+      "options": [
+        "4 0",
+        "1 0",
+        "1 1",
+        "Undefined behavior: swap invalidates iterators"
+      ],
+      "answer": 2,
+      "explanation": "Unless a container says otherwise, `swap` invalidates no references, pointers or iterators to elements; they keep referring to the same elements, which now belong to the other container. So `it` still names the element 1, which is now the first element of `b`, and the comparison is true. `std::array` is the exception, since its swap exchanges elements.",
+      "refs": [
+        "[container.reqmts]"
+      ]
+    },
+    {
+      "id": "ii-vector-erase-at-or-after",
+      "kind": "standardese",
+      "prompt": "After the erase, which of the iterators `a` and `c` may the program still use?",
+      "code": "#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3, 4};\n  [[maybe_unused]] auto a = v.begin();\n  auto b = a + 1;\n  [[maybe_unused]] auto c = a + 2;\n  v.erase(b);\n}",
+      "options": [
+        "Only `a`",
+        "Both `a` and `c`",
+        "Only `c`",
+        "Neither"
+      ],
+      "answer": 0,
+      "explanation": "`vector::erase` invalidates iterators and references at or after the point of the erase. `a` precedes it and stays valid; `c` is after it, so using `c` is undefined behavior even though, on typical implementations, it would point at the element 4. The shifted element is what makes \"Both\" tempting.",
+      "refs": [
+        "[vector.modifiers]"
+      ]
+    },
+    {
+      "id": "ii-move-ctor-pointer",
+      "kind": "standardese",
+      "prompt": "What does the standard guarantee this program prints?",
+      "code": "#include <iostream>\n#include <utility>\n#include <vector>\n\nint main() {\n  std::vector<int> v{1, 2, 3};\n  int* p = v.data();\n  std::vector<int> w = std::move(v);\n  std::cout << *p << ' ' << (p == w.data()) << '\\n';\n}",
+      "options": [
+        "Undefined behavior: the moved-from vector released its storage",
+        "1 0, because the elements were copied",
+        "1 1",
+        "Unspecified"
+      ],
+      "answer": 2,
+      "explanation": "The container requirements say that, apart from `array`, no move constructor invalidates references, pointers or iterators (other than `end()`) into the source. They keep referring to the same elements, which now belong to `w`. So `p` is valid and equals `w.data()`. The moved-from `v` itself is left in a valid but unspecified state, which is a separate matter from its former elements.",
+      "refs": [
+        "[container.reqmts]"
+      ]
+    }
+  ]
+}

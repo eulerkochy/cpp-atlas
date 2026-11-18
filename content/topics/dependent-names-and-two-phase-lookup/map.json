@@ -1,0 +1,55 @@
+{
+  "root": {
+    "label": "Two-phase lookup",
+    "note": "Non-dependent names resolve at the definition; dependent names resolve at instantiation.",
+    "children": [
+      {
+        "label": "What is dependent",
+        "note": "Dependency is defined structurally from the template parameters.",
+        "children": [
+          { "label": "Dependent types", "note": "T, T*, vector<T>, T::type and decltype of a type-dependent expression." },
+          { "label": "Dependent expressions", "note": "Type-dependent like t + 1, or value-dependent like sizeof(T) or N." },
+          { "label": "Dependent calls", "note": "An unqualified call is dependent when any argument is type-dependent." }
+        ]
+      },
+      {
+        "label": "Phase one",
+        "note": "Checked when the template definition is parsed.",
+        "children": [
+          { "label": "Bound at definition", "note": "Non-dependent names bind to what is visible there; later overloads are ignored." },
+          { "label": "Early errors", "note": "An undeclared non-dependent function call is rejected even if never instantiated." },
+          { "label": "Never valid: IFNDR", "note": "No valid specialization possible: ill-formed NDR; Clang diagnoses more than GCC." }
+        ]
+      },
+      {
+        "label": "Phase two",
+        "note": "Dependent names are resolved for each specialization.",
+        "children": [
+          { "label": "Ordinary lookup", "note": "For dependent calls, only from the template definition context." },
+          { "label": "ADL both contexts", "note": "Argument-dependent lookup also searches from the point of instantiation." },
+          { "label": "Fundamental types", "note": "int has no associated namespaces, so later declarations are never found." }
+        ]
+      },
+      {
+        "label": "Disambiguators",
+        "note": "Tell the parser what a dependent qualified name is.",
+        "children": [
+          { "label": "typename", "note": "Without it, T::type is assumed to be a value; T::type * p is multiplication." },
+          { "label": "template keyword", "note": "Needed in h.template get<3>() when h is dependent and < follows." },
+          { "label": "C++20 P0634", "note": "typename optional in type-only contexts such as aliases, members and returns." },
+          { "label": "Still required", "note": "In function bodies and unqualified namespace-scope function parameters." }
+        ]
+      },
+      {
+        "label": "Class templates",
+        "note": "Which members are known while the class is being defined.",
+        "children": [
+          { "label": "Current instantiation", "note": "Node, Node<T> and this name it; its members are looked up in phase one." },
+          { "label": "Dependent bases", "note": "Unknown specializations; unqualified lookup never searches them." },
+          { "label": "this-> fix", "note": "this->, Base<T>:: or a using-declaration defers the name to phase two." },
+          { "label": "Silent global", "note": "An unqualified call may bind to a global function instead of the base member." }
+        ]
+      }
+    ]
+  }
+}

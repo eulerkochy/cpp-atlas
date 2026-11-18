@@ -1,0 +1,150 @@
+{
+  "questions": [
+    {
+      "id": "member-functions-and-this-const-overload",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct S {\n  void f()       { std::puts(\"plain\"); }\n  void f() const { std::puts(\"const\"); }\n};\n\nvoid call(const S& s) { s.f(); }\n\nint main() {\n  S s;\n  call(s);\n  s.f();\n}",
+      "options": [
+        "`plain` then `plain`, because `s` itself is not const",
+        "`const` then `plain`",
+        "`const` then `const`",
+        "Ill-formed: the call through `const S&` is ambiguous"
+      ],
+      "answer": 1,
+      "explanation": "The object expression in `call` is an lvalue of type `const S`, which can only bind to the implicit object parameter `const S&`, so the const overload runs. In `main`, `s` is a non-const lvalue, and `S&` is a better match than `const S&`, so the plain overload runs. What matters is the type of the expression left of the dot, not the type the object was originally declared with.",
+      "refs": [
+        "[over.match.funcs]",
+        "[over.ics.rank]"
+      ]
+    },
+    {
+      "id": "member-functions-and-this-rvalue-object",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "struct S {\n  int n = 0;\n  void reset() { n = 0; }\n};\n\nint main() {\n  S().reset();\n}",
+      "options": [
+        "Ill-formed: an rvalue cannot bind to the non-const implicit object parameter",
+        "Well-formed",
+        "Well-formed, but modifying a temporary is undefined behavior",
+        "Ill-formed: `reset` would need an `&&` ref-qualifier"
+      ],
+      "answer": 1,
+      "explanation": "For a member function declared without a ref-qualifier, [over.match.funcs] makes an exception: an rvalue may bind to the implicit object parameter even though its type is a non-const lvalue reference. That is the rule the first option forgets. Modifying a temporary during its lifetime is perfectly defined; the temporary is simply destroyed at the end of the full-expression.",
+      "refs": [
+        "[over.match.funcs]",
+        "[class.temporary]"
+      ]
+    },
+    {
+      "id": "member-functions-and-this-static-constexpr",
+      "kind": "warmup",
+      "prompt": "In C++23, this is the whole program, in one translation unit. Is it well-formed?",
+      "code": "#include <cstdio>\n\nstruct Limits {\n  static constexpr int max = 64;\n};\n\nint main() {\n  const int& r = Limits::max;   // odr-uses Limits::max\n  std::printf(\"%d\\n\", r);\n}",
+      "options": [
+        "Ill-formed, no diagnostic required: `max` needs a definition outside the class",
+        "Well-formed only if the compiler constant-folds `r`",
+        "Ill-formed: a reference cannot bind to a constexpr variable",
+        "Well-formed: the in-class declaration is a definition"
+      ],
+      "answer": 3,
+      "explanation": "Since C++17 a `static constexpr` data member is implicitly an inline variable, so its in-class declaration is a definition and an odr-use such as binding a reference is fine. Before C++17 the first option was correct: binding the reference odr-used `max`, and without an out-of-class definition the program typically failed to link. A plain `static const int` member is still not inline today.",
+      "refs": [
+        "[class.static.data]",
+        "[dcl.inline]",
+        "[basic.def.odr]"
+      ]
+    },
+    {
+      "id": "member-functions-and-this-star-this-lvalue",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <string>\n\nstruct Holder {\n  std::string name = \"x\";\n  static void sink(std::string&)  { std::puts(\"lvalue\"); }\n  static void sink(std::string&&) { std::puts(\"rvalue\"); }\n  void take() && { sink(name); }\n};\n\nint main() { Holder{}.take(); }",
+      "options": [
+        "`lvalue`",
+        "`rvalue`, because `take` only runs on rvalues",
+        "Ill-formed: the call to `sink` is ambiguous",
+        "Unspecified: it depends on whether the temporary is materialized"
+      ],
+      "answer": 0,
+      "explanation": "The `&&` qualifier only decides which objects `take` may be called on. Inside the body, `name` is an id-expression naming a data member, which is an lvalue, exactly as in any other member function. To get `rvalue` you must write `sink(std::move(name))` or `sink(std::move(*this).name)`.",
+      "refs": [
+        "[expr.prim.id.unqual]",
+        "[expr.prim.this]",
+        "[over.match.funcs]"
+      ]
+    },
+    {
+      "id": "member-functions-and-this-complete-class",
+      "kind": "tricky",
+      "prompt": "Which marked line makes this class definition ill-formed?",
+      "code": "struct S {\n  auto f() noexcept(noexcept(g())) {  // A: noexcept names g\n    return g();                        // B: body calls g\n  }\n  int g() noexcept { return 1; }\n  size_type h();                       // C: return type\n  using size_type = int;\n};",
+      "options": [
+        "A, because `g` is not declared yet",
+        "B, because `g` is not declared yet",
+        "C, because `size_type` is not declared yet",
+        "None of them; members are visible throughout the class"
+      ],
+      "answer": 2,
+      "explanation": "Function bodies, default arguments, `noexcept` specifiers and default member initializers are complete-class contexts, where the whole class is visible, so A and B find the later `g`. A member function's return type is not such a context, so `size_type` is looked up from that point backwards and is not found, so line C is ill-formed. Line A is the tempting answer, but the `noexcept` specifier was made a complete-class context precisely so it can refer to later members.",
+      "refs": [
+        "[class.mem]",
+        "[basic.scope.class]"
+      ]
+    },
+    {
+      "id": "member-functions-and-this-deduce-static-type",
+      "kind": "tricky",
+      "prompt": "What does this C++23 program print?",
+      "code": "#include <cstdio>\n#include <type_traits>\n\nstruct Base {\n  template <class Self>\n  int which(this Self&&) {\n    return std::is_same_v<std::remove_cvref_t<Self>, Base> ? 1 : 2;\n  }\n};\nstruct Derived : Base {};\n\nint main() {\n  Derived d;\n  Base& b = d;\n  std::printf(\"%d %d\\n\", d.which(), b.which());\n}",
+      "options": [
+        "`2 2`",
+        "`1 1`",
+        "Ill-formed: an explicit object parameter cannot be a forwarding reference",
+        "`2 1`"
+      ],
+      "answer": 3,
+      "explanation": "`Self` is deduced at compile time from the object expression. `d` has type `Derived`, so `Self` is `Derived&`; `b` has static type `Base`, so `Self` is `Base&`, even though it refers to a `Derived`. Deducing `this` is not a virtual dispatch mechanism, which is why `2 2` is wrong. `this Self&&` is the canonical forwarding form of an explicit object parameter.",
+      "refs": [
+        "[dcl.fct]",
+        "[temp.deduct.call]"
+      ]
+    },
+    {
+      "id": "member-functions-and-this-capture-default",
+      "kind": "standardese",
+      "prompt": "In C++20, what does the lambda capture, given that `n` is a non-static data member?",
+      "code": "struct Counter {\n  int n = 0;\n  auto get() { return [=] { return n; }; }\n};",
+      "options": [
+        "A copy of `n`",
+        "A copy of `*this`",
+        "The `this` pointer, and this implicit capture is deprecated",
+        "Nothing: the program is ill-formed because `this` is not listed"
+      ],
+      "answer": 2,
+      "explanation": "Naming `n` in the lambda means `(*this).n`, so what is implicitly captured is the entity `this`, and it is captured as a pointer even under a copy default. The closure therefore refers to the original object, which is why the first two options are tempting but wrong. C++20 deprecated implicitly capturing `this` through `[=]`; write `[=, this]` or `[*this]` to say which you mean.",
+      "refs": [
+        "[expr.prim.lambda.capture]",
+        "[depr.capture.this]"
+      ]
+    },
+    {
+      "id": "member-functions-and-this-address-type",
+      "kind": "standardese",
+      "prompt": "In C++23, what is the type of `&E::get`?",
+      "code": "struct E {\n  int v = 0;\n  int get(this const E& self) { return self.v; }\n};",
+      "options": [
+        "`int (E::*)() const`",
+        "`int (*)(const E&)`",
+        "`int (E::*)(const E&)`",
+        "Ill-formed: the address of an explicit object member function cannot be taken"
+      ],
+      "answer": 1,
+      "explanation": "For an explicit object member function, the object parameter is an ordinary parameter, and [expr.unary.op] says that taking its address yields a pointer to function, not a pointer to member. So the type is `int (*)(const E&)` and you call it as `(&E::get)(e)`. The pointer-to-member type in the first option is what you get for the classic spelling `int get() const`.",
+      "refs": [
+        "[expr.unary.op]",
+        "[dcl.fct]"
+      ]
+    }
+  ]
+}

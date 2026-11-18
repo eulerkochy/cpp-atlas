@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "const and volatile",
+    "note": "Each cv-qualifier applies to one level of a type; the level decides what it protects.",
+    "children": [
+      {
+        "label": "Levels",
+        "note": "Top-level qualifies the object itself; low-level qualifies what it points to.",
+        "children": [
+          { "label": "Read right to left", "note": "int const* const p is a const pointer to const int." },
+          { "label": "Parameters drop top-level", "note": "void f(int) and void f(const int) declare the same function." },
+          { "label": "Prvalues drop cv", "note": "A non-class prvalue is never cv-qualified, so returning const int returns int." },
+          { "label": "Arrays and references", "note": "cv on an array applies to its elements; cv on a reference or function type is ignored." }
+        ]
+      },
+      {
+        "label": "Qualification conversion",
+        "note": "Adds cv below the top level of a pointer type.",
+        "children": [
+          { "label": "T** to const T**", "note": "Banned: the writable middle pointer could be made to point at a const object." },
+          { "label": "const T* const*", "note": "Allowed: if a level gains const, every level above it except the top must be const." },
+          { "label": "Unknown bounds (C++20)", "note": "P0388 lets int(*)[3] convert to const int(*)[]." }
+        ]
+      },
+      {
+        "label": "Const objects",
+        "note": "Objects created const, or non-mutable subobjects of them.",
+        "children": [
+          { "label": "Modification is UB", "note": "Writing a const object is undefined, whatever path or cast reaches it." },
+          { "label": "Path is irrelevant", "note": "A non-const object reached through const T& may be written after const_cast." },
+          { "label": "Under construction", "note": "Const semantics start when the constructor finishes and stop when the destructor starts." }
+        ]
+      },
+      {
+        "label": "const member functions",
+        "note": "this has type const X*, so members are accessed as const.",
+        "children": [
+          { "label": "Shallow const", "note": "Pointer members become T* const; the pointees stay modifiable." },
+          { "label": "mutable", "note": "Lets a member change in a const object; not allowed on references, statics or const members." },
+          { "label": "Logical const", "note": "Observable state is unchanged even when caches or mutexes change." },
+          { "label": "Thread safety", "note": "Callers assume concurrent const calls are safe, so a mutable cache needs a lock or atomic." }
+        ]
+      },
+      {
+        "label": "volatile",
+        "note": "Accesses through volatile glvalues are observable behavior.",
+        "children": [
+          { "label": "Not atomic", "note": "Unsynchronized volatile accesses from two threads are a data race; use std::atomic." },
+          { "label": "C++20 deprecations", "note": "++ and --, using a volatile assignment's value, volatile parameters, returns and bindings." },
+          { "label": "Compound assignment", "note": "Deprecated by P1152, then restored by P2327 and CWG 2654; not deprecated in C++23." }
+        ]
+      },
+      {
+        "label": "constexpr vs const",
+        "note": "const forbids modification; constexpr also demands constant initialization.",
+        "children": [
+          { "label": "Top-level only", "note": "constexpr int* p is int* const; the pointee is still writable." },
+          { "label": "Integral shortcut", "note": "A const integral variable with a constant initializer is usable in constant expressions." },
+          { "label": "Not for doubles", "note": "const double d = 1.0 cannot initialize a constexpr double." },
+          { "label": "Members (C++14)", "note": "A constexpr member function is no longer implicitly const." }
+        ]
+      }
+    ]
+  }
+}

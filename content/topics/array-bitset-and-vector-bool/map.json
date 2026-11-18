@@ -1,0 +1,116 @@
+{
+  "root": {
+    "label": "array, bitset, vector<bool>",
+    "note": "Fixed-size and bit-packed containers, and why vector<bool> is odd.",
+    "children": [
+      {
+        "label": "std::array",
+        "note": "An aggregate wrapping T[N].",
+        "children": [
+          {
+            "label": "Aggregate initialization",
+            "note": "No constructors; missing initializers are value-initialized, and a bare local is indeterminate."
+          },
+          {
+            "label": "Brace elision",
+            "note": "array<int,3> a{1,2,3} works without inner braces; extra initializers are ill-formed."
+          },
+          {
+            "label": "Zero size",
+            "note": "begin() equals end(); front() and back() are undefined; data() may be null."
+          },
+          {
+            "label": "to_array (C++20)",
+            "note": "Deduces size from a built-in array or list and can convert elements; CTAD cannot."
+          }
+        ]
+      },
+      {
+        "label": "Value-like behaviour",
+        "note": "Copies, compares and swaps elementwise.",
+        "children": [
+          {
+            "label": "Linear swap",
+            "note": "swap exchanges elements one by one, unlike pointer-based containers."
+          },
+          {
+            "label": "Structural and tuple-like",
+            "note": "Usable as an NTTP and with structured bindings."
+          }
+        ]
+      },
+      {
+        "label": "std::bitset",
+        "note": "N bits fixed at compile time, no iterators.",
+        "children": [
+          {
+            "label": "Bit 0 is least significant",
+            "note": "The rightmost string character is bit 0; to_string prints the high bit first."
+          },
+          {
+            "label": "Integer constructor truncates",
+            "note": "Only the low N bits of the integer are kept."
+          },
+          {
+            "label": "to_ulong overflow",
+            "note": "Throws overflow_error when the value does not fit, regardless of N."
+          },
+          {
+            "label": "Checked and unchecked access",
+            "note": "test and set throw out_of_range; operator[] is undefined out of range."
+          }
+        ]
+      },
+      {
+        "label": "vector<bool> proxy",
+        "note": "operator[] returns a class, not bool&.",
+        "children": [
+          {
+            "label": "auto captures a proxy",
+            "note": "auto x = v[0] aliases the element; write bool x for a snapshot."
+          },
+          {
+            "label": "No address or auto&",
+            "note": "&v[0], bool& and for (auto& b : v) do not compile; auto&& does."
+          },
+          {
+            "label": "flip and no data()",
+            "note": "v.flip() flips all bits, v[i].flip() one; there is no data()."
+          }
+        ]
+      },
+      {
+        "label": "vector<bool> guarantees",
+        "note": "What the standard does and does not say.",
+        "children": [
+          {
+            "label": "Packing not mandated",
+            "note": "Bit packing is the motivation but not a requirement; all major libraries pack."
+          },
+          {
+            "label": "Data races",
+            "note": "Adjacent elements written by different threads race, unlike other vectors."
+          },
+          {
+            "label": "Iterator category",
+            "note": "Models C++20 random_access_iterator but not Cpp17 forward iterator."
+          }
+        ]
+      },
+      {
+        "label": "Alternatives",
+        "note": "Pick by what you need from the elements.",
+        "children": [
+          {
+            "label": "Real references needed",
+            "note": "Use vector<char> or vector<uint8_t>."
+          },
+          {
+            "label": "Fixed width",
+            "note": "Use bitset<N>, which may exceed any integer width."
+          }
+        ]
+      }
+    ]
+  }
+}

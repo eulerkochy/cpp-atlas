@@ -1,0 +1,56 @@
+{
+  "root": {
+    "label": "Attributes",
+    "note": "Annotations on entities and statements: diagnostic requests, hints, and promises the optimizer may exploit.",
+    "children": [
+      {
+        "label": "Syntax and placement",
+        "note": "Double brackets; the position decides what an attribute appertains to.",
+        "children": [
+          { "label": "Arguments", "note": "An attribute may take a parenthesized list of balanced tokens, as in deprecated(\"use g\")." },
+          { "label": "using prefix (C++17)", "note": "[[using gnu: hot, cold]] namespaces a list; the names inside cannot be namespaced again." },
+          { "label": "Class attributes", "note": "Write struct [[nodiscard]] S; an attribute before struct with no declarator is ill-formed." },
+          { "label": "Statements and labels", "note": "likely, unlikely and fallthrough attach to statements or labels, not declarations." }
+        ]
+      },
+      {
+        "label": "Unknown vs misplaced",
+        "note": "Unrecognized attributes are ignored; standard ones used wrongly are errors.",
+        "children": [
+          { "label": "Ignored (C++17)", "note": "An unrecognized attribute token is ignored; in C++11 and C++14 this was implementation-defined." },
+          { "label": "Misplaced standard", "note": "A standard attribute applied where it cannot apply makes the program ill-formed." },
+          { "label": "__has_cpp_attribute", "note": "Yields 0 if unsupported, otherwise a date such as 201907L for nodiscard." }
+        ]
+      },
+      {
+        "label": "Diagnostic requests",
+        "note": "They encourage warnings and never make code ill-formed by being violated.",
+        "children": [
+          { "label": "nodiscard", "note": "C++17; reason string and constructors in C++20; type form covers by-value returns only." },
+          { "label": "deprecated", "note": "C++14; optional message; works on namespaces, enumerators and specializations." },
+          { "label": "maybe_unused", "note": "C++17; silences unused warnings for variables, functions, types and bindings." },
+          { "label": "fallthrough", "note": "C++17 null statement; the next statement must carry a case or default label." }
+        ]
+      },
+      {
+        "label": "Hints and layout",
+        "note": "Optimization information that compilers may ignore.",
+        "children": [
+          { "label": "likely, unlikely", "note": "C++20 path probability hints; both on one statement is ill-formed." },
+          { "label": "no_unique_address", "note": "C++20; lets a member overlap others, changing sizeof; MSVC ignores it." },
+          { "label": "Same-type rule", "note": "Two distinct objects of the same type never share an address." }
+        ]
+      },
+      {
+        "label": "Promises",
+        "note": "Breaking these is undefined behavior, and the optimizer relies on them.",
+        "children": [
+          { "label": "noreturn", "note": "C++11; returning is UB; the first declaration must carry it if any does." },
+          { "label": "assume (C++23)", "note": "The expression is not evaluated; if it would be false, behavior is undefined." },
+          { "label": "assume vs assert", "note": "assert checks in debug builds; assume never checks and lets code be deleted." },
+          { "label": "indeterminate (C++26)", "note": "Opts an uninitialized variable out of erroneous behavior back into UB on read." }
+        ]
+      }
+    ]
+  }
+}

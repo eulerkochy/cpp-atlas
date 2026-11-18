@@ -1,0 +1,64 @@
+{
+  "root": {
+    "label": "Parallel algorithms",
+    "note": "An execution policy grants the library permission to parallelize; your callbacks must tolerate it.",
+    "children": [
+      {
+        "label": "The four policies",
+        "note": "seq, par and par_unseq since C++17; unseq since C++20, all in <execution>.",
+        "children": [
+          { "label": "seq", "note": "Calling thread only; invocations do not overlap but their order is unspecified." },
+          { "label": "par", "note": "Calling or library threads; invocations on one thread never overlap." },
+          { "label": "par_unseq", "note": "Any threads, and invocations may be interleaved within one thread." },
+          { "label": "unseq", "note": "Calling thread only, but invocations may be interleaved for vectorization." }
+        ]
+      },
+      {
+        "label": "Element access functions",
+        "note": "Iterator operations, required element operations and your function objects.",
+        "children": [
+          { "label": "Data races", "note": "The library adds no synchronization; races between invocations are UB." },
+          { "label": "Locks under par", "note": "Allowed, but never wait for another invocation that may not have started." },
+          { "label": "Vectorization-unsafe", "note": "Mutex locking is forbidden under par_unseq and unseq; allocation is exempt." }
+        ]
+      },
+      {
+        "label": "Exceptions",
+        "note": "Policy overloads change error handling even with seq.",
+        "children": [
+          { "label": "std::terminate", "note": "An exception escaping an element access function terminates under every standard policy." },
+          { "label": "bad_alloc", "note": "Thrown by the algorithm itself if it cannot get temporary memory." },
+          { "label": "No exception_list", "note": "The Parallelism TS design was not adopted into C++17." }
+        ]
+      },
+      {
+        "label": "reduce vs accumulate",
+        "note": "A generalized sum may regroup and reorder; a left fold may not.",
+        "children": [
+          { "label": "Associative and commutative", "note": "reduce and transform_reduce give the fold's result only for such operations." },
+          { "label": "Scans", "note": "inclusive_scan and exclusive_scan may regroup but keep order: associative is enough." },
+          { "label": "Floating point", "note": "Parallel or unrolled float sums differ between libraries and runs; all are valid." },
+          { "label": "init type", "note": "The accumulator has init's type, so 0 over doubles truncates." },
+          { "label": "transform_reduce", "note": "Fuses map and reduce; the two-range form is the parallel inner_product." }
+        ]
+      },
+      {
+        "label": "Requirements and gaps",
+        "note": "Policy overloads need forward iterators and do not exist for every algorithm.",
+        "children": [
+          { "label": "Forward iterators", "note": "Required even where the serial overload takes input iterators; not diagnosed by GCC." },
+          { "label": "No policy overload", "note": "accumulate, partial_sum, iota, binary searches, heap ops, permutations, ranges." }
+        ]
+      },
+      {
+        "label": "Implementations",
+        "note": "Permission is not parallelism: measure on your toolchain.",
+        "children": [
+          { "label": "libstdc++", "note": "Uses TBB if <tbb/tbb.h> is found, needing -ltbb; otherwise silently serial." },
+          { "label": "libc++", "note": "Needs -fexperimental-library; libdispatch on macOS; only a subset of overloads." },
+          { "label": "Small inputs", "note": "Task startup and the final combine can make par slower than a plain loop." }
+        ]
+      }
+    ]
+  }
+}

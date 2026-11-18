@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "multiple-and-virtual-inheritance-diamond-conversion",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "struct Top { int t = 0; };\nstruct Left  : Top {};\nstruct Right : Top {};\nstruct Bottom : Left, Right {};\n\nint main() {\n  Bottom b;\n  Top* p = &b;\n  (void)p;\n}",
+      "options": [
+        "Well-formed: `p` points to the `Top` inside `Left`, the first base",
+        "Ill-formed: `Top` is an ambiguous base of `Bottom`",
+        "Well-formed, but which `Top` is chosen is unspecified",
+        "Undefined behavior"
+      ],
+      "answer": 1,
+      "explanation": "Without virtual inheritance, a `Bottom` contains two distinct `Top` subobjects, one through `Left` and one through `Right`. The derived-to-base conversion must identify a unique subobject, so it is ill-formed. There is no rule preferring the first base; write `static_cast<Left*>(&b)` first, or make `Top` a virtual base.",
+      "refs": [
+        "[conv.ptr]",
+        "[class.mi]",
+        "[class.member.lookup]"
+      ]
+    },
+    {
+      "id": "multiple-and-virtual-inheritance-construction-order",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct V { V() { std::puts(\"V\"); } };\nstruct N { N() { std::puts(\"N\"); } };\nstruct L : virtual V { L() { std::puts(\"L\"); } };\nstruct R : virtual V { R() { std::puts(\"R\"); } };\nstruct M : N, L, R { M() { std::puts(\"M\"); } };\n\nint main() { M m; }",
+      "options": [
+        "`N V L R M`",
+        "`V L V R N M`",
+        "`N V L V R M`",
+        "`V N L R M`"
+      ],
+      "answer": 3,
+      "explanation": "The most derived class constructs its virtual bases first, before any non-virtual base, so the single shared `V` comes before `N` even though `N` is listed first. Then the direct bases run in declaration order, `N`, `L`, `R`, and finally the body of `M`. `V` appears once because both paths share one virtual base subobject, which rules out the options with two `V` lines.",
+      "refs": [
+        "[class.base.init]",
+        "[class.mi]"
+      ]
+    },
+    {
+      "id": "multiple-and-virtual-inheritance-pointer-compare",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct A { int a = 1; };\nstruct B { int b = 2; };\nstruct C : A, B { int c = 3; };\n\nint main() {\n  C c;\n  B* pb = &c;\n  std::printf(\"%d\\n\", pb == &c);\n}",
+      "options": [
+        "`0`, because `pb` points past the `A` subobject",
+        "`1`",
+        "Either `0` or `1`; the layout is implementation-defined",
+        "Ill-formed: `B*` and `C*` cannot be compared"
+      ],
+      "answer": 1,
+      "explanation": "Comparing `B*` with `C*` first converts `&c` to `B*` with the usual derived-to-base pointer conversion, which yields the address of the same `B` subobject `pb` points to. The comparison is therefore true regardless of layout. Converting both to `void*` first would compare raw addresses, and that result does depend on the implementation.",
+      "refs": [
+        "[expr.eq]",
+        "[conv.ptr]"
+      ]
+    },
+    {
+      "id": "multiple-and-virtual-inheritance-lookup-ambiguity",
+      "kind": "tricky",
+      "prompt": "Is this program well-formed?",
+      "code": "struct Reader { void put(int) {} };\nstruct Writer { void put(double) {} };\nstruct Device : Reader, Writer {};\n\nint main() {\n  Device d;\n  d.put(1);\n}",
+      "options": [
+        "Well-formed: overload resolution picks `Reader::put(int)`, the exact match",
+        "Well-formed: the first base listed wins",
+        "Ill-formed: the conversion from `Device` to `Writer` is ambiguous",
+        "Ill-formed: the name `put` is ambiguous"
+      ],
+      "answer": 3,
+      "explanation": "Member name lookup runs before overload resolution. It finds `put` in two different base class subobjects, so the lookup result is ambiguous and the program is ill-formed, whatever the argument types. The first option is how people expect overloading to work; it does once `Device` declares `using Reader::put; using Writer::put;`.",
+      "refs": [
+        "[class.member.lookup]",
+        "[namespace.udecl]"
+      ]
+    },
+    {
+      "id": "multiple-and-virtual-inheritance-vbase-init",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\nstruct Top { Top(int v) { std::printf(\"Top %d\\n\", v); } };\nstruct Left  : virtual Top { Left()  : Top(1) {} };\nstruct Right : virtual Top { Right() : Top(2) {} };\nstruct Bottom : Left, Right { Bottom() : Top(3) {} };\n\nint main() { Bottom b; }",
+      "options": [
+        "`Top 1`",
+        "`Top 1` then `Top 2`",
+        "`Top 3`",
+        "Ill-formed: `Top` is initialized by more than one constructor"
+      ],
+      "answer": 2,
+      "explanation": "A virtual base is initialized by the most derived class, here `Bottom`, using its mem-initializer `Top(3)`. The mem-initializers `Top(1)` in `Left` and `Top(2)` in `Right` are ignored because those constructors are not running for the most derived object. `Top 1` is the tempting answer for anyone who expects the first base on the path to win.",
+      "refs": [
+        "[class.base.init]"
+      ]
+    },
+    {
+      "id": "multiple-and-virtual-inheritance-reinterpret",
+      "kind": "tricky",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <cstdio>\n\nstruct A { int a = 1; };\nstruct B { int b = 2; };\nstruct C : A, B { int c = 3; };\n\nint main() {\n  C c;\n  B* pb = &c;\n  C* p = reinterpret_cast<C*>(pb);\n  std::printf(\"%d\\n\", p->c);\n}",
+      "options": [
+        "It prints `3`, the same as with `static_cast`",
+        "Undefined behavior",
+        "Ill-formed: `reinterpret_cast` cannot convert between related classes",
+        "It prints an implementation-defined value"
+      ],
+      "answer": 1,
+      "explanation": "`reinterpret_cast` between object pointers behaves like `static_cast` through `void*`, and that only lands on a different object when the two are pointer-interconvertible. A class is not pointer-interconvertible with its second base, so `p` still points at the `B` subobject, and accessing `p->c` as if it were a `C` is undefined behavior. `static_cast<C*>(pb)` would subtract the base offset and print 3, which is why the first option is tempting. The cast itself compiles.",
+      "refs": [
+        "[expr.reinterpret.cast]",
+        "[expr.static.cast]",
+        "[basic.compound]"
+      ]
+    },
+    {
+      "id": "multiple-and-virtual-inheritance-dominance",
+      "kind": "standardese",
+      "prompt": "What does `run()` return?",
+      "code": "struct Top   { int f() { return 1; } };\nstruct Left  : virtual Top { int f() { return 2; } };\nstruct Right : virtual Top {};\nstruct Bottom : Left, Right {};\n\nint run() {\n  Bottom b;\n  return b.f();\n}",
+      "options": [
+        "2",
+        "1",
+        "Ill-formed: `f` is ambiguous between `Left::f` and `Top::f`",
+        "Unspecified: it depends on the order of the base classes"
+      ],
+      "answer": 0,
+      "explanation": "Lookup in `Bottom` finds `Left::f` through `Left` and `Top::f` through `Right`. Because `Top` is a virtual base, the `Top` subobject seen through `Right` is the same one that is a base of `Left`, so [class.member.lookup] discards `Top::f` in favour of `Left::f`; this is dominance. If `Top` were a non-virtual base, the two declarations would be in unrelated subobjects and the call would be ambiguous, which is why the third option is tempting.",
+      "refs": [
+        "[class.member.lookup]"
+      ]
+    },
+    {
+      "id": "multiple-and-virtual-inheritance-static-cast-vbase",
+      "kind": "standardese",
+      "prompt": "Which conversion in `down` is ill-formed?",
+      "code": "struct V { virtual ~V() = default; };\nstruct W : virtual V {};\n\nvoid down(V* pv) {\n  W* a = dynamic_cast<W*>(pv);   // A\n  W* b = static_cast<W*>(pv);    // B\n  (void)a; (void)b;\n}",
+      "options": [
+        "A, because `dynamic_cast` cannot go through a virtual base",
+        "B, because `static_cast` cannot convert from a virtual base to a derived class",
+        "Both A and B",
+        "Neither; both compile, and B is undefined behavior if `*pv` is not a `W`"
+      ],
+      "answer": 1,
+      "explanation": "[expr.static.cast] allows a downcast from `B*` to `D*` only if `B` is neither a virtual base of `D` nor a base of a virtual base of `D`. The offset from a virtual base to the derived class depends on the most derived object, so a static conversion cannot compute it and B is ill-formed. `dynamic_cast` reads it from the object at run time and is well-formed here. The last option describes downcasting from a non-virtual base.",
+      "refs": [
+        "[expr.static.cast]",
+        "[expr.dynamic.cast]"
+      ]
+    }
+  ]
+}

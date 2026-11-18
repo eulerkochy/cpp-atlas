@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "id": "concepts-and-constraints-simple-requirement-truth",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\ntemplate <class T>\nconcept Big = requires { sizeof(T) > 4; };\n\nint main() { std::printf(\"%d\\n\", Big<char>); }",
+      "options": [
+        "`0`",
+        "`1`",
+        "Nothing: ill-formed, a requires-expression needs a parameter list",
+        "Nothing: ill-formed, `sizeof(T) > 4` is not a requirement"
+      ],
+      "answer": 1,
+      "explanation": "`sizeof(T) > 4;` is a simple requirement, which only checks that the expression is valid. For `char` it is valid and evaluates to `false`, but the value is never looked at, so `Big<char>` is `true`. To test the value, write a nested requirement `requires sizeof(T) > 4;` inside the braces, or define the concept as `sizeof(T) > 4` directly. The parameter list of a requires-expression is optional.",
+      "refs": [
+        "[expr.prim.req.simple]",
+        "[expr.prim.req.nested]"
+      ]
+    },
+    {
+      "id": "concepts-and-constraints-requires-clause-parens",
+      "kind": "warmup",
+      "prompt": "Is this declaration well-formed?",
+      "code": "template <class T>\n  requires sizeof(T) > 4\nvoid f(T) {}",
+      "options": [
+        "Well-formed: `f` accepts types larger than four bytes",
+        "Well-formed, but the constraint is always satisfied",
+        "Ill-formed: a constraint must be a concept-id",
+        "Ill-formed: `sizeof(T) > 4` must be parenthesized in a requires-clause"
+      ],
+      "answer": 3,
+      "explanation": "The operands of a requires-clause must be primary expressions joined by `&&` or `||`. `sizeof(T)` is not a primary expression, so it cannot be the clause's operand and the declaration is ill-formed. Writing `requires (sizeof(T) > 4)` makes the whole comparison a parenthesized primary expression. Constraints are not limited to concept-ids; any constant `bool` expression works once it is parenthesized.",
+      "refs": [
+        "[temp.pre]",
+        "[temp.constr.decl]"
+      ]
+    },
+    {
+      "id": "concepts-and-constraints-signed-integral-subsumes",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <concepts>\n#include <cstdio>\n\ntemplate <std::integral T> void f(T) { std::puts(\"integral\"); }\ntemplate <std::signed_integral T> void f(T) { std::puts(\"signed_integral\"); }\n\nint main() { f(1); f(1u); }",
+      "options": [
+        "`signed_integral` then `integral`",
+        "Nothing: the call `f(1)` is ambiguous",
+        "`integral` then `integral`",
+        "`signed_integral` then nothing: `f(1u)` is ill-formed"
+      ],
+      "answer": 0,
+      "explanation": "For `f(1)` both templates are viable with identical parameter types, so the more constrained one wins. `std::signed_integral<T>` is defined as `std::integral<T> && std::is_signed_v<T>`, which normalizes to a conjunction containing the very same atom as `std::integral`, so it subsumes it. For `f(1u)` only the first template is satisfied. Ambiguity would arise only if the two concepts were written independently.",
+      "refs": [
+        "[temp.constr.order]",
+        "[temp.func.order]",
+        "[concepts.arithmetic]"
+      ]
+    },
+    {
+      "id": "concepts-and-constraints-identical-text-not-identical",
+      "kind": "tricky",
+      "prompt": "Is the call `g(0)` well-formed?",
+      "code": "#include <type_traits>\n\ntemplate <class T> concept Integral = std::is_integral_v<T>;\ntemplate <class T> concept Int32 = std::is_integral_v<T> && sizeof(T) == 4;\n\ntemplate <Integral T> int g(T) { return 1; }\ntemplate <Int32 T> int g(T) { return 2; }\n\nint main() { return g(0); }",
+      "options": [
+        "Well-formed: it calls the `Int32` overload, which has more requirements",
+        "Ill-formed: the call is ambiguous",
+        "Well-formed: it calls the `Integral` overload, which was declared first",
+        "Ill-formed, no diagnostic required"
+      ],
+      "answer": 1,
+      "explanation": "Subsumption compares atomic constraints by identity, and two atoms are identical only if they come from the same expression in the source. The `std::is_integral_v<T>` in `Int32` is a different atom from the one in `Integral`, so neither constraint subsumes the other and the call is ambiguous. Defining `Int32` as `Integral<T> && sizeof(T) == 4` makes the `Int32` overload win.",
+      "refs": [
+        "[temp.constr.order]",
+        "[temp.constr.atomic]",
+        "[temp.constr.normal]"
+      ]
+    },
+    {
+      "id": "concepts-and-constraints-compound-decltype-paren",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <concepts>\n#include <cstdio>\n\ntemplate <class T>\nconcept HasIntX = requires(T t) { { t.x } -> std::same_as<int>; };\n\nstruct P { int x; };\n\nint main() { std::printf(\"%d\\n\", HasIntX<P>); }",
+      "options": [
+        "`1`",
+        "Nothing: ill-formed, `t` cannot be used in a compound requirement",
+        "`0`",
+        "It depends on whether `P` is an aggregate"
+      ],
+      "answer": 2,
+      "explanation": "A return-type requirement `-> C` checks `C<decltype((e))>`, with the doubled parentheses. `t.x` is an lvalue, so `decltype((t.x))` is `int&`, and `std::same_as<int&, int>` is false. Reading it as `decltype(t.x)`, which would be `int`, is what makes `1` tempting. Use `std::same_as<int&>` or `std::convertible_to<int>` instead.",
+      "refs": [
+        "[expr.prim.req.compound]",
+        "[dcl.type.decltype]"
+      ]
+    },
+    {
+      "id": "concepts-and-constraints-atomic-not-bool",
+      "kind": "tricky",
+      "prompt": "What happens when this program is compiled?",
+      "code": "template <class T> requires (T::value) int f() { return 0; }\ntemplate <class T> int f() { return 1; }\n\nstruct S { static constexpr int value = 1; };\n\nint main() { return f<S>(); }",
+      "options": [
+        "It compiles and `main` returns 0: `1` converts to `true`",
+        "It compiles and `main` returns 1: the constraint is not satisfied",
+        "Ill-formed: the call is ambiguous",
+        "Ill-formed: the atomic constraint `T::value` has type `int`, not `bool`"
+      ],
+      "answer": 3,
+      "explanation": "Substitution into the atom `T::value` succeeds, so the result must be a constant expression of type exactly `bool`; no conversion is applied, and an `int` makes the program ill-formed rather than leaving the constraint unsatisfied. The \"not satisfied\" reading applies only when substitution itself fails, for example if `S` had no `value` at all. Writing `requires (T::value != 0)` or `requires bool(T::value)` fixes it.",
+      "refs": [
+        "[temp.constr.atomic]"
+      ]
+    },
+    {
+      "id": "concepts-and-constraints-satisfaction-changes",
+      "kind": "standardese",
+      "prompt": "What does the C++23 standard say about this translation unit?",
+      "code": "template <class T> concept HasFoo = requires(T t) { foo(t); };\n\nstruct S {};\nstatic_assert(!HasFoo<S>);\n\nvoid foo(S);\nstatic_assert(HasFoo<S>);",
+      "options": [
+        "Both assertions pass, since `foo` is found by the time of the second",
+        "Ill-formed, no diagnostic required",
+        "The second assertion must fail, because concept results are cached",
+        "Ill-formed: `foo` must be declared before the concept"
+      ],
+      "answer": 1,
+      "explanation": "The atomic constraint `requires(T t) { foo(t); }` with `T = S` is false at the first assertion and would be true at the second. [temp.constr.atomic] makes a program ill-formed, no diagnostic required, when identical atomic constraints with identical arguments have different satisfaction results at different points. GCC and Clang both remember the first result and fail the second assertion, which is why the third option is tempting, but the standard does not require that.",
+      "refs": [
+        "[temp.constr.atomic]"
+      ]
+    },
+    {
+      "id": "concepts-and-constraints-satisfied-not-modelled",
+      "kind": "standardese",
+      "prompt": "What does the C++23 standard say about this program?",
+      "code": "#include <algorithm>\n#include <vector>\n\nstruct Odd {\n  int v;\n  bool operator==(const Odd&) const { return false; }\n};\n\nint main() {\n  std::vector<Odd> xs{{1}, {2}};\n  auto it = std::ranges::find(xs, Odd{1});\n  return it == xs.end();\n}",
+      "options": [
+        "Well-formed: `main` returns 1",
+        "Ill-formed: `Odd` does not satisfy `std::equality_comparable`",
+        "Undefined behavior",
+        "Ill-formed, no diagnostic required"
+      ],
+      "answer": 3,
+      "explanation": "`Odd` satisfies the syntactic part of `std::equality_comparable`, so the call compiles, but it does not model the concept, whose semantic requirements make `==` an equivalence relation and `a == a` true. [res.on.requirements] says a program whose validity or meaning depends on a concept being modelled, when it is only satisfied, is ill-formed, no diagnostic required. Returning 1 is what you will probably observe, which is exactly why the rule is easy to miss.",
+      "refs": [
+        "[res.on.requirements]",
+        "[concept.equalitycomparable]"
+      ]
+    }
+  ]
+}

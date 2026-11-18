@@ -1,0 +1,65 @@
+{
+  "root": {
+    "label": "constexpr in C++26",
+    "note": "New operations the constant evaluator can check; nothing may still escape the evaluation.",
+    "children": [
+      {
+        "label": "Type erasure",
+        "note": "Operations that make any-like and function_ref-like code usable at compile time.",
+        "children": [
+          { "label": "void* cast (P2738)", "note": "Allowed back to a type similar to the pointed-to object; any other target type is not constant." },
+          { "label": "Placement new (P2747)", "note": "Allowed into storage created in the same evaluation, for an object that transparently replaces the old one." },
+          { "label": "Still banned", "note": "reinterpret_cast, reading inactive union members, and bit_cast involving pointers." }
+        ]
+      },
+      {
+        "label": "Exceptions (P3068)",
+        "note": "throw, try and catch work during constant evaluation.",
+        "children": [
+          { "label": "Must be caught", "note": "An exception that escapes the evaluation makes the expression non-constant." },
+          { "label": "Library exception types", "note": "std::exception, bad_alloc and, via P3378, logic_error, out_of_range and the bad_*_access types are constexpr." },
+          { "label": "exception_ptr", "note": "make_exception_ptr and rethrow_exception are constexpr, but an exception_ptr cannot persist in a constexpr variable." },
+          { "label": "Rolled back (P3842)", "note": "current_exception and uncaught_exceptions are not constexpr in N5050." }
+        ]
+      },
+      {
+        "label": "Bindings and references",
+        "note": "P2686 lets constexpr reach structured bindings and local objects.",
+        "children": [
+          { "label": "constexpr auto [a, b]", "note": "constexpr and constinit apply to the hidden variable e; mutable members are still unreadable." },
+          { "label": "References to locals", "note": "constexpr int& r = x; is OK when x is an automatic variable of the same function invocation." },
+          { "label": "Escape is rejected", "note": "A static constexpr reference or a use inside a nested lambda cannot refer to the local." },
+          { "label": "GCC 16 gap", "note": "Accepts constexpr aggregate bindings but rejects constexpr references and pointers to automatics." }
+        ]
+      },
+      {
+        "label": "Smaller language changes",
+        "note": "Three constexpr additions that each remove a long-standing workaround.",
+        "children": [
+          { "label": "Virtual bases (P3533)", "note": "Constexpr constructors and destructors may have virtual bases; only coroutines are not constexpr-suitable." },
+          { "label": "static_assert messages (P2741)", "note": "Any constant with size() and data(); evaluated only when the assertion fails." },
+          { "label": "is_within_lifetime (P2641)", "note": "consteval test of whether p points to a live object; finds the active union member. Not in GCC 16." }
+        ]
+      },
+      {
+        "label": "Library",
+        "note": "Large parts of the library became constexpr in C++26.",
+        "children": [
+          { "label": "Containers (P3372)", "note": "list, deque, map, set, unordered containers and the adaptors; GCC 16 does not implement these yet." },
+          { "label": "Stable algorithms (P2562)", "note": "stable_sort, stable_partition and inplace_merge are constexpr; GCC 16 supports stable_sort." },
+          { "label": "cmath (P1383)", "note": "Constant unless the call raises a floating-point exception other than FE_INEXACT, so sqrt(-1.0) is not." },
+          { "label": "atomic and format", "note": "P3309 makes atomic constexpr and P3391 does the same for format and integral to_string; neither is in GCC 16." }
+        ]
+      },
+      {
+        "label": "Still impossible",
+        "note": "The exit check and the disqualifying operations remain.",
+        "children": [
+          { "label": "Escaping allocations", "note": "constexpr std::vector with elements is ill-formed; short strings pass only through SSO." },
+          { "label": "Disqualified operations", "note": "goto, asm, va_arg, co_await, co_yield, and calls to non-constexpr functions." },
+          { "label": "Erroneous behaviour", "note": "Reading an uninitialized local is erroneous in C++26 and, like UB, makes the expression non-constant." }
+        ]
+      }
+    ]
+  }
+}

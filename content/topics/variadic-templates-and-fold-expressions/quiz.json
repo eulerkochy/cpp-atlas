@@ -1,0 +1,149 @@
+{
+  "questions": [
+    {
+      "id": "variadic-templates-and-fold-expressions-sizeof-pack",
+      "kind": "warmup",
+      "prompt": "What is the value of `n`?",
+      "code": "template<class... Ts> constexpr auto count = sizeof...(Ts);\n\nconstexpr auto n = count<int, void, char[3]>;",
+      "options": [
+        "3",
+        "8, the sum of the sizes on a typical 64-bit platform",
+        "Ill-formed: `void` cannot appear in a type pack",
+        "Ill-formed: `sizeof` cannot be applied to `void`"
+      ],
+      "answer": 0,
+      "explanation": "`sizeof...` counts the elements of a pack; it does not measure any type, so `void` and an array type are as good as any other element. The result is a `std::size_t` constant equal to 3. The size-related options confuse it with `sizeof`, which would indeed reject `void`.",
+      "refs": [
+        "[expr.sizeof]",
+        "[temp.variadic]"
+      ]
+    },
+    {
+      "id": "variadic-templates-and-fold-expressions-left-right-minus",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n\ntemplate<class... Ts> int r(Ts... xs) { return (xs - ...); }\ntemplate<class... Ts> int l(Ts... xs) { return (... - xs); }\n\nint main() { std::printf(\"%d %d\\n\", r(10, 4, 3), l(10, 4, 3)); }",
+      "options": [
+        "`3 3`",
+        "`3 9`",
+        "`9 3`",
+        "`9 9`"
+      ],
+      "answer": 2,
+      "explanation": "A unary right fold `(xs - ...)` groups toward the right: `10 - (4 - 3)`, which is 9. A unary left fold `(... - xs)` groups toward the left: `(10 - 4) - 3`, which is 3. The parentheses pile up on the side where the dots are. For an associative operator such as `+` both forms agree, which is why it is easy to forget that the choice matters.",
+      "refs": [
+        "[expr.prim.fold]",
+        "[temp.variadic]"
+      ]
+    },
+    {
+      "id": "variadic-templates-and-fold-expressions-empty-plus",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed, and if so what does it return?",
+      "code": "template<class... Ts> int sum(Ts... xs) { return (xs + ...); }\n\nint main() { return sum(); }",
+      "options": [
+        "Well-formed; returns 0, the identity for `+`",
+        "Ill-formed: a unary fold over `+` with an empty pack has no value",
+        "Well-formed; returns an indeterminate value",
+        "Undefined behavior"
+      ],
+      "answer": 1,
+      "explanation": "For an empty pack, a unary fold is defined only for `&&` (giving `true`), `||` (giving `false`) and the comma operator (giving `void()`). For `+` the instantiation is ill-formed, so `sum()` fails to compile. The identity value 0 was in the original fold-expression proposal but was removed before C++17. Write the binary fold `(xs + ... + 0)` to get 0 for an empty pack.",
+      "refs": [
+        "[temp.variadic]",
+        "[expr.prim.fold]"
+      ]
+    },
+    {
+      "id": "variadic-templates-and-fold-expressions-comma-order",
+      "kind": "tricky",
+      "prompt": "For the call `show(1, 2, 3)`, what does the standard guarantee about the output of lines #1 and #2?",
+      "code": "#include <cstdio>\n\ntemplate<class... Ts> void sink(Ts...) {}\n\ntemplate<class... Ts> void show(Ts... xs) {\n  (std::printf(\"%d\", xs), ...);         // #1\n  sink((std::printf(\"%d\", xs), 0)...);  // #2\n}",
+      "options": [
+        "Both print `123`",
+        "#1 prints `321`, because a right fold evaluates from the right; #2 is unspecified",
+        "#1 prints `123`; the order of #2 is unspecified",
+        "The order of both is unspecified"
+      ],
+      "answer": 2,
+      "explanation": "#1 expands to `printf(1), (printf(2), printf(3))`. The built-in comma operator sequences its left operand before its right however the operands are grouped, so the output is `123`. #2 expands into function arguments, which are indeterminately sequenced with respect to each other, so any order is permitted. The \"right fold evaluates from the right\" answer confuses grouping with evaluation order.",
+      "refs": [
+        "[expr.comma]",
+        "[expr.call]",
+        "[temp.variadic]"
+      ]
+    },
+    {
+      "id": "variadic-templates-and-fold-expressions-pp-number",
+      "kind": "tricky",
+      "prompt": "Is the definition of `plus1` well-formed?",
+      "code": "#include <tuple>\n\ntemplate<class... Ts> auto plus1(Ts... xs) {\n  return std::make_tuple(xs + 1...);\n}",
+      "options": [
+        "Yes: it expands to `make_tuple(x1 + 1, x2 + 1, ...)`",
+        "Yes, but it expands to `make_tuple(xs + 1, xs + 1, ...)` with the pack unexpanded",
+        "No: `1...` is lexed as a single preprocessing number, so the pack is never expanded",
+        "No: a pack expansion pattern cannot contain a literal"
+      ],
+      "answer": 2,
+      "explanation": "Maximal munch in preprocessing turns `1...` into one pp-number, which cannot be converted to a valid token, so the code is ill-formed before templates are even considered; GCC reports too many decimal points. Patterns may contain literals freely, so writing `(xs + 1)...` or `xs + 1 ...` with a space gives the intended expansion of the first option.",
+      "refs": [
+        "[lex.ppnumber]",
+        "[temp.variadic]"
+      ]
+    },
+    {
+      "id": "variadic-templates-and-fold-expressions-nontrailing-pack",
+      "kind": "tricky",
+      "prompt": "Which of the two calls is well-formed?",
+      "code": "template<class... Ts, class U> int last(Ts..., U u) { return u; }\n\nint a = last<int, int>(1, 2, 3);  // #1\nint b = last(1, 2, 3);            // #2",
+      "options": [
+        "Both: `Ts` is deduced as `{int, int}` in #2",
+        "Only #2",
+        "Neither: a pack cannot be followed by another function parameter",
+        "Only #1"
+      ],
+      "answer": 3,
+      "explanation": "A function parameter pack that is not at the end of the parameter list is a non-deduced context, so `Ts` is never deduced from the call. In #1 `Ts` is given explicitly as `{int, int}`, the first two arguments match the pack, and `U` is deduced as `int` from the third. In #2 nothing supplies `Ts`, so deduction fails and #2 is ill-formed. The declaration itself is fine, because `U` can be deduced, which rules out the third option.",
+      "refs": [
+        "[temp.deduct.call]",
+        "[temp.deduct.type]",
+        "[temp.param]"
+      ]
+    },
+    {
+      "id": "variadic-templates-and-fold-expressions-empty-identities",
+      "kind": "standardese",
+      "prompt": "Each function is called with an empty pack in `main`. Which one makes the program ill-formed?",
+      "code": "template<class... Ts> bool a(Ts... xs) { return (... && xs); }\ntemplate<class... Ts> bool b(Ts... xs) { return (xs || ...); }\ntemplate<class... Ts> void c(Ts... xs) { return (xs, ...); }\ntemplate<class... Ts> int  d(Ts... xs) { return (xs * ...); }\n\nint main() { a(); b(); c(); return d(); }",
+      "options": [
+        "`a`",
+        "`b`",
+        "`c`",
+        "`d`"
+      ],
+      "answer": 3,
+      "explanation": "[temp.variadic] gives values for exactly three empty unary folds: `&&` is `true`, `||` is `false` and the comma operator is `void()`, which is why `c` may `return` it from a `void` function. Any other operator, including `*`, has no fallback and the instantiation is ill-formed. The tempting choice is `c`, since returning an expression from a `void` function looks wrong, but returning a `void` expression is allowed.",
+      "refs": [
+        "[temp.variadic]",
+        "[stmt.return]"
+      ]
+    },
+    {
+      "id": "variadic-templates-and-fold-expressions-lockstep",
+      "kind": "standardese",
+      "prompt": "What does the alias `Z` denote?",
+      "code": "#include <utility>\n\ntemplate<class... Ts> struct List {};\n\ntemplate<class... Ts> struct Zip {\n  template<class... Us> using with = List<std::pair<Ts, Us>...>;\n};\n\nusing Z = Zip<int, char>::with<long>;",
+      "options": [
+        "`List<std::pair<int, long>>`; the shorter pack decides the length",
+        "Ill-formed: the packs expanded by one pattern must have the same length",
+        "`List<std::pair<int, long>, std::pair<char, long>>`",
+        "`List<std::pair<int, long>, std::pair<char, void>>`"
+      ],
+      "answer": 1,
+      "explanation": "The pattern `std::pair<Ts, Us>` names two packs, so they expand in lockstep, and [temp.variadic] requires every pack in one expansion to have the same number of elements. With two `Ts` and one `Us` the alias is ill-formed; GCC reports mismatched argument pack lengths. There is no truncation or padding. `Zip<int, char>::with<long, bool>` would be `List<std::pair<int, long>, std::pair<char, bool>>`.",
+      "refs": [
+        "[temp.variadic]"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "borrowed-ranges-and-dangling-find-temporary",
+      "kind": "warmup",
+      "prompt": "What is the type of `it`?",
+      "code": "#include <algorithm>\n#include <vector>\n\nstd::vector<int> get() { return {3, 1, 2}; }\n\nint main() {\n  auto it = std::ranges::find(get(), 2);\n  (void)it;\n}",
+      "options": [
+        "`std::vector<int>::iterator`, which dangles at the end of the statement",
+        "`std::ranges::dangling`",
+        "`std::ranges::subrange<std::vector<int>::iterator>`",
+        "The call is ill-formed, because `find` requires an lvalue range"
+      ],
+      "answer": 1,
+      "explanation": "`ranges::find` returns `borrowed_iterator_t<R>`, and `R` here is `std::vector<int>`, an rvalue of a type that is not a borrowed range. The return type is therefore `std::ranges::dangling`, an empty type with no `operator*`, so the search runs but the compiler rejects any later attempt to dereference or increment `it`. Returning a real vector iterator is what the legacy `std::find` would do, which is the danger this design prevents.",
+      "refs": [
+        "[range.dangling]",
+        "[alg.find]"
+      ]
+    },
+    {
+      "id": "borrowed-ranges-and-dangling-which-borrowed",
+      "kind": "warmup",
+      "prompt": "Which of these types models `std::ranges::borrowed_range`?",
+      "options": [
+        "`std::vector<int>`",
+        "`std::string`",
+        "`std::ranges::owning_view<std::vector<int>>`",
+        "`std::span<int>`"
+      ],
+      "answer": 3,
+      "explanation": "`std::span` refers to elements owned by someone else, so its iterators stay valid after the span object is destroyed, and the standard specializes `enable_borrowed_range` for it. `vector` and `string` own their elements. `owning_view<vector<int>>` also owns the vector it holds, so it is borrowed only if the vector type is, which it is not; it is a view, but being a view and being borrowed are separate properties.",
+      "refs": [
+        "[range.range]",
+        "[span.overview]",
+        "[range.owning.view]"
+      ]
+    },
+    {
+      "id": "borrowed-ranges-and-dangling-string-view-find",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <algorithm>\n#include <cstdio>\n#include <string_view>\n\nint main() {\n  auto it = std::ranges::find(std::string_view(\"hello\"), 'l');\n  std::printf(\"%c\\n\", *it);\n}",
+      "options": [
+        "`l`",
+        "Nothing: it is ill-formed because `it` is `std::ranges::dangling`",
+        "Undefined behavior: the `string_view` temporary is destroyed",
+        "`h`"
+      ],
+      "answer": 0,
+      "explanation": "`std::string_view` is a borrowed range: its iterators point into the string literal, which has static storage duration, not into the view object. So `find` returns a real iterator even though the `string_view` is a temporary, and dereferencing it after the view is destroyed is fine. `dangling` is only substituted for rvalue ranges that are not borrowed.",
+      "refs": [
+        "[range.range]",
+        "[string.view.template.general]",
+        "[range.dangling]"
+      ]
+    },
+    {
+      "id": "borrowed-ranges-and-dangling-range-for-p2718",
+      "kind": "tricky",
+      "prompt": "Compiled as C++23, what does this program print?",
+      "code": "#include <cstdio>\n#include <vector>\n\nstruct Holder {\n  std::vector<int> v{1, 2, 3};\n  ~Holder() { std::puts(\"~Holder\"); }\n  const std::vector<int>& items() const { return v; }\n};\n\nHolder make() { return {}; }\n\nint main() {\n  for (int x : make().items()) std::printf(\"%d \", x);\n  std::puts(\"done\");\n}",
+      "options": [
+        "Undefined behavior: the `Holder` is destroyed before the loop body runs",
+        "`~Holder` then `1 2 3 done`",
+        "`1 2 3 ~Holder` then `done`",
+        "`1 2 3 done` then `~Holder`"
+      ],
+      "answer": 2,
+      "explanation": "C++23 adopted P2718: temporaries created in the for-range-initializer persist until the end of the loop, so the `Holder` returned by `make()` is destroyed after the last iteration and before `done` is printed. In C++20 only the object bound directly to `__range` had its lifetime extended, and that is a reference to a member, not the `Holder`, so the `Holder` died first and the loop read a destroyed vector; that is the first option, which is correct for older modes only.",
+      "refs": [
+        "[stmt.ranged]",
+        "[class.temporary]"
+      ]
+    },
+    {
+      "id": "borrowed-ranges-and-dangling-min-value",
+      "kind": "tricky",
+      "prompt": "Is this program well-defined, and what does it print?",
+      "code": "#include <algorithm>\n#include <cstdio>\n#include <vector>\n\nstd::vector<int> get() { return {3, 1, 2}; }\n\nint main() {\n  auto m = std::ranges::min(get());\n  std::printf(\"%d\\n\", m);\n}",
+      "options": [
+        "Ill-formed: the result is `std::ranges::dangling`",
+        "Undefined behavior: `m` refers into the destroyed vector",
+        "Well-defined; prints `3`",
+        "Well-defined; prints `1`"
+      ],
+      "answer": 3,
+      "explanation": "The range overload of `ranges::min` returns `range_value_t<R>`, a copy of the smallest element, not an iterator or reference. Nothing refers into the temporary vector after the call, so there is nothing to dangle and no reason for `dangling`. The tempting first answer applies to algorithms that return iterators, such as `ranges::min_element`, which would give `dangling` here.",
+      "refs": [
+        "[alg.min.max]",
+        "[range.dangling]"
+      ]
+    },
+    {
+      "id": "borrowed-ranges-and-dangling-pipe-temporary",
+      "kind": "tricky",
+      "prompt": "In C++23, what does this program print?",
+      "code": "#include <cstdio>\n#include <ranges>\n#include <vector>\n\nstd::vector<int> get() { return {1, 2, 3}; }\n\nint main() {\n  auto r = get() | std::views::transform([](int x) { return x * 10; });\n  for (int x : r) std::printf(\"%d \", x);\n  std::puts(\"\");\n}",
+      "options": [
+        "Nothing: piping an rvalue container into an adaptor is ill-formed",
+        "`10 20 30`",
+        "Undefined behavior: the vector is destroyed at the end of the first statement",
+        "Unspecified values, because `r` refers to a moved-from vector"
+      ],
+      "answer": 1,
+      "explanation": "`views::all` moves an rvalue container that is not a view into an `owning_view`, so `r` owns the vector and the loop is safe. That rule came from P2415R2, applied to C++20 as a defect report; C++20 as originally published rejected this code, which is the tempting first answer. The undefined-behavior answer would be right if the pipeline started from a reference to a temporary's member, because that is wrapped in `ref_view` instead.",
+      "refs": [
+        "[range.all.general]",
+        "[range.owning.view]"
+      ]
+    },
+    {
+      "id": "borrowed-ranges-and-dangling-lvalue-ref",
+      "kind": "standardese",
+      "prompt": "Which statement about the C++23 definition of `borrowed_range` is correct?",
+      "options": [
+        "`borrowed_range<std::vector<int>&>` is `true`, but `borrowed_range<std::vector<int>>` is `false`",
+        "Both are `false`, because a vector owns its elements",
+        "Both are `true`, because `std::vector` iterators are pointers in practice",
+        "`borrowed_range` is only defined for types that model `view`"
+      ],
+      "answer": 0,
+      "explanation": "The concept is `range<R> && (is_lvalue_reference_v<R> || enable_borrowed_range<remove_cvref_t<R>>)`. An lvalue reference is always borrowed, because an algorithm receiving one is not responsible for the object's lifetime. A non-reference `vector<int>`, the case of an rvalue argument, is borrowed only if `enable_borrowed_range` says so, and it does not. Views are not required: `subrange` and `span` are views, but the concept applies to any range.",
+      "refs": [
+        "[range.range]"
+      ]
+    },
+    {
+      "id": "borrowed-ranges-and-dangling-p2718-scope",
+      "kind": "standardese",
+      "prompt": "In C++23, which temporaries created while evaluating the initializer of a range-based `for` have their lifetime extended to the end of the loop?",
+      "options": [
+        "Only the temporary bound directly to the hidden `__range` reference, as in C++11",
+        "Only temporaries of class type with a non-trivial destructor",
+        "Every temporary that would otherwise be destroyed at the end of the for-range-initializer full-expression",
+        "None: the initializer must not create temporaries other than the range itself"
+      ],
+      "answer": 2,
+      "explanation": "P2718 added a context to [class.temporary]: a temporary created in the for-range-initializer that would be destroyed at the end of that full-expression instead persists for the lifetime of the `__range` reference, which is the whole loop. Before C++23, only the temporary bound directly to the reference was extended, which is the first option. The rule covers all such temporaries regardless of type, but only in range-based `for`, not in other declarations.",
+      "refs": [
+        "[class.temporary]",
+        "[stmt.ranged]"
+      ]
+    }
+  ]
+}

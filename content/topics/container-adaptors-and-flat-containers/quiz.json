@@ -1,0 +1,142 @@
+{
+  "questions": [
+    {
+      "id": "caf-pq-default-order",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <queue>\n\nint main() {\n  std::priority_queue<int> pq;\n  for (int x : {3, 1, 4, 1, 5}) pq.push(x);\n  while (!pq.empty()) {\n    std::cout << pq.top() << ' ';\n    pq.pop();\n  }\n  std::cout << '\\n';\n}",
+      "options": [
+        "5 4 3 1 1",
+        "1 1 3 4 5",
+        "3 1 4 1 5",
+        "5 4 3 1"
+      ],
+      "answer": 0,
+      "explanation": "The default comparator is `std::less`, and `priority_queue` surfaces the element that is largest under the comparator, so the default is a max-heap and the pops come out in descending order. Duplicates are kept, so the second 1 is printed too. Getting ascending order needs `std::greater` as the comparator.",
+      "refs": [
+        "[priority.queue]"
+      ]
+    },
+    {
+      "id": "caf-stack-pop-void",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "#include <stack>\n\nint main() {\n  std::stack<int> s;\n  s.push(1);\n  int x = s.pop();\n  (void)x;\n}",
+      "options": [
+        "No: `pop` returns `void`",
+        "Yes; `x` is 1",
+        "Yes; the value of `x` is unspecified",
+        "Yes, but undefined behavior at run time"
+      ],
+      "answer": 0,
+      "explanation": "`stack::pop` only removes the top element and returns `void`. Reading is done with `top()` and removing with `pop()`, so the program is rejected at compile time. The split is deliberate: a `pop` that returned the element by value could lose it if the copy or move out threw.",
+      "refs": [
+        "[stack]"
+      ]
+    },
+    {
+      "id": "caf-queue-over-vector",
+      "kind": "warmup",
+      "prompt": "Is this program well-formed?",
+      "code": "#include <queue>\n#include <vector>\n\nint main() {\n  std::queue<int, std::vector<int>> q;\n  q.push(1);\n  q.pop();\n}",
+      "options": [
+        "Yes",
+        "No: `queue` requires a `list` as its underlying container",
+        "No: `pop()` needs `pop_front`, which `vector` lacks",
+        "Yes, but `pop()` is undefined behavior for a `vector`"
+      ],
+      "answer": 2,
+      "explanation": "`queue` is built on the underlying container's `front`, `back`, `push_back` and `pop_front`. The class template can be named with a `vector`, and `push` works because `vector` has `push_back`, but `pop()` is implemented with `pop_front`, which `vector` does not provide. The default is `deque`; `list` also works.",
+      "refs": [
+        "[queue]",
+        "[container.adaptors]"
+      ]
+    },
+    {
+      "id": "caf-pq-custom-compare",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <queue>\n#include <vector>\n\nint main() {\n  auto cmp = [](int a, int b) { return a % 10 > b % 10; };\n  std::priority_queue<int, std::vector<int>, decltype(cmp)> pq(cmp);\n  for (int x : {15, 21, 7, 32}) pq.push(x);\n  while (!pq.empty()) {\n    std::cout << pq.top() << ' ';\n    pq.pop();\n  }\n  std::cout << '\\n';\n}",
+      "options": [
+        "7 15 32 21",
+        "21 32 15 7",
+        "7 32 21 15",
+        "32 21 15 7"
+      ],
+      "answer": 1,
+      "explanation": "The comparator returns true when its first argument should come before the second in the weak ordering, and the queue's top is the element that comes last in that ordering. With `>` on the last digit, larger last digits come first and the smallest last digit ends up on top: 1 (21), 2 (32), 5 (15), 7 (7). That is why `std::greater` gives a min-heap, and the opposite of the intuition \"top is whatever my predicate prefers\".",
+      "refs": [
+        "[priority.queue]"
+      ]
+    },
+    {
+      "id": "caf-pq-move-from-top",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <iostream>\n#include <queue>\n#include <string>\n#include <utility>\n\nint main() {\n  std::priority_queue<std::string> pq;\n  pq.push(std::string(30, 'x'));\n  std::string s = std::move(pq.top());\n  std::cout << s.size() << ' ' << pq.top().size() << '\\n';\n}",
+      "options": [
+        "30 0",
+        "Ill-formed: you cannot move from a const reference",
+        "Undefined behavior: the move breaks the heap",
+        "30 30"
+      ],
+      "answer": 3,
+      "explanation": "`top()` returns a `const` reference, so `std::move(pq.top())` is a `const std::string&&`. That cannot bind to the move constructor, which takes a non-const rvalue reference, so overload resolution selects the copy constructor. The program is well-formed, `s` is a copy, and the queue's element is untouched. To really move an element out you need access to the underlying container, for example via a derived class with a `protected` member `c`, or by choosing a different design.",
+      "refs": [
+        "[priority.queue]",
+        "[dcl.init.general]"
+      ]
+    },
+    {
+      "id": "caf-flat-map-auto-ref",
+      "kind": "tricky",
+      "prompt": "In C++23, with a library that provides `<flat_map>`, is this program well-formed?",
+      "code": "#include <flat_map>\n\nint main() {\n  std::flat_map<int, int> m{{1, 10}, {2, 20}};\n  for (auto& [k, v] : m) v += 1;\n}",
+      "options": [
+        "Yes; each value increases by one",
+        "Yes, but it increments copies, so `m` is unchanged",
+        "No: dereferencing an iterator yields a prvalue that `auto&` cannot bind to",
+        "Undefined behavior: keys must not be bound by reference"
+      ],
+      "answer": 2,
+      "explanation": "The keys and values live in two separate vectors, so there is no `pair<K, V>` in memory to refer to. `flat_map`'s `reference` type is a `pair<const K&, V&>` built on the fly, and `*it` returns it by value. A prvalue cannot bind to a non-const lvalue reference. `for (auto&& [k, v] : m)` works and modifies the values through the reference inside the pair.",
+      "refs": [
+        "[flat.map]"
+      ]
+    },
+    {
+      "id": "caf-sorted-unique-ub",
+      "kind": "standardese",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <flat_set>\n\nint main() {\n  std::flat_set<int> s(std::sorted_unique, {3, 1, 2});\n}",
+      "options": [
+        "It compiles and the set holds 1, 2, 3, sorted by the constructor",
+        "It is ill-formed: the tag cannot be used with a braced list",
+        "It throws `std::invalid_argument`",
+        "Undefined behavior: the elements must already be sorted and unique"
+      ],
+      "answer": 3,
+      "explanation": "The `sorted_unique` tag is a promise from the caller that the input is already sorted by the comparator and free of equivalent elements; the constructor trusts it and skips the sort. {3, 1, 2} is not sorted, so a precondition is violated and the behavior is undefined. Without the tag the constructor sorts and removes duplicates itself.",
+      "refs": [
+        "[flat.set]"
+      ]
+    },
+    {
+      "id": "caf-flat-extract",
+      "kind": "standardese",
+      "prompt": "What does the standard guarantee this program prints?",
+      "code": "#include <flat_map>\n#include <iostream>\n#include <utility>\n\nint main() {\n  std::flat_map<int, char> m{{2, 'b'}, {1, 'a'}};\n  auto c = std::move(m).extract();\n  std::cout << m.size() << ' ' << c.keys.size() << ' ' << c.keys[0] << '\\n';\n}",
+      "options": [
+        "2 2 1",
+        "0 2 a",
+        "Ill-formed: `extract` takes a key, not nothing",
+        "0 2 1"
+      ],
+      "answer": 3,
+      "explanation": "`flat_map::extract()` is rvalue-qualified; it moves the two underlying containers out into a `containers` struct with members `keys` and `values`, and leaves the flat_map empty even if an exception is thrown. The keys are sorted, so `keys[0]` is the integer 1, which prints as `1`; the character 'a' would be in `values[0]`. This is different from `std::map::extract(key)`, which returns a node handle.",
+      "refs": [
+        "[flat.map]"
+      ]
+    }
+  ]
+}

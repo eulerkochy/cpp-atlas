@@ -1,0 +1,146 @@
+{
+  "questions": [
+    {
+      "id": "allocators-and-pmr-minimal-allocator",
+      "kind": "warmup",
+      "prompt": "In C++23, is this program well-formed?",
+      "code": "#include <cstddef>\n#include <list>\n#include <new>\n\ntemplate <class T>\nstruct Mini {\n  using value_type = T;\n  Mini() = default;\n  template <class U> Mini(const Mini<U>&) noexcept {}\n  T* allocate(std::size_t n) { return static_cast<T*>(::operator new(n * sizeof(T))); }\n  void deallocate(T* p, std::size_t n) noexcept { ::operator delete(p, n * sizeof(T)); }\n};\ntemplate <class T, class U>\nbool operator==(const Mini<T>&, const Mini<U>&) { return true; }\n\nint main() {\n  std::list<int, Mini<int>> l{1, 2, 3};\n  return static_cast<int>(l.size()) - 3;\n}",
+      "options": [
+        "Ill-formed: `Mini` has no `construct` or `destroy` members",
+        "Ill-formed: `std::list` needs a nested `rebind` template to allocate nodes",
+        "Ill-formed: `operator!=` is missing",
+        "Well-formed"
+      ],
+      "answer": 3,
+      "explanation": "Containers use allocators only through `std::allocator_traits`, which supplies `construct` and `destroy` through `std::construct_at` and `std::destroy_at`, and a default `rebind_alloc` that replaces the first template argument, turning `Mini<int>` into `Mini<Node>`. The converting constructor is what lets the list build that rebound allocator. Since C++20, `a != b` is rewritten to `!(a == b)`, so no separate `operator!=` is needed.",
+      "refs": [
+        "[allocator.requirements]",
+        "[allocator.traits]"
+      ]
+    },
+    {
+      "id": "allocators-and-pmr-monotonic-deallocate",
+      "kind": "warmup",
+      "prompt": "What does the standard guarantee about `same`?",
+      "code": "#include <memory_resource>\n\nint main() {\n  std::pmr::monotonic_buffer_resource mr;\n  void* p = mr.allocate(64);\n  mr.deallocate(p, 64);\n  void* q = mr.allocate(64);\n  bool same = (p == q);\n  return same;\n}",
+      "options": [
+        "`same` is false: `deallocate` does nothing, so the block is not reused before `release()`",
+        "`same` is true: the freed block is the best fit for the next request",
+        "It is unspecified",
+        "Undefined behavior: a monotonic resource does not support `deallocate`"
+      ],
+      "answer": 0,
+      "explanation": "`monotonic_buffer_resource::do_deallocate` has no effect; memory goes back only when `release()` is called or the resource is destroyed. The next allocation is carved from unused space, so it cannot overlap the first block, which is still allocated as far as the resource is concerned. Calling `deallocate` is valid, it is just a no-op, which is what makes this resource so fast. Reuse of freed blocks is what the pool resources do.",
+      "refs": [
+        "[mem.res.monotonic.buffer.mem]"
+      ]
+    },
+    {
+      "id": "allocators-and-pmr-null-resource",
+      "kind": "warmup",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <memory_resource>\n#include <new>\n\nint main() {\n  try {\n    void* p = std::pmr::null_memory_resource()->allocate(1);\n    std::puts(p ? \"allocated\" : \"null\");\n  } catch (const std::bad_alloc&) {\n    std::puts(\"bad_alloc\");\n  }\n}",
+      "options": [
+        "`null`",
+        "`allocated`, because the request falls back to the default resource",
+        "`bad_alloc`",
+        "Nothing predictable: the behavior is undefined"
+      ],
+      "answer": 2,
+      "explanation": "Every call to `allocate` on `null_memory_resource()` throws `std::bad_alloc`; it never returns null, because `memory_resource::allocate` reports failure only by exception. There is no fallback, which is the point: as the upstream of a monotonic or pool resource, it turns \"ran out of the local buffer\" into an error instead of a silent heap allocation.",
+      "refs": [
+        "[mem.res.global]"
+      ]
+    },
+    {
+      "id": "allocators-and-pmr-copy-default-resource",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <memory_resource>\n#include <vector>\n\nint main() {\n  std::pmr::monotonic_buffer_resource arena;\n  std::pmr::vector<int> a({1, 2, 3}, &arena);\n  std::pmr::vector<int> b = a;\n  std::printf(\"%d %d\\n\", b.get_allocator().resource() == &arena,\n              b.get_allocator().resource() == std::pmr::get_default_resource());\n}",
+      "options": [
+        "`1 0`",
+        "`0 1`",
+        "`1 1`",
+        "`0 0`"
+      ],
+      "answer": 1,
+      "explanation": "Copy construction asks `select_on_container_copy_construction()` for the new container's allocator, and `polymorphic_allocator` returns a default-constructed allocator, which uses `get_default_resource()`. So the copy does not follow the source into `arena`. The first answer is what you get with an allocator that copies its state, and it is the usual expectation; `std::pmr` deliberately avoids it so that copies never outlive a scoped resource.",
+      "refs": [
+        "[mem.poly.allocator.mem]",
+        "[container.alloc.reqmts]"
+      ]
+    },
+    {
+      "id": "allocators-and-pmr-move-assign-unequal",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <memory_resource>\n#include <utility>\n#include <vector>\n\nint main() {\n  std::pmr::monotonic_buffer_resource r1, r2;\n  std::pmr::vector<int> a({1, 2, 3}, &r1);\n  std::pmr::vector<int> b(&r2);\n  const int* old = a.data();\n  b = std::move(a);\n  std::printf(\"%d %d %zu\\n\", b.get_allocator().resource() == &r2,\n              b.data() == old, b.size());\n}",
+      "options": [
+        "`0 1 3`: `b` takes `a`'s allocator and buffer",
+        "`1 1 3`",
+        "`1 0 0`",
+        "`1 0 3`"
+      ],
+      "answer": 3,
+      "explanation": "`polymorphic_allocator` does not propagate on move assignment, and the two allocators compare unequal because their resources differ. `b` keeps its allocator, and since that allocator cannot free memory from `r1`, `b` cannot adopt `a`'s buffer; it allocates from `r2` and moves the elements individually. The first option is what `std::vector<int>` with `std::allocator` does, where move assignment is a pointer steal. The container requirements still guarantee `b` ends up with `a`'s former value.",
+      "refs": [
+        "[container.alloc.reqmts]",
+        "[mem.poly.allocator.class]"
+      ]
+    },
+    {
+      "id": "allocators-and-pmr-nested-strings",
+      "kind": "tricky",
+      "prompt": "What does this program print?",
+      "code": "#include <cstdio>\n#include <memory_resource>\n#include <string>\n#include <vector>\n\nint main() {\n  std::pmr::monotonic_buffer_resource arena;\n  std::pmr::vector<std::pmr::string> v(&arena);\n  v.emplace_back(\"a string long enough to defeat the small buffer\");\n  std::printf(\"%d\\n\", v[0].get_allocator().resource() == &arena);\n}",
+      "options": [
+        "`0`, because the string was constructed from `const char*` with no allocator",
+        "`1`",
+        "`0`, because `polymorphic_allocator` does not propagate",
+        "It depends on whether the string fits in the small buffer"
+      ],
+      "answer": 1,
+      "explanation": "`polymorphic_allocator::construct` performs uses-allocator construction. `std::pmr::string` uses a `polymorphic_allocator<char>`, so the vector's allocator is appended to the constructor arguments and the string's characters come from `arena`. Non-propagation is about copy, move and swap of the container, not about constructing its elements, which is why the third option is wrong. A string's allocator is set at construction regardless of its length.",
+      "refs": [
+        "[mem.poly.allocator.mem]",
+        "[allocator.uses.construction]"
+      ]
+    },
+    {
+      "id": "allocators-and-pmr-nothrow-move",
+      "kind": "standardese",
+      "prompt": "With a conforming C++23 standard library, which of these assertions fails?",
+      "code": "#include <memory_resource>\n#include <type_traits>\n#include <vector>\n\nstatic_assert(std::is_nothrow_move_constructible_v<std::pmr::vector<int>>);  // A\nstatic_assert(std::is_nothrow_move_assignable_v<std::vector<int>>);           // B\nstatic_assert(std::is_nothrow_move_assignable_v<std::pmr::vector<int>>);      // C",
+      "options": [
+        "A",
+        "B",
+        "C",
+        "None of them"
+      ],
+      "answer": 2,
+      "explanation": "`vector`'s move assignment is declared `noexcept(propagate_on_container_move_assignment::value || is_always_equal::value)`. For `std::allocator` POCMA is true, so B holds. For `polymorphic_allocator` both are false, because move assignment between unequal resources must allocate and move elements one by one, which can throw; so C fails. Move construction is unconditionally `noexcept`, because it always moves the allocator along with the buffer, so A holds. The failing `static_assert` makes this translation unit ill-formed, which is an easy way to check the answer.",
+      "refs": [
+        "[vector.overview]",
+        "[container.alloc.reqmts]"
+      ]
+    },
+    {
+      "id": "allocators-and-pmr-swap-unequal",
+      "kind": "standardese",
+      "prompt": "What does the standard say about this program?",
+      "code": "#include <memory_resource>\n#include <vector>\n\nint main() {\n  std::pmr::monotonic_buffer_resource r1, r2;\n  std::pmr::vector<int> a({1, 2}, &r1);\n  std::pmr::vector<int> b({3}, &r2);\n  a.swap(b);\n}",
+      "options": [
+        "Well-defined: the elements are swapped one by one, as move assignment would do",
+        "Well-defined: the buffers and the resources are exchanged",
+        "Ill-formed: `polymorphic_allocator` is not swappable",
+        "Undefined behavior"
+      ],
+      "answer": 3,
+      "explanation": "The container requirements say that when `propagate_on_container_swap` is false, the allocators are not swapped, and the behavior is undefined unless the two allocators compare equal. Here they use different resources, so they are unequal. Unlike move assignment, swap has no element-wise fallback, because it is required to run in constant time without moving individual elements. The second option is what happens when POCS is true.",
+      "refs": [
+        "[container.reqmts]",
+        "[container.alloc.reqmts]"
+      ]
+    }
+  ]
+}

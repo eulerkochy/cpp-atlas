@@ -1,0 +1,56 @@
+{
+  "root": {
+    "label": "Erroneous behaviour and C++26",
+    "note": "P2795's new category of defined-but-wrong behaviour, plus the C++26 rules that turn old traps into errors.",
+    "children": [
+      {
+        "label": "Erroneous behaviour",
+        "note": "Well-defined behaviour that is always a bug and that implementations are recommended to diagnose.",
+        "children": [
+          { "label": "Not undefined", "note": "The optimizer cannot assume it never happens; the program may be diagnosed or terminated." },
+          { "label": "Never in constexpr", "note": "An evaluation that would be erroneous is not a core constant expression." }
+        ]
+      },
+      {
+        "label": "Uninitialized storage",
+        "note": "[basic.indet] now separates erroneous values from indeterminate ones.",
+        "children": [
+          { "label": "Automatic variables", "note": "Start with erroneous values fixed by the implementation; reading one is erroneous behaviour." },
+          { "label": "new and [[indeterminate]]", "note": "Heap memory and opted-out variables start indeterminate; reading them is still UB." },
+          { "label": "Static storage", "note": "Static and thread-local variables are still zero-initialized." },
+          { "label": "GCC 16 picks zero", "note": "In C++26 mode, automatic variables are zero-filled unless -ftrivial-auto-var-init says otherwise." }
+        ]
+      },
+      {
+        "label": "Newly ill-formed",
+        "note": "Patterns that were bugs, often UB, now rejected at compile time.",
+        "children": [
+          { "label": "Return to temporary", "note": "P2748: a return that binds the result reference to a temporary is an error." },
+          { "label": "delete incomplete type", "note": "P3144: deleting a pointer to an incomplete class no longer compiles." },
+          { "label": "Enum arithmetic", "note": "P2864: enum with other enum or floating type is ill-formed; GCC 16 only warns." },
+          { "label": "Array comparison", "note": "P2865: comparing two arrays with == or < is ill-formed." }
+        ]
+      },
+      {
+        "label": "New conveniences",
+        "note": "Small language additions aimed at clearer code and diagnostics.",
+        "children": [
+          { "label": "Placeholder _", "note": "P2169: may be declared repeatedly in a scope, but a use after the second is ambiguous." },
+          { "label": "delete with reason", "note": "P2573: = delete(\"message\") puts the message in the compiler's error." },
+          { "label": "static_assert messages", "note": "P2741: any constant with size() and data(), evaluated only on failure." },
+          { "label": "Binding conditions", "note": "P0963: if (auto [a, b] = e) tests the whole object converted to bool." },
+          { "label": "#embed", "note": "P1967: includes a binary file as a list of integer literals." }
+        ]
+      },
+      {
+        "label": "Other changes",
+        "note": "Deprecations, loosened rules and a removal.",
+        "children": [
+          { "label": "Ellipsis comma", "note": "P3176: void f(int...) is deprecated; write void f(int, ...)." },
+          { "label": "Trivial infinite loops", "note": "P2809: while (true); is no longer UB; it behaves as repeated yield calls." },
+          { "label": "Trivial relocation removed", "note": "P2786 was adopted in 2025, then removed by P3920 in November 2025; not in N5050." }
+        ]
+      }
+    ]
+  }
+}
