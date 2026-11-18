@@ -77,6 +77,8 @@ const nextConfig: NextConfig = {
     ],
     "/api/search": REFERENCE_INDEXES,
     "/explore": REFERENCE_INDEXES,
+    "/api/og": ["./src/assets/fonts/*"],
+    "/opengraph-image": ["./src/assets/fonts/*"],
   },
   turbopack: {
     rules: {
