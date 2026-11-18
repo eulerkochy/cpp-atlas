@@ -4,7 +4,7 @@ import { SITE } from "@/lib/site";
 import { getSiteStats } from "@/lib/site-stats";
 
 export const alt =
-  "C++ Atlas: every corner of C++, mapped. A struct shown byte by byte, padding included.";
+  "C++ Atlas: the C++ reference that explains itself. A struct shown byte by byte, padding included.";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
@@ -51,23 +51,23 @@ export default function OpenGraphImage() {
               style={{
                 display: "flex",
                 fontFamily: "Fraunces",
-                fontSize: 92,
+                fontSize: 80,
                 lineHeight: 0.98,
                 letterSpacing: "-0.035em",
               }}
             >
-              Every corner of C++, mapped.
+              The C++ reference that explains itself.
             </div>
             <div
               style={{
                 display: "flex",
-                fontSize: 27,
+                fontSize: 25,
                 lineHeight: 1.3,
                 letterSpacing: "-0.01em",
                 color: "rgba(0, 0, 0, 0.74)",
               }}
             >
-              To the machine and to the standard.
+              All of cppreference, plus deep-dive topics, simulators and quizzes that cite the standard.
             </div>
           </div>
 

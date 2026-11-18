@@ -1,4 +1,4 @@
-# C++ Atlas — Every corner of C++, mapped to the machine and the standard
+# C++ Atlas — The C++ reference that explains itself
 
 Live at **[cpp-atlas.vercel.app](https://cpp-atlas.vercel.app)**.
 
