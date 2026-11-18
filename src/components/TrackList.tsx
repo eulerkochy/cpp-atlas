@@ -1,98 +1,130 @@
 import Link from "next/link";
-import { TopicStatusBadges } from "@/components/TopicViewActions";
+import { Bookmark } from "lucide-react";
 import { TrackProgressCount } from "@/components/TrackProgressCount";
-import type { TrackWithTopics } from "@/types/topics";
+import { cn } from "@/lib/utils";
+import type { TopicSummary, TrackWithTopics } from "@/types/topics";
 
-export function TrackList({
-  headingLevel = 2,
-  tracks = [],
-  showStatusBadges = true,
+/** The read-state dot shared by index rows and the legend. */
+export function ReadDot({
+  read,
+  className,
 }: {
-  headingLevel?: 2 | 3;
-  tracks?: TrackWithTopics[];
-  showStatusBadges?: boolean;
+  read: boolean;
+  className?: string;
 }) {
-  const resolvedTracks = tracks.filter((track) => track.topics.length > 0);
-
-  if (resolvedTracks.length === 0) {
-    return (
-      <div className="rounded-[var(--radius-panel)] border border-line bg-paper-raised p-8 text-sm text-ink-soft">
-        Study topics are being prepared. Check back shortly or browse the{" "}
-        <Link
-          href="/w/cpp"
-          className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-        >
-          full C++ reference
-        </Link>
-        .
-      </div>
-    );
-  }
-
-  const TrackHeading = headingLevel === 2 ? "h2" : "h3";
-  const TopicHeading = headingLevel === 2 ? "h3" : "h4";
-
   return (
-    <div className="space-y-20">
-      {resolvedTracks.map((track) => (
+    <span
+      aria-hidden
+      className={cn(
+        "inline-block size-2.5 shrink-0 rounded-full border",
+        read ? "border-ink bg-sun" : "border-ink-soft bg-transparent",
+        className
+      )}
+    />
+  );
+}
+
+function TopicIndexRow({
+  topic,
+  read,
+  saved,
+}: {
+  topic: TopicSummary;
+  read: boolean;
+  saved: boolean;
+}) {
+  return (
+    <li className="break-inside-avoid">
+      <Link
+        href={`/topics/${topic.slug}`}
+        className="group grid grid-cols-[0.625rem_minmax(0,1fr)] gap-x-2.5 rounded-sm py-1 focus-visible:outline-offset-2"
+      >
+        <ReadDot read={read} className="mt-[0.45rem]" />
+        <span className="min-w-0">
+          <span className="flex items-end gap-1.5">
+            <span className="min-w-0 font-display text-[1.05rem] leading-[1.3] font-[450] tracking-[-0.01em] text-ink decoration-sun decoration-2 underline-offset-4 group-hover:underline group-focus-visible:underline">
+              {topic.title}
+              {saved ? (
+                <Bookmark
+                  aria-hidden
+                  className="ml-1.5 inline size-3.5 -translate-y-px fill-current align-baseline text-ink-soft"
+                />
+              ) : null}
+            </span>
+            <span
+              aria-hidden
+              className="mb-[0.4rem] min-w-3 flex-1 border-b border-dotted border-line-strong"
+            />
+            <span className="shrink-0 pb-px text-xs text-ink-soft tabular-nums">
+              {topic.minutes} min
+            </span>
+          </span>
+          {topic.summary ? (
+            <span className="block truncate text-[0.8125rem] leading-snug text-ink-soft">
+              {topic.summary}
+            </span>
+          ) : null}
+          {read || saved ? (
+            <span className="sr-only">
+              {[read ? "Read" : null, saved ? "Saved" : null]
+                .filter(Boolean)
+                .join(", ")}
+            </span>
+          ) : null}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+/** Tracks as index sections: a header, then compact rows read down two columns. */
+export function TrackList({
+  tracks,
+  readSlugs,
+  savedSlugs,
+}: {
+  tracks: TrackWithTopics[];
+  readSlugs: ReadonlySet<string>;
+  savedSlugs: ReadonlySet<string>;
+}) {
+  return (
+    <div className="space-y-9">
+      {tracks.map((track) => (
         <section
           key={track.id}
           id={track.id}
+          data-track-section
           aria-labelledby={`track-${track.id}`}
-          className="grid scroll-mt-28 gap-6 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] lg:gap-16"
+          className="scroll-mt-14 lg:scroll-mt-2"
         >
-          <div className="lg:sticky lg:top-28 lg:self-start">
-            <TrackHeading
-              id={`track-${track.id}`}
-              className="font-display text-[2rem] leading-tight font-[450] tracking-[-0.025em] text-ink"
-            >
-              {track.title}
-            </TrackHeading>
-            <p className="mt-3 max-w-[38ch] leading-relaxed text-ink-soft">
+          <header className="border-b border-line pb-2.5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+              <h2
+                id={`track-${track.id}`}
+                className="font-display text-[1.5rem] leading-tight font-[450] tracking-[-0.02em] text-ink"
+              >
+                {track.title}
+              </h2>
+              <TrackProgressCount
+                questionIds={track.topics.flatMap((t) => t.questionIds)}
+                className="text-xs"
+              />
+            </div>
+            <p className="mt-0.5 max-w-[80ch] text-sm leading-snug text-ink-soft">
               {track.description}
             </p>
-          </div>
+          </header>
 
-          <ol className="border-t border-line">
+          <ul className="mt-1.5 gap-x-7 md:columns-2">
             {track.topics.map((topic) => (
-              <li key={topic.slug} className="border-b border-line">
-                <Link
-                  href={`/topics/${topic.slug}`}
-                  className="group grid gap-x-8 gap-y-2 py-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:py-7"
-                >
-                  <div className="min-w-0">
-                    <TopicHeading className="font-display text-[1.45rem] leading-snug font-[450] tracking-[-0.015em] text-ink decoration-sun decoration-2 underline-offset-[6px] group-hover:underline">
-                      {topic.title}
-                    </TopicHeading>
-                    {topic.summary ? (
-                      <p className="mt-1.5 max-w-[62ch] leading-relaxed text-ink-soft">
-                        {topic.summary}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-soft sm:flex-col sm:items-end sm:pt-1.5 sm:text-right">
-                    <span className="tabular-nums">{topic.minutes} min read</span>
-                    <span className="tabular-nums">
-                      {topic.questionCount}{" "}
-                      {topic.questionCount === 1 ? "question" : "questions"}
-                    </span>
-                    <TrackProgressCount
-                      questionIds={topic.questionIds}
-                      className="text-xs"
-                    />
-                    {showStatusBadges ? (
-                      <TopicStatusBadges
-                        slug={topic.slug}
-                        hasSimulator={Boolean(topic.simulator)}
-                        className="sm:justify-end"
-                      />
-                    ) : null}
-                  </div>
-                </Link>
-              </li>
+              <TopicIndexRow
+                key={topic.slug}
+                topic={topic}
+                read={readSlugs.has(topic.slug)}
+                saved={savedSlugs.has(topic.slug)}
+              />
             ))}
-          </ol>
+          </ul>
         </section>
       ))}
     </div>

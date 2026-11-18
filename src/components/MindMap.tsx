@@ -38,10 +38,16 @@ export function MindMap({
   slug,
   title,
   root,
+  panel = "side",
 }: {
   slug: string;
   title: string;
   root: TopicMapNode;
+  /**
+   * "below" keeps the note under the map at every width and trims it to the
+   * label and note, for narrow columns such as the home page showcase.
+   */
+  panel?: "side" | "below";
 }) {
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(
     () => new Set()
@@ -212,7 +218,10 @@ export function MindMap({
           </div>
         </div>
       }
-      bodyClassName="grid lg:grid-cols-[minmax(0,1fr)_320px]"
+      bodyClassName={cn(
+        "grid",
+        panel === "side" && "lg:grid-cols-[minmax(0,1fr)_320px]"
+      )}
     >
       <div
         className={cn(
@@ -231,7 +240,10 @@ export function MindMap({
           className={cn(
             "block select-none",
             sizeMode === "fit"
-              ? "h-auto w-full min-w-[540px] max-h-[580px]"
+              ? cn(
+                  "h-auto w-full min-w-[540px]",
+                  panel === "side" ? "max-h-[580px]" : "max-h-[520px]"
+                )
               : "max-w-none"
           )}
           preserveAspectRatio="xMidYMid meet"
@@ -411,7 +423,10 @@ export function MindMap({
       {/* Right note inspector */}
       <aside
         aria-live="polite"
-        className="flex flex-col justify-between gap-6 border-t border-line bg-paper-raised px-5 py-5 lg:border-t-0 lg:border-l lg:px-6 lg:py-6"
+        className={cn(
+          "flex flex-col justify-between gap-6 border-t border-line bg-paper-raised px-5 py-5",
+          panel === "side" && "lg:border-t-0 lg:border-l lg:px-6 lg:py-6"
+        )}
       >
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-faint">
@@ -446,7 +461,7 @@ export function MindMap({
             {selectedNode.note}
           </p>
 
-          {selectedNode.hasChildren ? (
+          {selectedNode.hasChildren && panel === "side" ? (
             <div className="space-y-2 border-t border-line pt-4">
               <div className="flex items-center justify-between gap-2 text-xs text-ink-soft">
                 <span>
@@ -479,21 +494,23 @@ export function MindMap({
           ) : null}
         </div>
 
-        <p className="border-t border-line pt-4 text-xs leading-relaxed text-ink-faint">
-          Click any node or use arrow keys to navigate branches. Press{" "}
-          <kbd className="rounded border border-line bg-paper px-1 font-mono text-[10px] text-ink">
-            Enter
-          </kbd>{" "}
-          or{" "}
-          <kbd className="rounded border border-line bg-paper px-1 font-mono text-[10px] text-ink">
-            +
-          </kbd>
-          /
-          <kbd className="rounded border border-line bg-paper px-1 font-mono text-[10px] text-ink">
-            -
-          </kbd>{" "}
-          to fold.
-        </p>
+        {panel === "side" ? (
+          <p className="border-t border-line pt-4 text-xs leading-relaxed text-ink-faint">
+            Click any node or use arrow keys to navigate branches. Press{" "}
+            <kbd className="rounded border border-line bg-paper px-1 font-mono text-[10px] text-ink">
+              Enter
+            </kbd>{" "}
+            or{" "}
+            <kbd className="rounded border border-line bg-paper px-1 font-mono text-[10px] text-ink">
+              +
+            </kbd>
+            /
+            <kbd className="rounded border border-line bg-paper px-1 font-mono text-[10px] text-ink">
+              -
+            </kbd>{" "}
+            to fold.
+          </p>
+        ) : null}
       </aside>
     </Window>
   );

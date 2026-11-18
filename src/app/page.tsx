@@ -1,34 +1,74 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import {
+  type AtlasRegion,
+  HomeAtlasPlate,
+} from "@/components/HomeAtlasPlate";
+import { buildAtlasMap } from "@/components/atlas-map-geometry";
 import { HeroExpressionInspector } from "@/components/HeroExpressionInspector";
+import { HomeDock } from "@/components/HomeDock";
+import { HomeTopicShowcase } from "@/components/HomeTopicShowcase";
 import { JsonLd } from "@/components/JsonLd";
 import { SearchPrompt } from "@/components/SearchPrompt";
-import { TrackList } from "@/components/TrackList";
-import { countPagesUnderPrefix, getIndexStats } from "@/lib/cppref-index";
+import { TopicMarkdown } from "@/components/TopicMarkdown";
+import { buttonVariants } from "@/components/ui/button";
+import { getIndexStats } from "@/lib/cppref-index";
 import { SITE } from "@/lib/site";
 import { getSiteStats, siteDescription } from "@/lib/site-stats";
-import { getTracks } from "@/lib/topics";
+import { getTopic, getTracks } from "@/lib/topics";
+import { groupTracks } from "@/lib/track-groups";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-const HOME_SECTIONS = [
-  { lang: "cpp" as const, path: "language", title: "Language" },
-  { lang: "cpp" as const, path: "container", title: "Containers" },
-  { lang: "cpp" as const, path: "utility", title: "Utilities" },
-  { lang: "cpp" as const, path: "memory", title: "Memory" },
-  { lang: "cpp" as const, path: "algorithm", title: "Algorithms" },
-  { lang: "cpp" as const, path: "string", title: "Strings" },
-  { lang: "cpp" as const, path: "ranges", title: "Ranges" },
-  { lang: "cpp" as const, path: "thread", title: "Concurrency" },
+const REFERENCE_LINKS = [
+  { href: "/w/cpp/language", title: "Language" },
+  { href: "/w/cpp/container", title: "Containers" },
+  { href: "/w/cpp/utility", title: "Utilities" },
+  { href: "/w/cpp/memory", title: "Memory" },
+  { href: "/w/cpp/algorithm", title: "Algorithms" },
+  { href: "/w/cpp/string", title: "Strings" },
+  { href: "/w/cpp/ranges", title: "Ranges" },
+  { href: "/w/cpp/thread", title: "Concurrency" },
 ];
+
+/** The topic shown three ways in the showcase. */
+const SHOWCASE_SLUG = "value-categories";
+
+const H2 =
+  "font-display text-[clamp(2rem,4.5vw,2.75rem)] leading-[1.1] font-[450] tracking-[-0.03em] text-ink text-balance";
+const LEAD =
+  "mx-auto mt-4 max-w-[54ch] text-[1.0625rem] leading-relaxed text-ink-soft text-pretty";
+const QUIET_LINK =
+  "text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink";
+
+/** The article up to its second section heading, for the cropped preview. */
+function articleOpening(body: string): string {
+  const first = body.indexOf("\n## ");
+  const second = first < 0 ? -1 : body.indexOf("\n## ", first + 1);
+  return second < 0 ? body : body.slice(0, second);
+}
 
 export default function HomePage() {
   const cppStats = getIndexStats("cpp");
   const cStats = getIndexStats("c");
   const stats = getSiteStats();
-  const tracks = getTracks();
+  const atlasRegions: AtlasRegion[] = groupTracks(getTracks()).map(
+    (group) => ({
+      label: group.label,
+      tracks: group.tracks.map((track) => ({
+        id: track.id,
+        title: track.title,
+        topics: track.topics.map((topic) => ({
+          slug: topic.slug,
+          title: topic.title,
+          minutes: topic.minutes,
+        })),
+      })),
+    })
+  );
+  const showcase = getTopic(SHOWCASE_SLUG);
 
   const websiteJsonLd = {
     "@context": "https://schema.org",
@@ -60,13 +100,12 @@ export default function HomePage() {
           <h1 className="settle-line font-display text-[clamp(1.85rem,4.2vw,2.9rem)] leading-[1.08] font-[450] tracking-[-0.028em] text-ink text-balance">
             The C++ reference that explains itself
           </h1>
-          <p className="settle-line mx-auto mt-4 max-w-[54ch] text-[1.0625rem] leading-relaxed text-ink/75 text-balance">
-            {stats.topics} deep-dive topics across {stats.tracks} tracks, each
-            pairing a clear mental model with an interactive concept map and
-            quiz. Backed by {stats.traps.toLocaleString("en-US")} clause-cited
-            questions, {stats.simulators} machine simulators, and all{" "}
-            {stats.referencePages.toLocaleString("en-US")} C++ and C reference
-            pages.
+          <p className="settle-line mx-auto mt-4 max-w-[52ch] text-[1.0625rem] leading-relaxed text-ink/75 text-balance">
+            All {stats.referencePages.toLocaleString("en-US")} pages of
+            cppreference, with {stats.topics} deep-dive topics,{" "}
+            {stats.simulators} memory simulators and{" "}
+            {stats.traps.toLocaleString("en-US")} quiz questions that cite the
+            standard.
           </p>
         </div>
 
@@ -85,242 +124,108 @@ export default function HomePage() {
       </section>
 
       <section
-        aria-labelledby="topics-heading"
-        className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-24"
+        aria-labelledby="showcase-heading"
+        className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 sm:pt-12"
       >
-        <div className="mb-14 max-w-2xl">
-          <h2
-            id="topics-heading"
-            className="font-display text-[clamp(2.2rem,5vw,3.25rem)] leading-[1.05] font-[450] tracking-[-0.03em] text-ink"
-          >
-            Topics
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 id="showcase-heading" className={H2}>
+            Read it. See it. Trace it.
           </h2>
-          <p className="mt-4 text-[1.0625rem] leading-relaxed text-ink-soft">
-            {stats.topics > 0
-              ? `${stats.topics} original articles across ${stats.tracks} tracks, cross-linked 1:1 with `
-              : "Structured study tracks layered directly over "}
-            <code className="font-mono text-[0.9em] text-ink">/w/cpp/...</code>{" "}
-            specifications. Progress, bookmarks, and missed questions stay
-            locally in your browser—no account required.
+          <p className={LEAD}>
+            Every topic is an article and a concept map, and some add a live
+            simulator.
           </p>
-          <div className="mt-5 flex flex-wrap items-center gap-6 text-sm">
-            <Link
-              href="/topics"
-              className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-            >
-              All topics
-            </Link>
-            <Link
-              href="/maps"
-              className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-            >
-              Concept maps
-            </Link>
-            <Link
-              href="/standards"
-              className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-            >
-              C++11–C++26 timeline
-            </Link>
-            <Link
-              href="/study"
-              className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-            >
-              Study desk
-            </Link>
-            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- route handler, not a page */}
-            <a
-              href="/api/notebook/topics-all"
-              className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-            >
-              Everything as markdown
-            </a>
-          </div>
         </div>
+        {showcase ? (
+          <div className="mt-12 sm:mt-16">
+            <HomeTopicShowcase
+              slug={showcase.slug}
+              title={showcase.title}
+              article={<TopicMarkdown content={articleOpening(showcase.body)} />}
+              mapRoot={showcase.map?.root ?? null}
+            />
+          </div>
+        ) : null}
+      </section>
 
-        <TrackList headingLevel={3} tracks={tracks} />
+      <section
+        aria-labelledby="tracks-heading"
+        className="mx-auto mt-32 max-w-6xl px-4 text-center sm:mt-40 sm:px-6"
+      >
+        <h2 id="tracks-heading" className={H2}>
+          The whole language on one map
+        </h2>
+        <div className="mt-10 sm:mt-14">
+          <HomeAtlasPlate
+            regions={atlasRegions}
+            map={buildAtlasMap(atlasRegions)}
+          />
+        </div>
+        <p className="mt-10 sm:mt-12">
+          <Link href="/topics" className={QUIET_LINK}>
+            Browse all {stats.topics} topics
+          </Link>
+        </p>
       </section>
 
       <section
         aria-labelledby="reference-heading"
-        className="mx-auto mt-32 max-w-6xl px-4 sm:px-6"
+        className="mx-auto mt-32 max-w-4xl px-4 text-center sm:mt-40 sm:px-6"
       >
-        <div className="grid gap-12 border-t border-line pt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-16">
-          <div>
-            <h2
-              id="reference-heading"
-              className="font-display text-[clamp(2.2rem,5vw,3.25rem)] leading-[1.05] font-[450] tracking-[-0.03em] text-ink text-balance"
-            >
-              The complete reference, offline and 1:1
-            </h2>
-            <p className="mt-4 max-w-[50ch] text-[1.0625rem] leading-relaxed text-ink-soft">
-              When a study track is not enough, all{" "}
-              {cppStats.pages.toLocaleString("en-US")} C++ pages and{" "}
-              {cStats.pages.toLocaleString("en-US")} C pages of
-              cppreference.com are served locally from an offline snapshot at
-              their exact addresses:{" "}
-              <code className="font-mono text-[0.9em] text-ink">
-                /w/cpp/container/vector
-              </code>{" "}
-              for <code className="font-mono text-[0.9em] text-ink">std::vector</code>{" "}
-              or{" "}
-              <code className="font-mono text-[0.9em] text-ink">
-                /w/c/memory/malloc
-              </code>{" "}
-              across the C boundary.
-            </p>
-            <SearchPrompt
-              label="Search the reference: shared_ptr, value category, malloc…"
-              className="mt-8"
-            />
-          </div>
-
-          <div>
-            <ul className="grid border-t border-line sm:grid-cols-2 sm:gap-x-10">
-              {HOME_SECTIONS.map((sec) => (
-                <li key={sec.path} className="border-b border-line">
-                  <Link
-                    href={`/w/cpp/${sec.path}`}
-                    className="group flex items-baseline justify-between gap-4 py-4"
-                  >
-                    <span className="font-display text-xl font-[450] tracking-[-0.015em] text-ink decoration-sun decoration-2 underline-offset-[5px] group-hover:underline">
-                      {sec.title}
-                    </span>
-                    <span className="text-sm text-ink-faint tabular-nums">
-                      {countPagesUnderPrefix(sec.lang, sec.path).toLocaleString("en-US")}{" "}
-                      pages
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-6 flex flex-wrap gap-6 text-sm">
-              <Link
-                href="/w/cpp"
-                className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-              >
-                C++ reference (/w/cpp)
-              </Link>
-              <Link
-                href="/w"
-                className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-              >
-                Unified C++ &amp; C portal (/w)
-              </Link>
-              <Link
-                href="/explore"
-                className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-              >
-                Browse all {cppStats.domainCount + cStats.domainCount}{" "}
-                domains
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section
-        aria-labelledby="views-heading"
-        className="mx-auto mt-32 max-w-6xl px-4 sm:px-6"
-      >
-        <h2
-          id="views-heading"
-          className="max-w-2xl font-display text-[clamp(2rem,4.5vw,2.75rem)] leading-[1.1] font-[450] tracking-[-0.03em] text-ink text-balance"
-        >
-          Read the prose, inspect the map, test the edge cases
+        <h2 id="reference-heading" className={H2}>
+          All of cppreference, at the same addresses
         </h2>
-        <dl className="mt-12 grid gap-x-12 gap-y-10 border-t border-line pt-10 md:grid-cols-3">
-          <div>
-            <dt className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink">
-              Read
-            </dt>
-            <dd className="mt-3 leading-relaxed text-ink-soft">
-              Study prose and 1:1 specifications with a scroll-spy outline,
-              window-framed code blocks with Compiler Explorer links, and Focus
-              mode to dim pre-C++14 deprecations and defect reports.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink">
-              Map
-            </dt>
-            <dd className="mt-3 leading-relaxed text-ink-soft">
-              Every study topic includes an interactive concept map, {stats.simulatorTopics} pair
-              with live machine-model simulators, and every reference page
-              synthesizes a structural map of headers and signatures.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink">
-              Quiz
-            </dt>
-            <dd className="mt-3 leading-relaxed text-ink-soft">
-              {stats.traps.toLocaleString("en-US")} questions built around the
-              tempting wrong answer. Every verdict explains the abstract-machine
-              rule and cites the ISO C++ clause that settles it.
-            </dd>
-          </div>
-        </dl>
+        <p className={LEAD}>
+          <Link href="/w/cpp" className={QUIET_LINK}>
+            {cppStats.pages.toLocaleString("en-US")} C++ pages
+          </Link>{" "}
+          and{" "}
+          <Link href="/w/c" className={QUIET_LINK}>
+            {cStats.pages.toLocaleString("en-US")} C pages
+          </Link>
+          , each at the path you already know.
+        </p>
+        <SearchPrompt
+          label="/w/cpp/container/vector"
+          className="mx-auto mt-8 h-14 max-w-lg font-mono text-[0.9375rem] text-ink"
+        />
+        <ul className="mt-8 flex flex-wrap justify-center gap-2">
+          {REFERENCE_LINKS.map((link) => (
+            <li key={link.href}>
+              <Link
+                href={link.href}
+                className="inline-flex h-9 items-center rounded-full border border-line px-4 text-sm text-ink-soft transition-colors hover:border-line-strong hover:text-ink"
+              >
+                {link.title}
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section
-        aria-labelledby="notebook-heading"
-        className="mx-auto mt-20 max-w-6xl px-4 sm:px-6"
+        aria-labelledby="start-heading"
+        className="mx-auto mt-32 max-w-5xl px-4 sm:mt-40 sm:px-6"
       >
-        <div className="grid gap-6 border-t border-line pt-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] md:gap-12">
-          <h2
-            id="notebook-heading"
-            className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink"
-          >
-            Plain Markdown for NotebookLM &amp; local tools
+        <div className="rounded-[var(--radius-window)] border border-dashed border-line-strong px-6 py-16 text-center sm:py-24">
+          <h2 id="start-heading" className={H2}>
+            No account, nothing to install
           </h2>
-          <div className="max-w-[60ch] space-y-3 leading-relaxed text-ink-soft">
-            <p>
-              Every topic and reference page is also available as clean plain
-              Markdown with its study notes, concept-map outline, and quiz
-              questions. Paste a{" "}
-              <code className="font-mono text-[0.9em] text-ink">/w/cpp/...</code>{" "}
-              URL into NotebookLM, download{" "}
-              <code className="font-mono text-[0.9em] text-ink">.md</code> from
-              the rail, or assemble custom bundles in the{" "}
-              <Link
-                href="/notebook"
-                className="text-ink underline decoration-line-strong underline-offset-3 hover:decoration-ink"
-              >
-                Markdown studio
-              </Link>
-              .
-            </p>
-            <p>
-              API routes start at{" "}
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- route handler, not a page */}
-              <a
-                className="font-mono text-[0.9em] text-ink underline decoration-line-strong underline-offset-3 hover:decoration-ink"
-                href="/api/notebook/topics-all"
-              >
-                /api/notebook/topics-all
-              </a>{" "}
-              and{" "}
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- route handler, not a page */}
-              <a
-                className="font-mono text-[0.9em] text-ink underline decoration-line-strong underline-offset-3 hover:decoration-ink"
-                href="/api/notebook/cpp/language/value_category"
-              >
-                /api/notebook/cpp/language/value_category
-              </a>
-              , and machine indexes live at{" "}
-              <a
-                className="font-mono text-[0.9em] text-ink underline decoration-line-strong underline-offset-3 hover:decoration-ink"
-                href="/llms.txt"
-              >
-                /llms.txt
-              </a>
-              .
-            </p>
+          <p className={LEAD}>
+            Your progress stays in your browser, and every page is also plain
+            Markdown.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+            <Link href="/topics" className={buttonVariants({ size: "lg" })}>
+              Browse topics
+            </Link>
+            <Link href="/w/cpp" className={QUIET_LINK}>
+              Open the C++ reference
+            </Link>
           </div>
         </div>
       </section>
+      <HomeDock topics={stats.topics} referencePages={stats.referencePages} />
     </>
   );
 }
