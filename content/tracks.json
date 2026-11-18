@@ -1,0 +1,128 @@
+{
+  "tracks": [
+    {
+      "id": "program-structure",
+      "title": "Program structure",
+      "description": "How source text becomes an executable: translation units, linkage, name lookup and modules.",
+      "topics": [
+        "translation-units-and-linkage",
+        "name-lookup-and-adl",
+        "modules"
+      ]
+    },
+    {
+      "id": "types-and-initialization",
+      "title": "Types and initialization",
+      "description": "What a type promises, how values convert, and every spelling of initialization and deduction.",
+      "topics": [
+        "initialization-forms",
+        "type-deduction-auto-decltype",
+        "casts-and-qualifiers"
+      ]
+    },
+    {
+      "id": "value-semantics",
+      "title": "Value semantics",
+      "description": "What an expression means, when resources move, and when copies disappear at the language level.",
+      "topics": [
+        "value-categories",
+        "copy-and-move",
+        "copy-elision",
+        "reference-binding-and-temporaries"
+      ]
+    },
+    {
+      "id": "expressions-and-functions",
+      "title": "Expressions and functions",
+      "description": "Evaluation order guarantees, compile-time execution, closure types and overload resolution.",
+      "topics": [
+        "evaluation-order",
+        "constant-expressions",
+        "lambdas",
+        "overload-resolution"
+      ]
+    },
+    {
+      "id": "classes",
+      "title": "Classes",
+      "description": "Subobject construction order, dynamic dispatch machinery and deterministic RAII.",
+      "topics": [
+        "constructors-and-initialization-order",
+        "inheritance-and-virtual-functions",
+        "raii-and-resource-management"
+      ]
+    },
+    {
+      "id": "templates",
+      "title": "Templates",
+      "description": "Forwarding references, SFINAE, C++20 concept subsumption and C++23 explicit object parameters.",
+      "topics": [
+        "forwarding-references-and-perfect-forwarding",
+        "sfinae-and-concepts",
+        "crtp-and-deducing-this"
+      ]
+    },
+    {
+      "id": "errors",
+      "title": "Exceptions and error handling",
+      "description": "Stack unwinding, exception-safety guarantees and value-based error handling with expected.",
+      "topics": [
+        "exception-safety-guarantees",
+        "optional-expected-and-error-codes"
+      ]
+    },
+    {
+      "id": "memory-model",
+      "title": "Memory model",
+      "description": "Storage duration, object lifetime, strict aliasing, multi-core atomics and smart-pointer control blocks.",
+      "topics": [
+        "object-lifetime-and-storage",
+        "strict-aliasing-and-ub",
+        "atomics-and-memory-ordering",
+        "smart-pointers-and-allocators"
+      ]
+    },
+    {
+      "id": "concurrency",
+      "title": "Concurrency",
+      "description": "Cooperative cancellation with jthread, synchronization primitives and C++20 coroutines.",
+      "topics": [
+        "threads-jthread-and-locks",
+        "coroutines"
+      ]
+    },
+    {
+      "id": "containers",
+      "title": "Containers and strings",
+      "description": "Memory layouts, iterator invalidation contracts, small-string optimization and non-owning views.",
+      "topics": [
+        "containers-and-iterator-invalidation",
+        "strings-views-and-spans"
+      ]
+    },
+    {
+      "id": "algorithms-and-ranges",
+      "title": "Iterators, algorithms and ranges",
+      "description": "Iterator concepts, lazy range adaptors, borrowed ranges and customization point objects.",
+      "topics": [
+        "ranges-views-and-niebloids"
+      ]
+    },
+    {
+      "id": "utilities",
+      "title": "Library utilities",
+      "description": "Type-safe unions, callable wrappers and compile-time checked formatting.",
+      "topics": [
+        "vocabulary-types-and-format"
+      ]
+    },
+    {
+      "id": "cpp26",
+      "title": "C++26",
+      "description": "Contracts, static reflection, structured concurrency with std::execution and erroneous behavior.",
+      "topics": [
+        "cpp26-contracts-reflection-execution"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "root": {
+    "label": "Casts and cv-qualifiers",
+    "note": "Qualifiers define access permissions while C++ casts constrain which type invariants you cross.",
+    "children": [
+      {
+        "label": "cv-qualifiers",
+        "note": "const and volatile attach to types and distinguish object immutability from read-only views.",
+        "children": [
+          {
+            "label": "const object vs view",
+            "note": "Modifying a const-defined object is UB, whereas const T& only restricts one access path."
+          },
+          {
+            "label": "mutable members",
+            "note": "mutable permits updating internal caches or mutexes inside const member functions."
+          },
+          {
+            "label": "volatile semantics",
+            "note": "volatile prevents compiler register caching for MMIO and signals without adding thread safety."
+          }
+        ]
+      },
+      {
+        "label": "Qualification conversions",
+        "note": "Multi-level pointers require outer const qualifiers whenever inner pointees gain const.",
+        "children": [
+          {
+            "label": "const T** rejection",
+            "note": "Implicitly converting T** to const T** would allow storing a const pointer into a mutable pointer."
+          },
+          {
+            "label": "std::as_const",
+            "note": "Adds const to an lvalue safely and deletes its rvalue overload to prevent dangling."
+          }
+        ]
+      },
+      {
+        "label": "Named cast operators",
+        "note": "Each named cast isolates a distinct operation so compilers catch unintended conversions.",
+        "children": [
+          {
+            "label": "static_cast",
+            "note": "Performs compile-time checked conversions and adjusts base-derived offsets without RTTI."
+          },
+          {
+            "label": "const_cast",
+            "note": "Adds or removes const or volatile, safe only when the underlying object is non-const."
+          },
+          {
+            "label": "dynamic_cast",
+            "note": "Verifies polymorphic inheritance at runtime, returning nullptr or throwing std::bad_cast."
+          },
+          {
+            "label": "reinterpret_cast",
+            "note": "Reinterprets pointer or integer bit patterns without adjusting class subobject offsets."
+          }
+        ]
+      },
+      {
+        "label": "C-style cast hazards",
+        "note": "C-style casts fall back silently to reinterpret_cast and bypass base-class access specifiers.",
+        "children": [
+          {
+            "label": "Incomplete type trap",
+            "note": "Forward-declared classes turn a C-style cast from offset-adjusting to bitwise reinterpretation."
+          },
+          {
+            "label": "Private base bypass",
+            "note": "Unlike static_cast, a C-style cast is allowed to cast to an inaccessible base class."
+          }
+        ]
+      },
+      {
+        "label": "Strict aliasing and bit_cast",
+        "note": "Object representations must be reinterpreted through safe copies rather than unrelated pointers.",
+        "children": [
+          {
+            "label": "Strict aliasing rule",
+            "note": "Dereferencing an unrelated pointer type causes UB outside char, unsigned char, and std::byte."
+          },
+          {
+            "label": "std::bit_cast",
+            "note": "Copies bytes into a fresh trivially copyable value in constexpr code with zero aliasing UB."
+          },
+          {
+            "label": "std::to_underlying",
+            "note": "C++23 utility converting a scoped enum cleanly to its underlying integer type."
+          }
+        ]
+      }
+    ]
+  }
+}

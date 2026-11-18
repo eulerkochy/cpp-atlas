@@ -1,0 +1,92 @@
+{
+  "questions": [
+    {
+      "id": "cpp26-contracts-reflection-execution-q1",
+      "kind": "warmup",
+      "prompt": "Which four evaluation semantics are defined for P2900 contract assertions in C++26?",
+      "options": [
+        "ignore, observe, enforce, and quick_enforce",
+        "debug, release, audit, and assume",
+        "off, warn, throw_on_fail, and abort",
+        "constexpr_only, runtime_check, log, and trap"
+      ],
+      "answer": 0,
+      "explanation": "P2900 defines four evaluation semantics: ignore (compile-checked, not evaluated at runtime), observe (evaluate and invoke handler, then continue), enforce (evaluate, invoke handler, then terminate), and quick_enforce (evaluate and terminate immediately without calling the handler).",
+      "refs": ["[basic.contract]"]
+    },
+    {
+      "id": "cpp26-contracts-reflection-execution-q2",
+      "kind": "warmup",
+      "prompt": "In P2996 static reflection, what is the type of the expression ^^MyStruct, and when can it exist?",
+      "code": "struct MyStruct { int x; };\nconstexpr auto r = ^^MyStruct;",
+      "options": [
+        "std::type_info, usable at runtime",
+        "std::meta::info, a consteval-only scalar type usable strictly in constant evaluation",
+        "std::string_view containing \"MyStruct\"",
+        "std::tuple<int> describing its members"
+      ],
+      "answer": 1,
+      "explanation": "The reflection operator ^^ yields a value of std::meta::info, which is a consteval-only type in [expr.reflect] and [meta.reflection]. It cannot persist as a runtime object or be stored outside constant evaluation.",
+      "refs": ["[expr.reflect]", "[meta.reflection]"]
+    },
+    {
+      "id": "cpp26-contracts-reflection-execution-q3",
+      "kind": "tricky",
+      "prompt": "Why does GCC 16 (-std=c++26 -fcontracts) reject the following P2900 postcondition?",
+      "code": "int safe_div(int a, int b)\n    pre(b != 0)\n    post(r: r * b <= a)\n{\n    return a / b;\n}",
+      "options": [
+        "post cannot refer to two parameters in the same expression",
+        "a and b are integer types rather than references",
+        "Any non-reference parameter referenced inside a postcondition specifier must be declared const",
+        "post must appear before pre on the declaration"
+      ],
+      "answer": 2,
+      "explanation": "Under P2900 [dcl.contract.func], if a postcondition names a by-value parameter of the function, that parameter must be const-qualified on the definition (e.g., const int a, const int b); otherwise the function could mutate its local copy and make the postcondition ambiguous.",
+      "refs": ["[dcl.contract.func]"]
+    },
+    {
+      "id": "cpp26-contracts-reflection-execution-q4",
+      "kind": "tricky",
+      "prompt": "In P2300 std::execution, what work runs when you evaluate only the pipeline expression auto s = std::execution::just(10) | std::execution::then(fn);?",
+      "code": "auto s = std::execution::just(10)\n       | std::execution::then([](int x) { side_effect(); return x + 1; });",
+      "options": [
+        "side_effect() runs eagerly on the calling thread",
+        "side_effect() is queued on the default system thread pool immediately",
+        "Nothing executes yet: senders are lazy descriptions that do not run until connected to a receiver and started (or consumed by std::this_thread::sync_wait)",
+        "Compilation fails because just() cannot precede then()"
+      ],
+      "answer": 2,
+      "explanation": "P2300 senders are lazy work descriptions. Constructing and piping senders builds a typed expression graph without starting execution or allocating work until connect(sender, receiver) produces an operation state and start(op) (or sync_wait) runs it.",
+      "refs": ["[exec.snd]", "[exec.opstate]"]
+    },
+    {
+      "id": "cpp26-contracts-reflection-execution-q5",
+      "kind": "standardese",
+      "prompt": "Under C++26 P2795 (Erroneous Behavior), what happens at runtime when a program reads an uninitialized local int x; without [[indeterminate]]?",
+      "code": "int f() {\n    int x;\n    return x;\n}",
+      "options": [
+        "Unbounded undefined behavior, allowing compilers to eliminate surrounding checks",
+        "Ill-formed diagnostic required: the program fails to compile",
+        "Throws std::logic_error at runtime",
+        "Erroneous behavior: the program contains a bug, yet runtime execution is well-defined because x receives an implementation-determined erroneous value rather than causing UB"
+      ],
+      "answer": 3,
+      "explanation": "P2795 [basic.indet] classifies reading an uninitialized automatic variable (not marked [[indeterminate]]) as erroneous behavior rather than undefined behavior. Implementations initialize it to an erroneous value (such as zero or a fixed pattern), eliminating UB time-travel optimizations.",
+      "refs": ["[basic.indet]", "[intro.abstract]"]
+    },
+    {
+      "id": "cpp26-contracts-reflection-execution-q6",
+      "kind": "standardese",
+      "prompt": "What are the exact three completion channels a P2300 receiver handles in std::execution?",
+      "options": [
+        "set_value, set_error, and set_stopped",
+        "on_next, on_error, and on_complete",
+        "resolve, reject, and finally",
+        "return_value, throw_exception, and cancel_token"
+      ],
+      "answer": 0,
+      "explanation": "In [exec.recv], every P2300 sender completes by invoking exactly one of three receiver customization points: set_value(rcvr, args...), set_error(rcvr, err), or set_stopped(rcvr) (representing cooperative cancellation).",
+      "refs": ["[exec.recv]", "[exec.set.value]"]
+    }
+  ]
+}

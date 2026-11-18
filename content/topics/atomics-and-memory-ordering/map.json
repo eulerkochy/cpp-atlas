@@ -1,0 +1,90 @@
+{
+  "root": {
+    "label": "Atomics and Memory Ordering",
+    "note": "Abstract machine synchronization guarantees connecting C++ threads, compilers, and CPU store buffers.",
+    "children": [
+      {
+        "label": "Memory Locations and Races",
+        "note": "Smallest units of storage accessible independently across concurrent threads.",
+        "children": [
+          {
+            "label": "Scalars vs Bit-Fields",
+            "note": "Adjacent scalars are independent locations while adjacent non-zero bit-fields share one."
+          },
+          {
+            "label": "Zero-Width Bit-Field Split",
+            "note": "Inserting an unnamed : 0 bit-field separates neighboring fields into distinct locations."
+          },
+          {
+            "label": "Data Race Undefined Behavior",
+            "note": "Unordered conflicting accesses with one non-atomic write invalidate the whole program."
+          }
+        ]
+      },
+      {
+        "label": "Happens-Before Relations",
+        "note": "Mathematical ordering edges proving when one thread observes another's writes.",
+        "children": [
+          {
+            "label": "Sequenced-Before Order",
+            "note": "Intra-thread evaluation ordering established within a single execution stream."
+          },
+          {
+            "label": "Synchronizes-With Edge",
+            "note": "Inter-thread link created when an acquire load reads a release store."
+          },
+          {
+            "label": "Release Sequences",
+            "note": "Chained atomic RMW operations preserve synchronization back to the initial release store."
+          }
+        ]
+      },
+      {
+        "label": "Memory Order Spectrum",
+        "note": "Six ordering tags balancing barrier cost against cross-thread guarantees.",
+        "children": [
+          {
+            "label": "Relaxed Counters",
+            "note": "Guarantees indivisible operations and modification order without ordering nearby memory."
+          },
+          {
+            "label": "Acquire-Release Pairwise",
+            "note": "Prevents earlier writes sinking past release and later reads hoisting above acquire."
+          },
+          {
+            "label": "Seq-Cst Global Total Order",
+            "note": "Enforces one consistent global order S across all seq_cst atomic operations."
+          }
+        ]
+      },
+      {
+        "label": "Litmus Tests and Hardware",
+        "note": "Why hardware store buffers break naive intuition without fences.",
+        "children": [
+          {
+            "label": "Store Buffering Anomaly",
+            "note": "Acquire-release allows both cores to read zero because store buffers delay writes."
+          },
+          {
+            "label": "Lock-Free Hardware Checks",
+            "note": "Verify is_always_lock_free so large structs do not silently fall back to hidden mutexes."
+          }
+        ]
+      },
+      {
+        "label": "CAS Loops and Fences",
+        "note": "Idiomatic lock-free algorithms built from compare-exchange and standalone barriers.",
+        "children": [
+          {
+            "label": "Weak vs Strong CAS",
+            "note": "Prefer compare_exchange_weak inside retry loops to avoid redundant LL/SC checks."
+          },
+          {
+            "label": "atomic_thread_fence Pairing",
+            "note": "Release and acquire fences synchronize relaxed atomics only on the fast exit path."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "root": {
+    "label": "Strings, views, and spans",
+    "note": "Contiguous sequence types divide into heap-capable owners and lightweight non-owning pointer-length descriptors.",
+    "children": [
+      {
+        "label": "std::string ownership",
+        "note": "Owns a contiguous character buffer uniquely with a guaranteed trailing null terminator.",
+        "children": [
+          {
+            "label": "Small String Optimization",
+            "note": "Short strings live inline inside the object footprint, avoiding heap allocation.",
+            "children": [
+              {
+                "label": "Move invalidation",
+                "note": "Moving an SSO string copies inline bytes, leaving prior views pointing at the source."
+              }
+            ]
+          },
+          {
+            "label": "Trailing null invariant",
+            "note": "Since C++11, data()[size()] is always CharT(), shared identically by c_str()."
+          },
+          {
+            "label": "resize_and_overwrite",
+            "note": "C++23 method lets C APIs populate capacity directly without pre-zeroing memory."
+          }
+        ]
+      },
+      {
+        "label": "std::string_view borrowing",
+        "note": "Trivially copyable two-word descriptor of read-only characters passed by value.",
+        "children": [
+          {
+            "label": "Missing null terminator",
+            "note": "Slicing via remove_suffix does not write a null byte, making printf with data() unsafe."
+          },
+          {
+            "label": "Dangling lifetimes",
+            "note": "Binding a view to a temporary std::string dangles immediately at the semicolon."
+          },
+          {
+            "label": "Deleted nullptr ctor",
+            "note": "C++23 deletes basic_string_view(nullptr_t) to turn null construction into a compile error."
+          }
+        ]
+      },
+      {
+        "label": "std::span descriptors",
+        "note": "Non-owning contiguous range wrapper generalizing pointer and count for any element type.",
+        "children": [
+          {
+            "label": "Static vs dynamic extent",
+            "note": "Static extent span<T, N> stores one pointer, whereas dynamic span<T> stores pointer and count."
+          },
+          {
+            "label": "Shallow constness",
+            "note": "const span<T> allows mutating elements; write span<const T> for read-only views."
+          },
+          {
+            "label": "Raw byte views",
+            "note": "as_bytes and as_writable_bytes reinterpret contiguous elements as std::byte spans."
+          }
+        ]
+      },
+      {
+        "label": "API boundary rules",
+        "note": "Return owning containers upward and pass non-owning views downward by value.",
+        "children": [
+          {
+            "label": "borrowed_range opt-in",
+            "note": "Both string_view and span satisfy borrowed_range so range algorithms return real iterators."
+          },
+          {
+            "label": "Slicing subranges",
+            "note": "Use first, last, and subspan to narrow views in constant time without allocations."
+          }
+        ]
+      }
+    ]
+  }
+}

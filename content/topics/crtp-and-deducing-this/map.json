@@ -1,0 +1,123 @@
+{
+  "root": {
+    "label": "CRTP & Deducing This",
+    "note": "Compile-time polymorphism evolved from template base casts to C++23 explicit object parameters.",
+    "children": [
+      {
+        "label": "Classic CRTP",
+        "note": "A derived class passes itself as a template argument to its own base class.",
+        "children": [
+          {
+            "label": "Static Dispatch Cast",
+            "note": "Base invokes derived methods via static_cast<Derived&>(*this) with full inlining.",
+            "children": []
+          },
+          {
+            "label": "Zero Vtable Cost",
+            "note": "CRTP avoids vptr memory overhead and indirect runtime calls entirely.",
+            "children": []
+          },
+          {
+            "label": "Mixin Injection",
+            "note": "Reusable interfaces like view_interface inject operators onto concrete derived types.",
+            "children": []
+          },
+          {
+            "label": "Friend Guard Pattern",
+            "note": "Making Base's constructor private and friending Derived prevents inheriting Base<WrongType>.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "CRTP Constraints",
+        "note": "Instantiation order and two-phase lookup create subtle classic CRTP hazards.",
+        "children": [
+          {
+            "label": "Incomplete Derived Type",
+            "note": "Derived is incomplete while Base<Derived> instantiates, restricting uses to member bodies.",
+            "children": []
+          },
+          {
+            "label": "Ctor and Dtor UB",
+            "note": "Casting *this to Derived inside Base's constructor or destructor triggers undefined behavior.",
+            "children": []
+          },
+          {
+            "label": "Dependent Base Lookup",
+            "note": "Derived templates inheriting dependent bases must access base members via this-> or Base<T>::.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Explicit Object Param",
+        "note": "C++23 lets the receiver parameter be written explicitly with this Self&&.",
+        "children": [
+          {
+            "label": "this Self&& Syntax",
+            "note": "Annotating the first parameter with this deduces both object type and value category.",
+            "children": []
+          },
+          {
+            "label": "No Implicit this",
+            "note": "Explicit object member functions forbid using the implicit this pointer inside their body.",
+            "children": []
+          },
+          {
+            "label": "Disallowed Qualifiers",
+            "note": "Explicit object parameters cannot be combined with virtual, static, const, or ref-qualifiers.",
+            "children": []
+          },
+          {
+            "label": "Plain Function Pointer",
+            "note": "Taking the address of an explicit object function yields a regular function pointer, not a member pointer.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Overload Unification",
+        "note": "A single deducing-this template replaces four cv- and ref-qualified member overloads.",
+        "children": [
+          {
+            "label": "Single Template Body",
+            "note": "One template handles &, const&, &&, and const&& receivers without code duplication.",
+            "children": []
+          },
+          {
+            "label": "Deduces Derived Self",
+            "note": "Calling a base explicit-object method on Derived deduces Self directly as Derived.",
+            "children": []
+          },
+          {
+            "label": "std::forward_like Member",
+            "note": "Merges Self's constness and value category onto a returned field or reference member.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Modern Idioms",
+        "note": "Deducing this simplifies static mixins, recursive closures, and small value types.",
+        "children": [
+          {
+            "label": "Non-Template CRTP",
+            "note": "Mixins become ordinary non-template bases dispatching to self.impl() cleanly.",
+            "children": []
+          },
+          {
+            "label": "Recursive Lambdas",
+            "note": "Naming this auto&& self inside a lambda enables zero-overhead self-recursion.",
+            "children": []
+          },
+          {
+            "label": "Pass-By-Value this",
+            "note": "Taking this T copy passes small types directly in registers rather than by pointer.",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

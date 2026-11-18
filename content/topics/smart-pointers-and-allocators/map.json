@@ -1,0 +1,94 @@
+{
+  "root": {
+    "label": "Smart pointers & allocators",
+    "note": "C++ decouples deterministic object ownership from raw memory allocation strategies.",
+    "children": [
+      {
+        "label": "Exclusive ownership (unique_ptr)",
+        "note": "Move-only handle encoding cleanup inside its deleter type parameter.",
+        "children": [
+          {
+            "label": "Zero-size stateless deleter",
+            "note": "Default or empty functor deleters keep sizeof(unique_ptr<T>) equal to T*."
+          },
+          {
+            "label": "Stateful or function deleters",
+            "note": "Function pointers or capturing lambdas grow unique_ptr beyond one pointer."
+          },
+          {
+            "label": "Array specialization T[]",
+            "note": "Provides operator[], calls delete[], and blocks derived-to-base array conversion."
+          }
+        ]
+      },
+      {
+        "label": "Shared ownership (shared_ptr)",
+        "note": "Two-pointer reference-counted handle sharing a heap control block.",
+        "children": [
+          {
+            "label": "Two-pointer layout",
+            "note": "Stores both get() and control-block pointer, enabling aliasing and base casts."
+          },
+          {
+            "label": "Control block fields",
+            "note": "Tracks atomic strong count, weak count, type-erased deleter, and allocator."
+          },
+          {
+            "label": "make_shared single allocation",
+            "note": "Fuses T storage and control block until the last weak_ptr also expires."
+          }
+        ]
+      },
+      {
+        "label": "Weak observation & thread safety",
+        "note": "Non-owning observers break cycles and inspect control blocks safely.",
+        "children": [
+          {
+            "label": "Atomic promotion via lock()",
+            "note": "Checks and increments use_count atomically, avoiding expired() TOCTOU races."
+          },
+          {
+            "label": "enable_shared_from_this",
+            "note": "Initializes weak_this after construction; throws bad_weak_ptr if unowned."
+          },
+          {
+            "label": "atomic<shared_ptr<T>>",
+            "note": "C++20 wrapper required when mutating the same shared_ptr handle across threads."
+          }
+        ]
+      },
+      {
+        "label": "Allocator traits & contracts",
+        "note": "allocator_traits normalizes container-to-allocator interaction and propagation.",
+        "children": [
+          {
+            "label": "Trait defaults & allocate_at_least",
+            "note": "Synthesizes construct/destroy and lets containers claim over-allocated buckets."
+          },
+          {
+            "label": "POCCA, POCMA & POCS",
+            "note": "False POCMA forces O(N) moves across unequal arenas; unequal false POCS swap is UB."
+          }
+        ]
+      },
+      {
+        "label": "Polymorphic memory resources",
+        "note": "std::pmr erases allocator types behind a memory_resource* pointer.",
+        "children": [
+          {
+            "label": "Uniform container types",
+            "note": "All std::pmr::vector<T> share one static type across arenas and pools."
+          },
+          {
+            "label": "monotonic_buffer_resource",
+            "note": "Fast bump allocator over stack or upstream buffers freed wholesale on teardown."
+          },
+          {
+            "label": "Non-propagating pmr handles",
+            "note": "polymorphic_allocator sets POCCA, POCMA, and POCS false to preserve arena identity."
+          }
+        ]
+      }
+    ]
+  }
+}

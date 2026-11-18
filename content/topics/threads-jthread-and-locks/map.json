@@ -1,0 +1,102 @@
+{
+  "root": {
+    "label": "Threads, jthread & locks",
+    "note": "RAII thread lifetimes, cooperative stop tokens, and structured synchronization prevent leaks and races.",
+    "children": [
+      {
+        "label": "Thread ownership (thread vs jthread)",
+        "note": "Raw std::thread aborts if unjoined; std::jthread stops and joins automatically.",
+        "children": [
+          {
+            "label": "~thread() calls std::terminate()",
+            "note": "Destroying a joinable std::thread aborts rather than silently detaching or deadlocking."
+          },
+          {
+            "label": "~jthread() stops then joins",
+            "note": "Requests stop on its internal stop_source and joins before leaving scope."
+          },
+          {
+            "label": "Declare jthread member last",
+            "note": "Reverse member destruction joins the worker before mutexes or state are destroyed."
+          }
+        ]
+      },
+      {
+        "label": "Cooperative cancellation",
+        "note": "stop_source and stop_token coordinate clean shutdown without async kills.",
+        "children": [
+          {
+            "label": "stop_source & stop_token",
+            "note": "Reference-counted atomic stop state injected automatically into jthread callables."
+          },
+          {
+            "label": "Synchronous stop_callback",
+            "note": "Runs immediately in its constructor if stop was already requested, preventing missed signals."
+          },
+          {
+            "label": "condition_variable_any stop wait",
+            "note": "wait(lk, st, pred) registers a stop_callback internally to wake sleeping waiters."
+          }
+        ]
+      },
+      {
+        "label": "Mutexes & RAII locks",
+        "note": "Scope-bound lock wrappers match single, multi-mutex, and reader-writer patterns.",
+        "children": [
+          {
+            "label": "scoped_lock avoids deadlocks",
+            "note": "Locks multiple mutexes via std::lock without ordering deadlocks."
+          },
+          {
+            "label": "unique_lock for deferral & CVs",
+            "note": "Movable wrapper supporting defer_lock, early unlock(), and condition variables."
+          },
+          {
+            "label": "shared_mutex & shared_lock",
+            "note": "Allows concurrent readers under shared_lock and exclusive writers under unique_lock."
+          },
+          {
+            "label": "Unnamed lock temporary trap",
+            "note": "Omitting a variable name unlocks immediately at the semicolon before the guarded block."
+          }
+        ]
+      },
+      {
+        "label": "Condition variables",
+        "note": "Predicate waits guard against spurious wakeups and lost notifications.",
+        "children": [
+          {
+            "label": "Always pass a predicate",
+            "note": "cv.wait(lk, pred) loops under the lock so spurious wakeups cannot break invariants."
+          },
+          {
+            "label": "Unlock before notify",
+            "note": "Releasing the mutex prior to notify prevents woken threads from immediately stalling."
+          }
+        ]
+      },
+      {
+        "label": "C++20 coordination & call_once",
+        "note": "Latches, barriers, semaphores, and once_flag cover phased and cross-thread signaling.",
+        "children": [
+          {
+            "label": "Single-use std::latch",
+            "note": "Downward counter where threads wait until arrivals reduce the count to zero."
+          },
+          {
+            "label": "Reusable noexcept std::barrier",
+            "note": "Phased rendezvous mandating a nothrow-invocable completion callable."
+          },
+          {
+            "label": "Unowned counting_semaphore",
+            "note": "Permits one thread to release() a token acquired by another thread."
+          },
+          {
+            "label": "Exception-retrying call_once",
+            "note": "If the first callable throws, another waiting thread retries initialization."
+          }
+        ]
+      }
+    ]
+  }
+}

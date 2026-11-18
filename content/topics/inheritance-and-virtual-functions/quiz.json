@@ -1,0 +1,94 @@
+{
+  "questions": [
+    {
+      "id": "inheritance-and-virtual-functions-q1",
+      "kind": "warmup",
+      "prompt": "What happens when a caller deletes a Derived object through a Base* pointer whose ~Base() destructor is NOT virtual?",
+      "code": "struct Base {\n    ~Base() {}\n};\nstruct Derived : Base {\n    std::string data = \"owned\";\n};\nvoid destroy() {\n    Base* p = new Derived{};\n    delete p;\n}",
+      "options": [
+        "Only ~Base() runs and Derived::data leaks, which is otherwise well-defined",
+        "Both ~Derived() and ~Base() run because operator delete checks heap metadata",
+        "The behavior is undefined according to [expr.delete]",
+        "The compiler rejects delete p unless Base has at least one virtual function"
+      ],
+      "answer": 2,
+      "explanation": "Under [expr.delete], deleting a polymorphic or derived-class object through a base pointer whose static type has a non-virtual destructor is undefined behavior—even if Derived adds no non-trivial data members.",
+      "refs": ["[expr.delete]", "[class.dtor]"]
+    },
+    {
+      "id": "inheritance-and-virtual-functions-q2",
+      "kind": "warmup",
+      "prompt": "Why does omitting the override specifier on Derived::render below introduce a subtle bug?",
+      "code": "struct Widget {\n    virtual void render(int dpi) const;\n};\nstruct Button : Widget {\n    void render(int dpi);\n};",
+      "options": [
+        "Button::render lacks const, so it hides Widget::render instead of overriding it",
+        "Virtual functions cannot be overridden without repeating the virtual keyword",
+        "The compiler automatically converts Widget::render to non-const to match Button",
+        "Button becomes an abstract class until override is added"
+      ],
+      "answer": 0,
+      "explanation": "const-qualification is part of a member function's type. Without override, Button::render(int) declares a brand-new unrelated non-virtual member that hides Widget::render(int) const rather than overriding it.",
+      "refs": ["[class.virtual]", "[dcl.fct]"]
+    },
+    {
+      "id": "inheritance-and-virtual-functions-q3",
+      "kind": "tricky",
+      "prompt": "What is the result of compiling and calling probe()?",
+      "code": "struct Base {\n    virtual int value(int x = 10) const { return x; }\n    virtual ~Base() = default;\n};\nstruct Derived : Base {\nprivate:\n    int value(int x = 99) const override { return x + 1; }\n};\nint probe() {\n    Derived d;\n    const Base& b = d;\n    return b.value();\n}",
+      "options": [
+        "Compile error: Derived::value is private",
+        "Returns 100 because Derived::value runs with Derived's default argument 99",
+        "Returns 10 because virtual calls with private overrides fall back to Base",
+        "Compiles and returns 11: access and default arg use Base, dispatch uses Derived"
+      ],
+      "answer": 3,
+      "explanation": "Access control ([class.access.virt]) and default arguments ([dcl.fct.default]) are checked and substituted statically from Base at the call site b.value(). At runtime, virtual dispatch still invokes Derived::value(10), returning 11.",
+      "refs": ["[class.access.virt]", "[class.virtual]"]
+    },
+    {
+      "id": "inheritance-and-virtual-functions-q4",
+      "kind": "tricky",
+      "prompt": "What does constructing Derived log when Base's constructor calls the virtual function tag()?",
+      "code": "struct Base {\n    Base() { log(tag()); }\n    virtual ~Base() = default;\n    virtual const char* tag() const { return \"Base\"; }\n};\nstruct Derived : Base {\n    const char* tag() const override { return \"Derived\"; }\n};",
+      "options": [
+        "\"Derived\", because the dynamic type of the full object is already Derived",
+        "\"Base\", because inside Base::Base() the object's dynamic type is Base",
+        "Undefined behavior whenever any virtual function is called from a constructor",
+        "Compile error: virtual functions cannot be called inside constructors"
+      ],
+      "answer": 1,
+      "explanation": "Under [class.cdtor], while Base::Base() executes, Derived's subobject has not started its lifetime yet, so the dynamic type of *this is Base. Virtual dispatch therefore resolves tag() to Base::tag().",
+      "refs": ["[class.cdtor]"]
+    },
+    {
+      "id": "inheritance-and-virtual-functions-q5",
+      "kind": "standardese",
+      "prompt": "In virtual diamond inheritance below, what value does Join{}.id hold after construction?",
+      "code": "struct Common {\n    int id;\n    explicit Common(int i = 0) : id(i) {}\n};\nstruct Left : virtual Common { Left() : Common(1) {} };\nstruct Right : virtual Common { Right() : Common(2) {} };\nstruct Join : Left, Right {\n    Join() : Left(), Right() {}\n};",
+      "options": [
+        "0, because the most-derived class Join initializes Common and omits Common from its initializer list",
+        "1, because Left appears first in Join's base-specifier list",
+        "2, because Right overwrites Common after Left runs",
+        "Ill-formed: Join fails to compile unless it explicitly writes Common(0)"
+      ],
+      "answer": 0,
+      "explanation": "Under [class.base.init], a virtual base subobject is always initialized by the constructor of the most-derived class (Join). Initializers for Common in Left and Right are ignored, so Join default-initializes Common via Common(0).",
+      "refs": ["[class.base.init]", "[class.mi]"]
+    },
+    {
+      "id": "inheritance-and-virtual-functions-q6",
+      "kind": "standardese",
+      "prompt": "Why does declaring a pure virtual destructor `virtual ~Stream() = 0;` still require providing an out-of-class body `Stream::~Stream() = default;`?",
+      "code": "struct Stream {\n    virtual ~Stream() = 0;\n};\nstruct FileStream : Stream {};",
+      "options": [
+        "Only because linkers always emit vtable slots for destructors even on abstract classes",
+        "Because pure virtual functions can never have empty bodies in C++",
+        "Because FileStream's destructor implicitly invokes Stream::~Stream() non-virtually during teardown",
+        "It is optional unless a caller deletes through Stream*"
+      ],
+      "answer": 2,
+      "explanation": "Every derived destructor implicitly calls each direct base class's destructor statically (not via virtual dispatch) when tearing down the base subobject ([class.dtor]). Without a definition for Stream::~Stream(), linking FileStream fails.",
+      "refs": ["[class.dtor]", "[class.abstract]"]
+    }
+  ]
+}

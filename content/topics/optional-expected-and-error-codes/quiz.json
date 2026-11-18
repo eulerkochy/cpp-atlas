@@ -1,0 +1,90 @@
+{
+  "questions": [
+    {
+      "id": "optional-expected-and-error-codes-q1",
+      "kind": "warmup",
+      "prompt": "Why does std::expected<T, E> provide the wrapper type std::unexpected<E>?",
+      "options": [
+        "Because E is always heap-allocated separately from T",
+        "To disambiguate error construction when T and E have the same or convertible types",
+        "Because E cannot be a scoped enum without wrapping",
+        "To automatically convert error return values into thrown exceptions"
+      ],
+      "answer": 1,
+      "explanation": "If you return a plain value from a function returning std::expected<int, int> or std::expected<std::string, std::string_view>, overload resolution cannot tell whether an argument is a value or an error. std::unexpected(e) unambiguously selects the error alternative.",
+      "refs": ["[expected.un.general]", "[expected.object.cons]"]
+    },
+    {
+      "id": "optional-expected-and-error-codes-q2",
+      "kind": "warmup",
+      "prompt": "In <system_error>, what is the primary design difference between std::error_code and std::error_condition?",
+      "options": [
+        "error_code represents platform/domain-specific raw codes, while error_condition represents portable semantic categories for matching",
+        "error_condition throws exceptions automatically whereas error_code does not",
+        "error_code allocates a std::string message while error_condition holds only an int",
+        "error_code is only for Windows APIs and error_condition is only for POSIX errno"
+      ],
+      "answer": 0,
+      "explanation": "std::error_code preserves the exact platform or library error integer and category pointer, whereas std::error_condition (like std::errc) represents a portable abstraction you compare against via category equivalence.",
+      "refs": ["[syserr.errcode.overview]", "[syserr.errcondition.overview]"]
+    },
+    {
+      "id": "optional-expected-and-error-codes-q3",
+      "kind": "tricky",
+      "prompt": "What does the following C++23 code evaluate?",
+      "code": "std::optional<bool> flag = false;\nif (flag) {\n    // branch A\n} else {\n    // branch B\n}",
+      "options": [
+        "Branch B runs because the contained bool is false",
+        "Compilation fails because optional<bool> has an ambiguous operator bool",
+        "Branch A runs because explicit operator bool() checks engagement, not the wrapped bool",
+        "Undefined behavior because optional<bool> cannot hold false"
+      ],
+      "answer": 2,
+      "explanation": "std::optional<T>::operator bool() always returns has_value(). Because flag holds the value false, it is engaged, so if (flag) enters Branch A. Use flag == true or flag.value_or(false) to test the contained value.",
+      "refs": ["[optional.observe]"]
+    },
+    {
+      "id": "optional-expected-and-error-codes-q4",
+      "kind": "tricky",
+      "prompt": "Given std::expected<int, std::string> r = 42;, what happens if you immediately call r.error() without checking r.has_value()?",
+      "code": "std::expected<int, std::string> r = 42;\nauto& msg = r.error();",
+      "options": [
+        "It returns an empty default-constructed std::string",
+        "It throws std::bad_expected_access<int>",
+        "Compilation fails unless wrapped in a try block",
+        "It triggers undefined behavior because r holds a value, not an error"
+      ],
+      "answer": 3,
+      "explanation": "Unlike r.value(), which throws std::bad_expected_access when holding an error, r.error() is an unchecked observer whose precondition is !has_value(). Calling r.error() on a value-holding expected is undefined behavior.",
+      "refs": ["[expected.object.observe]"]
+    },
+    {
+      "id": "optional-expected-and-error-codes-q5",
+      "kind": "standardese",
+      "prompt": "When registering a custom enum class AppErr with std::error_code via std::is_error_code_enum<AppErr>, where must make_error_code(AppErr) be declared?",
+      "options": [
+        "Inside namespace std alongside std::is_error_code_enum",
+        "Inside the same namespace as AppErr so ADL finds it",
+        "As a static member function of std::error_category",
+        "Only inside the translation unit defining main()"
+      ],
+      "answer": 1,
+      "explanation": "std::error_code's template constructor invokes unqualified make_error_code(e) so argument-dependent lookup (ADL) locates the overload in AppErr's associated namespace. Adding function overloads to namespace std is undefined behavior.",
+      "refs": ["[syserr.errcode.constructors]", "[namespace.std]"]
+    },
+    {
+      "id": "optional-expected-and-error-codes-q6",
+      "kind": "standardese",
+      "prompt": "In C++23, which call correctly transforms only the error channel of std::expected<int, ParseErr> e while passing any T value straight through?",
+      "options": [
+        "e.or_else(map_err)",
+        "e.and_then(map_err)",
+        "e.transform_error(map_err)",
+        "e.transform(map_err)"
+      ],
+      "answer": 2,
+      "explanation": "transform_error(f) applies f(*this->error()) when !has_value() and wraps the result in std::unexpected, returning a std::expected<T, NewErr>. If has_value() is true, transform_error forwards the existing T value unchanged.",
+      "refs": ["[expected.object.monadic]"]
+    }
+  ]
+}

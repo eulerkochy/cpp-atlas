@@ -1,0 +1,80 @@
+{
+  "root": {
+    "label": "Copy elision and NRVO",
+    "note": "C++17 separates guaranteed prvalue initialization from optional compiler elision such as NRVO.",
+    "children": [
+      {
+        "label": "Mandatory prvalue elision",
+        "note": "Prvalues are unmaterialized initializers that construct directly inside the destination slot.",
+        "children": [
+          {
+            "label": "No ctor required",
+            "note": "Types with deleted copy and move constructors can still be returned by prvalue."
+          },
+          {
+            "label": "Chained factory calls",
+            "note": "Nested prvalue returns forward the target slot without creating intermediate objects."
+          },
+          {
+            "label": "Where it stops",
+            "note": "Assignment, slicing conversions, and named locals still require assignment or ctors."
+          }
+        ]
+      },
+      {
+        "label": "Optional NRVO",
+        "note": "Compilers may fuse a named automatic local variable directly into the caller return slot.",
+        "children": [
+          {
+            "label": "Accessible ctor needed",
+            "note": "Because NRVO is optional, the returned type must still expose a copy or move constructor."
+          },
+          {
+            "label": "Throw and catch elision",
+            "note": "The standard also permits eliding copies when throwing locals or catching by value."
+          }
+        ]
+      },
+      {
+        "label": "What disables NRVO",
+        "note": "Several common patterns prevent the compiler from aliasing a local with the return slot.",
+        "children": [
+          {
+            "label": "return std::move(local)",
+            "note": "Casting the returned variable to an xvalue blocks NRVO and forces an explicit move."
+          },
+          {
+            "label": "Function parameters",
+            "note": "ABI parameter storage forbids NRVO on parameters, though implicit move still applies."
+          },
+          {
+            "label": "Multiple distinct locals",
+            "note": "Returning different local variables on separate branches usually defeats NRVO."
+          },
+          {
+            "label": "Members and globals",
+            "note": "Subobjects and non-automatic objects cannot occupy the caller return slot directly."
+          }
+        ]
+      },
+      {
+        "label": "Implicit move fallback",
+        "note": "When NRVO does not run, plain return local tries rvalue move resolution automatically.",
+        "children": [
+          {
+            "label": "Rvalue-first overload lookup",
+            "note": "Overload resolution tries treating the returned local or parameter as an rvalue first."
+          },
+          {
+            "label": "C++23 P2266R3 rule",
+            "note": "Simpler implicit move treats move-eligible id-expressions uniformly across return conversions."
+          },
+          {
+            "label": "Best practice rule",
+            "note": "Write plain return local to preserve NRVO when possible and implicit move otherwise."
+          }
+        ]
+      }
+    ]
+  }
+}

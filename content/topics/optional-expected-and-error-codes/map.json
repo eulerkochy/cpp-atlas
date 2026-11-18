@@ -1,0 +1,90 @@
+{
+  "root": {
+    "label": "Optional, Expected, and Error Codes",
+    "note": "Value-based error channels representing absence, typed failures, and portable OS error diagnostics.",
+    "children": [
+      {
+        "label": "Channel Selection Tradeoffs",
+        "note": "Matching failure frequency and diagnostic richness to the right C++ abstraction.",
+        "children": [
+          {
+            "label": "Exceptions vs Return Values",
+            "note": "Exceptions decouple distant handlers while value returns keep local failure paths explicit."
+          },
+          {
+            "label": "Zero-Allocation Inline Storage",
+            "note": "Optional, expected, and error_code store state inline without heap allocation."
+          }
+        ]
+      },
+      {
+        "label": "std::optional Patterns",
+        "note": "Nullable value wrapper for normal, self-explanatory absence.",
+        "children": [
+          {
+            "label": "Checked vs Unchecked Access",
+            "note": "value() throws bad_optional_access on empty whereas operator* invokes undefined behavior."
+          },
+          {
+            "label": "optional<bool> Truthiness Trap",
+            "note": "Contextual bool conversion tests engagement rather than the wrapped boolean value."
+          },
+          {
+            "label": "C++23 Monadic Combinators",
+            "note": "and_then, transform, and or_else chain nullable computations without nested branches."
+          }
+        ]
+      },
+      {
+        "label": "C++23 std::expected",
+        "note": "Discriminated union holding either expected T or unexpected E.",
+        "children": [
+          {
+            "label": "std::unexpected Disambiguation",
+            "note": "Explicitly marks error construction when T and E share or convert types."
+          },
+          {
+            "label": "expected<void, E> Operations",
+            "note": "Represents side-effectful steps that succeed silently or return typed failure."
+          },
+          {
+            "label": "Error Adaptation Pipelines",
+            "note": "transform_error translates low-level failures into domain errors along monadic chains."
+          }
+        ]
+      },
+      {
+        "label": "System Error Architecture",
+        "note": "Lightweight pairs distinguishing raw platform codes from portable meanings.",
+        "children": [
+          {
+            "label": "std::error_code Values",
+            "note": "Holds a raw integer code and category pointer preserving exact OS diagnostics."
+          },
+          {
+            "label": "std::error_condition Semantics",
+            "note": "Portable semantic target such as std::errc used inside cross-platform comparisons."
+          },
+          {
+            "label": "std::system_error Bridge",
+            "note": "Exception wrapper carrying an error_code across exception-based boundaries."
+          }
+        ]
+      },
+      {
+        "label": "Custom Error Categories",
+        "note": "Extending <system_error> cleanly for user-defined domain enums.",
+        "children": [
+          {
+            "label": "Singleton error_category",
+            "note": "Category identity relies on singleton address equality and default_error_condition mapping."
+          },
+          {
+            "label": "is_error_code_enum and ADL",
+            "note": "Specializing the trait and defining make_error_code in your namespace enables implicit conversion."
+          }
+        ]
+      }
+    ]
+  }
+}

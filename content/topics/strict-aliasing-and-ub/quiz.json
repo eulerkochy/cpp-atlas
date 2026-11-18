@@ -1,0 +1,92 @@
+{
+  "questions": [
+    {
+      "id": "strict-aliasing-and-ub-q1",
+      "kind": "warmup",
+      "prompt": "Which modern C++20 utility reinterprets the bit pattern of a float as a std::uint32_t safely and supports constexpr evaluation?",
+      "options": [
+        "std::launder<std::uint32_t>(f)",
+        "*reinterpret_cast<std::uint32_t*>(&f)",
+        "std::assume_aligned<4>(f)",
+        "std::bit_cast<std::uint32_t>(f)"
+      ],
+      "answer": 3,
+      "explanation": "std::bit_cast<To>(from) in <bit> creates a new To value from the object representation of from without aliasing pointers, requires matching sizes and trivially copyable types, and works in constexpr.",
+      "refs": ["[bit.cast]"]
+    },
+    {
+      "id": "strict-aliasing-and-ub-q2",
+      "kind": "warmup",
+      "prompt": "Why does reading an inactive member of a union (such as writing u.f = 1.0f; and reading u.i;) invoke undefined behavior in C++?",
+      "code": "union Pun { float f; std::uint32_t u; };\nPun p{ .f = 1.0f };\nstd::uint32_t bits = p.u;",
+      "options": [
+        "At most one union member can be active at a time in C++, so reading an inactive member breaks object lifetime rules",
+        "Unions cannot store floating-point and integer types together",
+        "Designated initializers always zero-initialize the wrong member",
+        "Reading p.u violates alignment rules on 64-bit targets"
+      ],
+      "answer": 0,
+      "explanation": "Unlike C99/C11 where union type punning is valid, C++ unions ([class.union]) have at most one active member whose lifetime is active. Accessing p.u when p.f is active is UB (save for the narrow common-initial-sequence rule for standard-layout structs).",
+      "refs": ["[class.union]", "[basic.life]"]
+    },
+    {
+      "id": "strict-aliasing-and-ub-q3",
+      "kind": "tricky",
+      "prompt": "In the function below, why can an optimizing compiler legally delete the `if (!p)` check?",
+      "code": "int inspect(int* p) {\n    int v = *p;\n    if (!p) return -1;\n    return v;\n}",
+      "options": [
+        "Pointers passed as function arguments can never be null in C++",
+        "The compiler caches `int v` in a register before evaluating `!p`",
+        "Dereferencing *p on line 1 would be UB if p were null, allowing the optimizer to deduce p != nullptr",
+        "The optimizer treats return -1 as unreachable for non-negative integers"
+      ],
+      "answer": 2,
+      "explanation": "Because *p precedes if (!p), any execution with p == nullptr already triggered undefined behavior. Under [intro.abstract], the optimizer assumes UB never happens, proves p != nullptr after line 1, and removes the dead branch.",
+      "refs": ["[intro.abstract]", "[expr.unary.op]"]
+    },
+    {
+      "id": "strict-aliasing-and-ub-q4",
+      "kind": "tricky",
+      "prompt": "Assuming `int buf[4]{};`, which pointer formation alone triggers undefined behavior even if you never dereference the resulting pointer?",
+      "code": "int buf[4]{1, 2, 3, 4};",
+      "options": [
+        "int* end = buf + 4;",
+        "int* bad = buf + 5;",
+        "int* first = &buf[0];",
+        "void* raw = buf;"
+      ],
+      "answer": 1,
+      "explanation": "Under [expr.add], pointer arithmetic is defined only within the array bounds plus one-past-the-end (buf + 4). Forming buf + 5—or buf - 1—causes undefined behavior immediately upon pointer addition, even without dereferencing.",
+      "refs": ["[expr.add]"]
+    },
+    {
+      "id": "strict-aliasing-and-ub-q5",
+      "kind": "standardese",
+      "prompt": "According to [basic.lval]/11, which byte-oriented pointer type is NOT listed as permitted to alias an object of an arbitrary dynamic type like double?",
+      "options": [
+        "char*",
+        "unsigned char*",
+        "std::byte*",
+        "signed char*"
+      ],
+      "answer": 3,
+      "explanation": "Section [basic.lval]/11 explicitly grants byte-level aliasing to char, unsigned char, and std::byte—never signed char! Using signed char* (or int8_t*) to inspect arbitrary object representations violates strict aliasing.",
+      "refs": ["[basic.lval]"]
+    },
+    {
+      "id": "strict-aliasing-and-ub-q6",
+      "kind": "standardese",
+      "prompt": "Under [class.mem.general], when is reading an inactive member of a standard-layout union well-defined in C++?",
+      "code": "struct A { int tag; double x; };\nstruct B { int tag; long y; };\nunion U { A a; B b; };",
+      "options": [
+        "When accessing a member belonging to the common initial sequence of two standard-layout struct members of the union",
+        "Whenever both struct members have identical total sizeof",
+        "Only when the union is declared inside an extern \"C\" block",
+        "Whenever the member is read through a reinterpret_cast"
+      ],
+      "answer": 0,
+      "explanation": "Per [class.mem.general], in a standard-layout union with active member of struct type T1, it is permitted to inspect a non-static data member m of another standard-layout struct member T2 provided m belongs to their common initial sequence (like int tag above).",
+      "refs": ["[class.mem.general]", "[class.union]"]
+    }
+  ]
+}

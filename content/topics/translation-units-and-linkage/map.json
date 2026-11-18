@@ -1,0 +1,98 @@
+{
+  "root": {
+    "label": "Translation Units & Linkage",
+    "note": "Source files become isolated translation units whose symbols coordinate through linkage and the One Definition Rule.",
+    "children": [
+      {
+        "label": "Translation Phases",
+        "note": "Nine ordered compilation phases turn source text and headers into linked object code.",
+        "children": [
+          {
+            "label": "Preprocessing (Phase 4)",
+            "note": "Textually splices included headers and expands macros to form one translation unit."
+          },
+          {
+            "label": "Semantic Analysis (Phase 7)",
+            "note": "Compiles one translation unit in isolation without inspecting neighboring source files."
+          },
+          {
+            "label": "Linking (Phase 9)",
+            "note": "Merges compiled translation units and resolves external symbol references across the program."
+          }
+        ]
+      },
+      {
+        "label": "Three Orthogonal Axes",
+        "note": "Every declared entity independently carries a scope, storage duration, and linkage.",
+        "children": [
+          {
+            "label": "Scope",
+            "note": "Compile-time lookup rule determining where an unqualified identifier can be resolved."
+          },
+          {
+            "label": "Storage Duration",
+            "note": "Lifetime rule specifying when an object's storage is allocated and destroyed."
+          },
+          {
+            "label": "Linkage",
+            "note": "Identity rule deciding whether declarations in different scopes or TUs name the same entity."
+          }
+        ]
+      },
+      {
+        "label": "Linkage Kinds",
+        "note": "C++ partitions declarations into no linkage, internal, external, or module linkage.",
+        "children": [
+          {
+            "label": "No Linkage",
+            "note": "Block-scope locals and static local variables are never shared by name across scopes."
+          },
+          {
+            "label": "Internal Linkage",
+            "note": "Namespace-scope static, unnamed namespaces, and plain const globals stay private to one TU."
+          },
+          {
+            "label": "External Linkage",
+            "note": "Non-static globals, classes, and inline entities resolve to the same symbol program-wide."
+          },
+          {
+            "label": "Module Linkage",
+            "note": "Non-exported entities inside a module purview are shared across that module's units only."
+          }
+        ]
+      },
+      {
+        "label": "One Definition Rule",
+        "note": "Limits how many definitions an entity may have per translation unit and program-wide.",
+        "children": [
+          {
+            "label": "Single Program Definition",
+            "note": "Each odr-used non-inline external entity must have exactly one definition in the program."
+          },
+          {
+            "label": "Inline & Template Merging",
+            "note": "Classes, templates, and inline entities allow one identical definition per translation unit."
+          },
+          {
+            "label": "IFNDR Mismatch",
+            "note": "Token or lookup mismatches across TUs make the program ill-formed with no diagnostic required."
+          }
+        ]
+      },
+      {
+        "label": "Language & ABI Linkage",
+        "note": "Controls calling conventions, name mangling, and TU-local exposure boundaries.",
+        "children": [
+          {
+            "label": "extern \"C\" Blocks",
+            "note": "Selects C ABI linkage while braced variable declarations without extern still define storage."
+          },
+          {
+            "label": "TU-Local Entities",
+            "note": "Internal-linkage entities cannot be exposed via external inline functions or module exports."
+          }
+        ]
+      }
+    ]
+  }
+}

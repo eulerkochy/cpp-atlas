@@ -1,0 +1,93 @@
+{
+  "questions": [
+    {
+      "id": "copy-and-move-q1",
+      "kind": "warmup",
+      "prompt": "What does `std::move(x)` actually do at runtime when executed on a local `std::vector<int> x`?",
+      "code": "std::vector<int> a{1, 2, 3};\nauto b = std::move(a);",
+      "options": [
+        "std::move copies the heap pointer and zeroes a inside the std::move function body",
+        "std::move emits zero instructions; it simply casts a to an xvalue so vector's move constructor is selected",
+        "std::move immediately invokes a.~vector() after returning",
+        "std::move swaps the stack frames of a and b"
+      ],
+      "answer": 1,
+      "explanation": "std::move is a pure compile-time cast to std::remove_reference_t<T>&& ([utility.move]). The actual pointer transfer and zeroing happen inside std::vector's move constructor because overload resolution picks vector(vector&&) for the xvalue.",
+      "refs": ["[utility.move]"]
+    },
+    {
+      "id": "copy-and-move-q2",
+      "kind": "warmup",
+      "prompt": "What happens when you initialize `b` using `const std::string a = \"hello\"; std::string b = std::move(a);`?",
+      "code": "const std::string a = \"hello\";\nstd::string b = std::move(a);",
+      "options": [
+        "Compilation fails because you cannot pass a const object to std::move",
+        "std::string's move constructor runs and clears a",
+        "std::string's copy constructor runs because std::move(a) has type const std::string&&",
+        "Undefined behavior from modifying a const object"
+      ],
+      "answer": 2,
+      "explanation": "std::move(a) preserves constness and returns const std::string&&. Because std::string(std::string&&) requires a non-const rvalue reference, overload resolution selects std::string(const std::string&) and copies a.",
+      "refs": ["[utility.move]", "[dcl.init.ref]"]
+    },
+    {
+      "id": "copy-and-move-q3",
+      "kind": "tricky",
+      "prompt": "Why does `std::vector<Item>::push_back` copy existing `Item` elements during reallocation when `Item` declares both `Item(const Item&)` and `Item(Item&&)` without `noexcept`?",
+      "code": "struct Item {\n    Item(const Item&);\n    Item(Item&&); // not noexcept\n};",
+      "options": [
+        "std::vector never moves elements during reallocation; it always copies",
+        "std::vector uses std::move_if_noexcept, which falls back to copying so the old buffer stays intact if moving throws mid-reallocation",
+        "Non-noexcept move constructors are treated as deleted by std::allocator",
+        "Because Item lacks a user-declared destructor, its move constructor is suppressed"
+      ],
+      "answer": 1,
+      "explanation": "To preserve push_back's strong exception guarantee, std::vector calls std::move_if_noexcept ([utility.move.if.noexcept]). Because Item has a copy constructor and its move constructor is not noexcept, move_if_noexcept yields const Item& and copies safely.",
+      "refs": ["[utility.move.if.noexcept]", "[vector.modifiers]"]
+    },
+    {
+      "id": "copy-and-move-q4",
+      "kind": "tricky",
+      "prompt": "What is the effect of adding `~Widget() = default;` to a struct that has a `std::string` member and no explicitly declared copy or move functions?",
+      "code": "struct Widget {\n    std::string name;\n    ~Widget() = default;\n};",
+      "options": [
+        "Both copy and move operations remain implicitly defaulted as before",
+        "Copy operations are deleted while move operations remain defaulted",
+        "Move constructor and move assignment are implicitly deleted",
+        "Implicit move constructor and move assignment are not declared (suppressed), so moving Widget silently calls its copy operations"
+      ],
+      "answer": 3,
+      "explanation": "Under [class.copy.ctor] and [class.copy.assign], any user-declared destructor suppresses implicit declaration of both the move constructor and move assignment operator. Implicit copy operations remain declared, so moves quietly degrade into copies.",
+      "refs": ["[class.copy.ctor]", "[class.copy.assign]"]
+    },
+    {
+      "id": "copy-and-move-q5",
+      "kind": "standardese",
+      "prompt": "What does the C++ standard guarantee about a moved-from `std::string s` after `auto t = std::move(s);`?",
+      "options": [
+        "s is in a valid but unspecified state: it can be safely destroyed or reassigned, though its contents and length are unspecified",
+        "s is guaranteed to have s.empty() == true and s.capacity() == 0",
+        "Using s in any way—including destruction—is undefined behavior",
+        "s retains its original characters until s goes out of scope"
+      ],
+      "answer": 0,
+      "explanation": "[lib.types.movedfrom] specifies that moved-from standard library objects are placed in a valid but unspecified state unless explicitly specified otherwise. Calling clear() or assigning a new value is safe; assuming empty() is not.",
+      "refs": ["[lib.types.movedfrom]"]
+    },
+    {
+      "id": "copy-and-move-q6",
+      "kind": "standardese",
+      "prompt": "Why does `Output finalize(Builder b) { return b; }` compile in C++23 when `Builder` defines only `operator Output() &&` and deletes `operator Output() const&`?",
+      "code": "struct Output {};\nstruct Builder {\n    operator Output() && { return {}; }\n    operator Output() const& = delete;\n};\nOutput finalize(Builder b) { return b; }",
+      "options": [
+        "NRVO eliminates the conversion operator entirely for function parameters",
+        "C++23 P2266R3 classifies b in return b as move-eligible, so overload resolution treats b as an rvalue during implicit move",
+        "Parameters passed by value are always prvalues inside the function body",
+        "Because operator Output() const& is deleted, the compiler calls reinterpret_cast"
+      ],
+      "answer": 1,
+      "explanation": "Under C++23 [class.copy.elision] (P2266R3), an id-expression naming an automatic variable or parameter in a return statement is move-eligible, triggering an rvalue-first overload lookup that picks operator Output() && without needing std::move(b).",
+      "refs": ["[class.copy.elision]"]
+    }
+  ]
+}

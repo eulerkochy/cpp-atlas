@@ -1,0 +1,118 @@
+{
+  "root": {
+    "label": "RAII & Resource Safety",
+    "note": "Binding resource invariants to object lifetimes guarantees deterministic cleanup across every exit path.",
+    "children": [
+      {
+        "label": "Core Principle",
+        "note": "Constructors establish resource invariants and destructors release them at lexical scope exit.",
+        "children": [
+          {
+            "label": "Invariant Acquisition",
+            "note": "A successfully constructed RAII object always holds either a valid resource or a safe empty state.",
+            "children": []
+          },
+          {
+            "label": "Scope-Exit Release",
+            "note": "Cleanup fires uniformly on fallthrough, early return, break, and exception unwinding.",
+            "children": []
+          },
+          {
+            "label": "Non-Memory Resources",
+            "note": "RAII manages file descriptors, mutexes, sockets, transactions, and temporary state guards alike.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Destruction Rules",
+        "note": "C++ prescribes strict reverse teardown ordering and implicit noexcept on destructors.",
+        "children": [
+          {
+            "label": "Reverse Order",
+            "note": "Locals, members, and bases are destroyed in exact reverse order of construction completion.",
+            "children": []
+          },
+          {
+            "label": "Implicit noexcept",
+            "note": "Destructors are implicitly noexcept(true) since C++11 unless explicitly overridden or inheriting throwing ones.",
+            "children": []
+          },
+          {
+            "label": "std::terminate Trap",
+            "note": "Allowing an exception to escape a noexcept destructor immediately calls std::terminate.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Exception Unwinding",
+        "note": "Exceptions unwind only completely constructed objects and subobjects.",
+        "children": [
+          {
+            "label": "Completed Subobjects",
+            "note": "Every base or member whose constructor finished before a throw is destroyed automatically.",
+            "children": []
+          },
+          {
+            "label": "No Partial Destructor",
+            "note": "When a class constructor throws, that class's own destructor never runs because lifetime never began.",
+            "children": []
+          },
+          {
+            "label": "No Abrupt Exit Unwind",
+            "note": "Calling std::exit or std::abort bypasses automatic stack frame destructors.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Special Members",
+        "note": "Ownership design separates zero-boilerplate composition from custom resource handles.",
+        "children": [
+          {
+            "label": "Rule of Zero",
+            "note": "Domain classes hold standard RAII members and declare zero custom special member functions.",
+            "children": []
+          },
+          {
+            "label": "Rule of Five",
+            "note": "Low-level resource wrappers declaring a destructor must explicitly define or delete copy and move operations.",
+            "children": []
+          },
+          {
+            "label": "Suppressed Moves",
+            "note": "Any user-declared destructor—even = default—suppresses compiler-generated move operations.",
+            "children": []
+          },
+          {
+            "label": "std::exchange Moves",
+            "note": "Transfer handles cleanly with std::exchange(other.handle, invalid) and mark moves noexcept.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Standard Vocabulary",
+        "note": "Standard library smart pointers and lock guards encode ownership contracts directly in types.",
+        "children": [
+          {
+            "label": "unique_ptr Deleters",
+            "note": "Stateless functor deleters preserve single-pointer size whereas function-pointer deleters add storage overhead.",
+            "children": []
+          },
+          {
+            "label": "shared_ptr & weak_ptr",
+            "note": "Use shared ownership sparingly with make_shared and break reference cycles with weak_ptr.",
+            "children": []
+          },
+          {
+            "label": "scoped_lock Guards",
+            "note": "Acquire multiple mutexes atomically without deadlock and release them automatically at scope exit.",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

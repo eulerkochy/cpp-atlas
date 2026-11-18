@@ -1,0 +1,92 @@
+{
+  "questions": [
+    {
+      "id": "exception-safety-guarantees-q1",
+      "kind": "warmup",
+      "prompt": "What does the basic exception-safety guarantee promise if a member function throws an exception?",
+      "options": [
+        "All modified objects automatically roll back to their exact pre-call values",
+        "No resources are leaked and all class invariants remain intact, though values may have changed",
+        "The function is implicitly marked noexcept and calls std::terminate on error",
+        "Only stack-allocated primitives are rolled back while heap memory may leak"
+      ],
+      "answer": 1,
+      "explanation": "The basic guarantee requires zero resource leaks and preserved invariants so surviving objects remain valid and destructible, without promising value rollback (which is the strong guarantee).",
+      "refs": ["[except]", "[res.on.exception.handling]"]
+    },
+    {
+      "id": "exception-safety-guarantees-q2",
+      "kind": "warmup",
+      "prompt": "Why does std::vector::push_back copy elements instead of moving them during buffer reallocation when a copyable type's move constructor lacks noexcept?",
+      "code": "struct S {\n    S(const S&);\n    S(S&&); // not noexcept\n};",
+      "options": [
+        "The standard forbids calling non-noexcept move constructors anywhere in <vector>",
+        "Copy constructors are always faster than move constructors for small buffers",
+        "Moving irreversibly alters the source buffer, so throwing mid-reallocation would break push_back's strong guarantee",
+        "Non-noexcept move constructors make std::is_move_constructible_v<S> false"
+      ],
+      "answer": 2,
+      "explanation": "std::vector uses std::move_if_noexcept to preserve its strong exception-safety guarantee on reallocation: if moving element i can throw, the old elements are already mutated, preventing rollback. When copy construction is available, vector falls back to copying.",
+      "refs": ["[vector.modifiers]", "[utility.move.if.noexcept]"]
+    },
+    {
+      "id": "exception-safety-guarantees-q3",
+      "kind": "tricky",
+      "prompt": "In the snippet below, what happens if Foo's second member initializer (b(arg)) throws an exception?",
+      "code": "struct Foo {\n    A a;\n    B b;\n    Foo(int arg) : a(), b(arg) {}\n    ~Foo() { cleanup(); }\n};",
+      "options": [
+        "~A() runs to destroy the completed subobject, and ~Foo() does not run",
+        "~Foo() runs first, followed by ~A()",
+        "Neither ~A() nor ~Foo() runs because Foo never finished constructing",
+        "Both ~B() and ~A() run in reverse declaration order"
+      ],
+      "answer": 0,
+      "explanation": "An object's lifetime begins only when its constructor completes. When b(arg) throws, b never began lifetime and Foo never finished construction, so ~Foo() and ~B() are skipped—only already-constructed subobjects (a) are destroyed in reverse order.",
+      "refs": ["[except.ctor]", "[basic.life]"]
+    },
+    {
+      "id": "exception-safety-guarantees-q4",
+      "kind": "tricky",
+      "prompt": "Why did C++17 introduce int std::uncaught_exceptions() to replace bool std::uncaught_exception()?",
+      "options": [
+        "uncaught_exception() returned false inside noexcept functions",
+        "uncaught_exception() had a data race across threads",
+        "uncaught_exceptions() automatically suppresses secondary exceptions thrown in destructors",
+        "A boolean cannot distinguish a new inner exception from an outer unwind already active when a scope guard was constructed"
+      ],
+      "answer": 3,
+      "explanation": "If a RAII transaction guard is constructed inside a catch block or destructor during an outer unwind, uncaught_exception() is already true throughout its scope. Comparing exit count against entry count via std::uncaught_exceptions() accurately detects new unwinding.",
+      "refs": ["[uncaught.exceptions]"]
+    },
+    {
+      "id": "exception-safety-guarantees-q5",
+      "kind": "standardese",
+      "prompt": "In modern C++ (C++11 and later), what is the implicit exception specification of TrackedHolder::~TrackedHolder() below?",
+      "code": "struct Tracked {\n    ~Tracked() noexcept(false) {}\n};\nstruct TrackedHolder {\n    Tracked t;\n    ~TrackedHolder() = default;\n};",
+      "options": [
+        "noexcept(true), because all destructors are unconditionally noexcept",
+        "Potentially throwing (noexcept(false)), inherited from member subobject Tracked::~Tracked()",
+        "Ill-formed because a defaulted destructor cannot contain a throwing member",
+        "noexcept(true) unless TrackedHolder also holds a virtual base"
+      ],
+      "answer": 1,
+      "explanation": "Per [class.dtor] and [except.spec], a destructor with no explicit noexcept specifier has the same exception specification as an implicitly declared one—which is noexcept(true) ONLY if all direct base and non-static member destructors are non-throwing. Tracked::~Tracked() is noexcept(false), making ~TrackedHolder() potentially throwing too.",
+      "refs": ["[class.dtor]", "[except.spec]"]
+    },
+    {
+      "id": "exception-safety-guarantees-q6",
+      "kind": "standardese",
+      "prompt": "What happens when execution reaches the closing brace of the catch block in Wrapper's constructor function-try-block?",
+      "code": "struct Wrapper {\n    Widget w;\n    Wrapper(int x) try : w(x) {\n    } catch (...) {\n        log_error();\n    }\n};",
+      "options": [
+        "Wrapper finishes constructing with w left uninitialized",
+        "The caught exception is swallowed and Wrapper throws std::bad_exception",
+        "The currently handled exception is implicitly rethrown",
+        "std::terminate() is called unconditionally"
+      ],
+      "answer": 2,
+      "explanation": "Under [except.handle], if control reaches the end of a handler of a function-try-block on a constructor or destructor without exiting via throw, the current exception is automatically rethrown—a constructor cannot recover and produce a half-constructed object.",
+      "refs": ["[except.handle]"]
+    }
+  ]
+}

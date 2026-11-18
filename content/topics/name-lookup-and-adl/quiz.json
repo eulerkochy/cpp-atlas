@@ -1,0 +1,91 @@
+{
+  "questions": [
+    {
+      "id": "name-lookup-and-adl-q1",
+      "kind": "warmup",
+      "prompt": "What is the role of `using Base::log;` inside a derived class that defines `void log(int)` when `Base` defines `void log(double)`?",
+      "options": [
+        "It marks Base::log as virtual so Derived can override it.",
+        "It prevents Derived::log(int) from hiding Base::log(double) during name lookup.",
+        "It enables Argument-Dependent Lookup across Base's namespace.",
+        "It suppresses access checking on private members of Base."
+      ],
+      "answer": 1,
+      "explanation": "Without `using Base::log;`, unqualified lookup finds `log` in `Derived` and stops before inspecting `Base`, hiding `Base::log(double)`. A using-declaration introduces the base overloads into `Derived` scope so overload resolution can choose among all of them.",
+      "refs": ["[namespace.udecl]", "[basic.lookup.unqual]"]
+    },
+    {
+      "id": "name-lookup-and-adl-q2",
+      "kind": "warmup",
+      "prompt": "Which call disables Argument-Dependent Lookup when invoking a free function `process` on an object `v` of type `geom::Vec`?",
+      "options": [
+        "process(v);",
+        "using geom::process; process(v);",
+        "(process)(v);",
+        "a + b; // where operator+ is a hidden friend"
+      ],
+      "answer": 2,
+      "explanation": "ADL only applies when the postfix expression of a function call is an unqualified-id. Wrapping `process` in parentheses `(process)(v)` or qualifying it (`geom::process(v)`) suppresses ADL.",
+      "refs": ["[basic.lookup.argdep]"]
+    },
+    {
+      "id": "name-lookup-and-adl-q3",
+      "kind": "tricky",
+      "prompt": "What happens when calling `w.emit(42)` on this class?",
+      "code": "struct Writer {\n    void emit(double) {}\nprivate:\n    void emit(int) {}\n};\nvoid test(Writer& w) { w.emit(42); }",
+      "options": [
+        "It calls public emit(double) because private overloads are hidden from callers.",
+        "It is ambiguous because both overloads accept 42.",
+        "It compiles with a warning and converts 42 to double.",
+        "It fails to compile with an access error because overload resolution selects private emit(int) before checking access."
+      ],
+      "answer": 3,
+      "explanation": "Name lookup collects all `emit` members regardless of access specifier, overload resolution selects `emit(int)` as an exact match over `emit(double)`, and access control runs last and rejects the call to private `emit(int)`.",
+      "refs": ["[class.access]", "[over.match]"]
+    },
+    {
+      "id": "name-lookup-and-adl-q4",
+      "kind": "tricky",
+      "prompt": "Why does `return value;` inside `Derived<T>::get()` fail to compile when `Base<T>` defines `int value = 1;`?",
+      "code": "template<class T> struct Base { int value = 1; };\ntemplate<class T> struct Derived : Base<T> {\n    int get() const { return value; }\n};",
+      "options": [
+        "Because `value` is a non-dependent name, Phase 1 lookup runs at template definition time and does not inspect dependent base class Base<T>.",
+        "Because data members of template bases are always private unless marked protected.",
+        "Because `const` member functions cannot access inherited non-const fields.",
+        "Because ADL only finds functions, not data members."
+      ],
+      "answer": 0,
+      "explanation": "Under two-phase name lookup ([temp.res]), non-dependent unqualified names inside a template are looked up during Phase 1 without inspecting dependent base classes like `Base<T>`, since an explicit specialization could redefine `Base<T>`. Writing `this->value` or `Base<T>::value` makes it dependent.",
+      "refs": ["[temp.dep]", "[temp.res]"]
+    },
+    {
+      "id": "name-lookup-and-adl-q5",
+      "kind": "standardese",
+      "prompt": "Under [basic.lookup.argdep], which declaration found by ordinary unqualified lookup prevents ADL from running for `swap(a, b)`?",
+      "code": "namespace ns { struct Item {}; void swap(Item&, Item&); }\nvoid run(ns::Item& a, ns::Item& b) {\n    void swap(int&, int&);\n    swap(a, b);\n}",
+      "options": [
+        "Only if `swap(int&, int&)` is a better match than `ns::swap`.",
+        "A block-scope function declaration that is not a using-declaration suppresses ADL completely, making `swap(a, b)` ill-formed.",
+        "A `using std::swap;` declaration inside `run` suppresses ADL just like a function declaration.",
+        "ADL still runs and finds `ns::swap` because `int&` cannot bind to `ns::Item`."
+      ],
+      "answer": 1,
+      "explanation": "[basic.lookup.argdep] specifies that if ordinary unqualified lookup finds a block-scope function declaration (that is NOT a using-declaration), a class member, or a non-function, ADL is not performed. By contrast, `using std::swap;` is a using-declaration and intentionally allows ADL.",
+      "refs": ["[basic.lookup.argdep]"]
+    },
+    {
+      "id": "name-lookup-and-adl-q6",
+      "kind": "standardese",
+      "prompt": "Why does `std::vector<geom::Vec>` allow ADL on `f(vec)` to search `namespace geom` in addition to `namespace std`?",
+      "options": [
+        "Because `std::vector` places a `using namespace geom;` directive inside `std`.",
+        "Because ADL always searches every namespace declared before the call site.",
+        "Because associated namespaces of a class template specialization include the associated namespaces of its template type arguments.",
+        "Because `geom::Vec` inherits from `std::vector` implicitly."
+      ],
+      "answer": 2,
+      "explanation": "Under [basic.lookup.argdep], the set of associated namespaces and classes of a class template specialization includes not only its own enclosing namespace and bases, but also the associated namespaces and classes of its template type arguments (and template template arguments).",
+      "refs": ["[basic.lookup.argdep]"]
+    }
+  ]
+}

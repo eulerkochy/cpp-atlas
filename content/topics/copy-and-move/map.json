@@ -1,0 +1,82 @@
+{
+  "root": {
+    "label": "Copy and move semantics",
+    "note": "Move semantics transfers ownership from expiring objects while respecting constness and exception safety.",
+    "children": [
+      {
+        "label": "std::move and constness",
+        "note": "std::move only casts to an rvalue reference and yields to copy semantics on const objects.",
+        "children": [
+          {
+            "label": "Unconditional rvalue cast",
+            "note": "std::move produces an xvalue at compile time without emitting runtime instructions."
+          },
+          {
+            "label": "const T&& fallback",
+            "note": "Applying std::move to a const variable creates const T&&, which calls the copy constructor."
+          }
+        ]
+      },
+      {
+        "label": "Special member generation",
+        "note": "User-declared destructors, copies, or moves alter which special members the compiler generates.",
+        "children": [
+          {
+            "label": "Destructor suppresses move",
+            "note": "Declaring any destructor disables implicit move generation and falls back to copying."
+          },
+          {
+            "label": "Move deletes copy",
+            "note": "Declaring a custom move operation implicitly deletes copy construction and copy assignment."
+          },
+          {
+            "label": "Rule of Zero vs Five",
+            "note": "Compose RAII wrappers to avoid custom members, or explicitly define all five for raw handles."
+          }
+        ]
+      },
+      {
+        "label": "Safe move implementation",
+        "note": "Custom move operations must clear the source, survive self-assignment, and preserve invariants.",
+        "children": [
+          {
+            "label": "std::exchange",
+            "note": "Atomically steals a pointer or handle value while resetting the source member to null."
+          },
+          {
+            "label": "Self-move guard",
+            "note": "Checking this == &other prevents freeing your own buffer during a = std::move(a)."
+          },
+          {
+            "label": "Valid unspecified state",
+            "note": "Moved-from standard objects remain destructible and assignable without guaranteeing emptiness."
+          }
+        ]
+      },
+      {
+        "label": "noexcept and containers",
+        "note": "Containers use std::move_if_noexcept to preserve strong exception safety during reallocation.",
+        "children": [
+          {
+            "label": "std::move_if_noexcept",
+            "note": "Selects rvalue move only if the move constructor is noexcept or copying is unavailable."
+          },
+          {
+            "label": "Explicit noexcept required",
+            "note": "User-written move operations do not infer noexcept automatically and must annotate it."
+          }
+        ]
+      },
+      {
+        "label": "Implicit move on return",
+        "note": "Returning a local variable or parameter automatically attempts rvalue overload resolution first.",
+        "children": [
+          {
+            "label": "C++23 P2266R3 rules",
+            "note": "Simpler implicit move treats move-eligible id-expressions uniformly as rvalues across conversions."
+          }
+        ]
+      }
+    ]
+  }
+}

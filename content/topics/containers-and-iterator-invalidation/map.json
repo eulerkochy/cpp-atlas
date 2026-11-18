@@ -1,0 +1,94 @@
+{
+  "root": {
+    "label": "Containers & invalidation",
+    "note": "Physical memory layout directly predicts iterator, pointer, and reference invalidation.",
+    "children": [
+      {
+        "label": "Contiguous buffers (vector)",
+        "note": "One heap array maximizes cache locality while reallocation moves every element.",
+        "children": [
+          {
+            "label": "Reallocation invalidates everything",
+            "note": "Growing capacity invalidates all iterators, pointers, and references."
+          },
+          {
+            "label": "push_back within capacity",
+            "note": "When capacity suffices, appending invalidates only the past-the-end iterator."
+          },
+          {
+            "label": "move_if_noexcept growth guard",
+            "note": "Missing noexcept on move constructors forces vector reallocation to copy."
+          },
+          {
+            "label": "vector<bool> proxy reference",
+            "note": "operator[] returns a bit-proxy rather than bool&, dangling if deduced via auto."
+          }
+        ]
+      },
+      {
+        "label": "Chunked blocks (deque)",
+        "note": "A spine of fixed pages lets ends grow without moving existing elements.",
+        "children": [
+          {
+            "label": "Ends keep pointers & refs",
+            "note": "push_back and push_front preserve pointers and references to existing elements."
+          },
+          {
+            "label": "Ends invalidate all iterators",
+            "note": "Spine reallocation invalidates every deque iterator on push_back or push_front."
+          },
+          {
+            "label": "Middle insert or erase",
+            "note": "Modifying interior positions invalidates all iterators, pointers, and references."
+          }
+        ]
+      },
+      {
+        "label": "Node-based trees & lists",
+        "note": "Standalone heap nodes give complete stability across insertions and other erasures.",
+        "children": [
+          {
+            "label": "Insertions never invalidate",
+            "note": "Adding nodes preserves all iterators, pointers, and element references."
+          },
+          {
+            "label": "Erasures isolate removed node",
+            "note": "Erasing invalidates only iterators, pointers, and references to removed elements."
+          },
+          {
+            "label": "C++17 extract & merge",
+            "note": "Transfers heap nodes between maps without copying or moving keys and values."
+          }
+        ]
+      },
+      {
+        "label": "Unordered hash tables",
+        "note": "Bucket array plus linked nodes separates iterator invalidation from node addresses.",
+        "children": [
+          {
+            "label": "Rehash invalidates iterators only",
+            "note": "Growing bucket tables invalidates all iterators while keeping node pointers valid."
+          },
+          {
+            "label": "Erasure preserves siblings",
+            "note": "Removing a bucket entry invalidates only handles to the erased element."
+          }
+        ]
+      },
+      {
+        "label": "C++23 flat_map & erasure",
+        "note": "Sorted parallel contiguous arrays trade node stability for cache speed.",
+        "children": [
+          {
+            "label": "Any mutation invalidates handles",
+            "note": "Insertions and erasures shift contiguous slots, invalidating all pointers and iterators."
+          },
+          {
+            "label": "Uniform C++20 std::erase_if",
+            "note": "Safely deletes matching elements across sequence and associative containers."
+          }
+        ]
+      }
+    ]
+  }
+}

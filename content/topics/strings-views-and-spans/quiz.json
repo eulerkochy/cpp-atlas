@@ -1,0 +1,94 @@
+{
+  "questions": [
+    {
+      "id": "strings-views-and-spans-q1",
+      "kind": "warmup",
+      "prompt": "Assuming 64-bit pointers (8 bytes) and std::size_t (8 bytes), what are the sizes of std::span<int, 4> and std::span<int>?",
+      "code": "#include <span>\nconstexpr auto a = sizeof(std::span<int, 4>);\nconstexpr auto b = sizeof(std::span<int>);",
+      "options": [
+        "a is 8 bytes (pointer only) and b is 16 bytes (pointer plus count)",
+        "Both are 16 bytes because every span stores pointer and count",
+        "a is 16 bytes (4 ints inline) and b is 16 bytes",
+        "a is 24 bytes and b is 16 bytes"
+      ],
+      "answer": 0,
+      "explanation": "A static-extent std::span<int, 4> encodes the length 4 in its type, so it only needs to store a single T* pointer (8 bytes). A dynamic-extent std::span<int> stores both T* and std::size_t (16 bytes).",
+      "refs": ["[span.overview]", "[views.span]"]
+    },
+    {
+      "id": "strings-views-and-spans-q2",
+      "kind": "warmup",
+      "prompt": "What does the const qualifier on the parameter const std::span<int> s enforce inside the function?",
+      "code": "void tweak(const std::span<int> s) {\n    if (!s.empty()) s[0] = 42;\n}",
+      "options": [
+        "Compilation fails because s is const and cannot modify elements",
+        "s[0] returns a prvalue copy, leaving the caller's array unchanged",
+        "Compilation succeeds and s[0] modifies the caller's underlying int",
+        "Compilation fails unless s is passed by const reference"
+      ],
+      "answer": 2,
+      "explanation": "const on std::span<int> is shallow: it prevents reassigning s itself inside tweak, not mutating the elements it refers to. Read-only element access requires std::span<const int>.",
+      "refs": ["[span.elem]", "[views.span]"]
+    },
+    {
+      "id": "strings-views-and-spans-q3",
+      "kind": "tricky",
+      "prompt": "What is the bug in passing sv.data() to std::puts after slicing with remove_suffix?",
+      "code": "#include <cstdio>\n#include <string_view>\n\nvoid print_prefix(std::string_view sv) {\n    sv.remove_suffix(4);\n    std::puts(sv.data());\n}",
+      "options": [
+        "remove_suffix reallocates the underlying buffer without a terminator",
+        "sv.data() still points to the full original string (or non-null-terminated memory), so std::puts prints past the slice or causes undefined behavior",
+        "std::string_view::data() returns nullptr after remove_suffix",
+        "remove_suffix throws std::out_of_range if sv is shorter than 4 characters"
+      ],
+      "answer": 1,
+      "explanation": "std::string_view::remove_suffix only decrements the internal length without copying bytes or writing a null terminator. Thus sv.data() still points at the unsliced buffer—printing the removed suffix too or overrunning if the original view was not null-terminated.",
+      "refs": ["[string.view.modifiers]", "[string.view.access]"]
+    },
+    {
+      "id": "strings-views-and-spans-q4",
+      "kind": "tricky",
+      "prompt": "What happens to sv after moving a short SSO std::string a into b?",
+      "code": "std::string a = \"hello\";\nstd::string_view sv = a;\nstd::string b = std::move(a);",
+      "options": [
+        "sv automatically updates to point into b's buffer",
+        "sv still safely observes \"hello\" inside b because move steals a heap pointer",
+        "std::string_view pins a's buffer via reference counting until sv is destroyed",
+        "Moving a short SSO string copies inline bytes and invalidates pointers, references, and views into a; sv no longer refers to b and reading it is invalid"
+      ],
+      "answer": 3,
+      "explanation": "Under [string.require], moving a std::basic_string invalidates pointers, references, and iterators into the moved-from string. For short strings using SSO, the characters reside directly inside a's footprint and must be copied into b, leaving sv disconnected from b.",
+      "refs": ["[string.require]", "[string.cons]"]
+    },
+    {
+      "id": "strings-views-and-spans-q5",
+      "kind": "standardese",
+      "prompt": "How does C++23 treat the initialization std::string_view sv = nullptr; compared to C++17?",
+      "code": "#include <string_view>\nstd::string_view sv = nullptr;",
+      "options": [
+        "In C++17 it selects the const char* constructor causing UB; in C++23 it is ill-formed because the nullptr_t constructor is explicitly deleted",
+        "In both C++17 and C++23 it constructs an empty string_view with size 0",
+        "In C++23 it throws std::logic_error at runtime",
+        "In both C++17 and C++23 it is ill-formed due to ambiguous overloads"
+      ],
+      "answer": 0,
+      "explanation": "In C++17/C++20, nullptr converted to const char* and invoked basic_string_view(const CharT*), calling Traits::length(nullptr) (UB). C++23 (P2166R1) added basic_string_view(std::nullptr_t) = delete; in [string.view.cons] so it is diagnosed at compile time.",
+      "refs": ["[string.view.cons]"]
+    },
+    {
+      "id": "strings-views-and-spans-q6",
+      "kind": "standardese",
+      "prompt": "Given std::string s = \"abc\";, what does evaluating s[s.size()] produce in C++11 and later?",
+      "code": "std::string s = \"abc\";\nchar c = s[s.size()];",
+      "options": [
+        "Undefined behavior because s.size() is out of bounds",
+        "Throws std::out_of_range",
+        "Well-defined: returns a reference to CharT() ('\\0'), though writing a non-null value through a non-const reference to s[s.size()] is undefined behavior",
+        "Well-defined only when s is const-qualified"
+      ],
+      "answer": 2,
+      "explanation": "Since C++11, [string.access] guarantees that both const and non-const operator[](size()) return a reference to CharT() (the null terminator). Reading s[s.size()] is well-defined, while modifying it to any value other than CharT() is undefined behavior.",
+      "refs": ["[string.access]", "[string.require]"]
+    }
+  ]
+}

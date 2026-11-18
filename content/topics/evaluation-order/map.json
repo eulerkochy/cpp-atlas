@@ -1,0 +1,98 @@
+{
+  "root": {
+    "label": "Evaluation Order",
+    "note": "C++ separates syntax grouping from runtime sequencing and defines strict rules for side-effect visibility.",
+    "children": [
+      {
+        "label": "Precedence vs Ordering",
+        "note": "Syntax trees bind operands to operators without dictating which subexpression runs first.",
+        "children": [
+          {
+            "label": "Precedence builds parse tree",
+            "note": "Higher-precedence operators claim neighboring operands before lower-precedence operators."
+          },
+          {
+            "label": "Associativity groups ties",
+            "note": "Left or right associativity resolves equal-precedence chains such as a - b - c."
+          },
+          {
+            "label": "Order picks runtime schedule",
+            "note": "The optimizer schedules subexpressions freely unless a sequencing edge constrains them."
+          }
+        ]
+      },
+      {
+        "label": "Sequencing Relations",
+        "note": "Every pair of single-thread evaluations is sequenced, indeterminately sequenced, or unsequenced.",
+        "children": [
+          {
+            "label": "Sequenced before",
+            "note": "Value computation and all side effects of the first complete before the second starts."
+          },
+          {
+            "label": "Indeterminately sequenced",
+            "note": "Either evaluation finishes before the other without interleaving instructions."
+          },
+          {
+            "label": "Unsequenced conflicts",
+            "note": "Two unsequenced accesses to one scalar where at least one writes cause undefined behavior."
+          }
+        ]
+      },
+      {
+        "label": "C++17 Guarantees",
+        "note": "P0145R3 ordered postfix chains, shifts, assignments, and separated function arguments.",
+        "children": [
+          {
+            "label": "Postfix and subscript left-first",
+            "note": "Member access and array indexing always finish evaluating the left object first."
+          },
+          {
+            "label": "Shifts evaluate left-to-right",
+            "note": "Chained stream insertions and bit shifts sequence the left operand before the right."
+          },
+          {
+            "label": "Assignment right-before-left",
+            "note": "Simple and compound assignments evaluate the right operand completely before the left."
+          },
+          {
+            "label": "Arguments cannot interleave",
+            "note": "Each argument finishes without interleaving, preventing nested smart-pointer leaks."
+          }
+        ]
+      },
+      {
+        "label": "Short-Circuit & Lists",
+        "note": "Control-flow operators and braced initializers enforce deterministic left-to-right steps.",
+        "children": [
+          {
+            "label": "Built-in logical operators",
+            "note": "Built-in && and || sequence left before right and skip the right when already decided."
+          },
+          {
+            "label": "Ternary conditional",
+            "note": "The condition and its side effects complete before the single chosen branch evaluates."
+          },
+          {
+            "label": "Braced initializer lists",
+            "note": "Clauses inside curly braces always evaluate strictly left-to-right."
+          }
+        ]
+      },
+      {
+        "label": "Overload Traps",
+        "note": "User-defined operators alter function-call timing and disable short-circuiting.",
+        "children": [
+          {
+            "label": "Overloaded && evaluates eagerly",
+            "note": "Custom operator&& is a function call, so both operands evaluate even when the left is false."
+          },
+          {
+            "label": "Overloaded ops keep order",
+            "note": "Operator syntax preserves the built-in operand order while function notation does not."
+          }
+        ]
+      }
+    ]
+  }
+}

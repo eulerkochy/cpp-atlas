@@ -1,0 +1,91 @@
+{
+  "questions": [
+    {
+      "id": "atomics-and-memory-ordering-q1",
+      "kind": "warmup",
+      "prompt": "If 8 threads solely increment a shared telemetry counter `counter.fetch_add(1, order)` without publishing any non-atomic data alongside it, which memory order suffices for exact totals?",
+      "options": [
+        "std::memory_order::relaxed",
+        "std::memory_order::acquire",
+        "std::memory_order::acq_rel",
+        "std::memory_order::seq_cst"
+      ],
+      "answer": 0,
+      "explanation": "Every std::atomic read-modify-write operation is indivisible and obeys the single-object modification order regardless of memory_order. Because no surrounding non-atomic writes need ordering, relaxed suffices without losing counts.",
+      "refs": ["[atomics.order]", "[intro.races]"]
+    },
+    {
+      "id": "atomics-and-memory-ordering-q2",
+      "kind": "warmup",
+      "prompt": "Why does `compare_exchange_weak` exist alongside `compare_exchange_strong`?",
+      "options": [
+        "compare_exchange_weak uses non-atomic loads for better throughput",
+        "compare_exchange_weak does not reload the expected parameter upon failure",
+        "compare_exchange_weak may fail spuriously on LL/SC architectures, avoiding an internal retry loop when you are already inside a while loop",
+        "compare_exchange_strong cannot use memory_order::seq_cst"
+      ],
+      "answer": 2,
+      "explanation": "On LL/SC architectures (such as ARM and POWER), compare_exchange_weak maps directly to a single LL/SC attempt that can fail spuriously due to interrupts or cache contention. Inside a CAS loop, letting the outer while loop retry avoids redundant inner branches.",
+      "refs": ["[atomics.types.operations]"]
+    },
+    {
+      "id": "atomics-and-memory-ordering-q3",
+      "kind": "tricky",
+      "prompt": "Given `std::atomic<int> x{0}, y{0};`, Thread 1 runs `x.store(1, release); r1 = y.load(acquire);` while Thread 2 runs `y.store(1, release); r2 = x.load(acquire);`. Can `r1 == 0 && r2 == 0` occur?",
+      "code": "std::atomic<int> x{0}, y{0};\n// Thread 1: x.store(1, std::memory_order::release); int r1 = y.load(std::memory_order::acquire);\n// Thread 2: y.store(1, std::memory_order::release); int r2 = x.load(std::memory_order::acquire);",
+      "options": [
+        "No, because release and acquire guarantee sequential consistency",
+        "Yes—hardware store buffers allow each thread's acquire load to execute before its own buffered release store becomes visible globally",
+        "No, at least on x86-64 CPUs because TSO forbids reordering",
+        "Yes, because accessing two separate atomics without a mutex is undefined behavior"
+      ],
+      "answer": 1,
+      "explanation": "This is the Store Buffering (SB) litmus test. Neither release nor acquire forbids a subsequent acquire load from completing before an earlier release store drains from the core's store buffer—even on x86-64. Only memory_order::seq_cst enforces a single total order preventing r1 == 0 && r2 == 0.",
+      "refs": ["[atomics.order]"]
+    },
+    {
+      "id": "atomics-and-memory-ordering-q4",
+      "kind": "tricky",
+      "prompt": "In `struct Packet { unsigned a : 4; unsigned b : 4; } p{};`, Thread 1 writes `p.a = 1;` while Thread 2 concurrently writes `p.b = 2;`. What does the C++ standard say?",
+      "code": "struct Packet { unsigned a : 4; unsigned b : 4; } p{};\n// T1: p.a = 1;\n// T2: p.b = 2;",
+      "options": [
+        "Well-defined because a and b have distinct member names",
+        "Well-defined as long as p is aligned to 8 bytes",
+        "Implementation-defined value, never undefined behavior",
+        "Undefined behavior due to a data race on a single shared memory location"
+      ],
+      "answer": 3,
+      "explanation": "Under [intro.memory], a maximal sequence of adjacent non-zero-length bit-fields forms a SINGLE memory location. Updating p.a compiles to a non-atomic read-modify-write of the enclosing word, racing directly with Thread 2 unless separated by an unnamed zero-width bit-field (`unsigned : 0;`).",
+      "refs": ["[intro.memory]", "[intro.races]"]
+    },
+    {
+      "id": "atomics-and-memory-ordering-q5",
+      "kind": "standardese",
+      "prompt": "In C++17 and later, which `memory_order` values are forbidden as the `failure` ordering argument to `std::atomic::compare_exchange_weak(expected, desired, success, failure)`?",
+      "options": [
+        "memory_order::relaxed and memory_order::consume",
+        "memory_order::seq_cst when success is memory_order::relaxed",
+        "memory_order::release and memory_order::acq_rel",
+        "Only memory_order::seq_cst"
+      ],
+      "answer": 2,
+      "explanation": "Failure does not write to the atomic object, so [atomics.types.operations] forbids passing memory_order::release or memory_order::acq_rel as the failure order. Note that C++17 (P0418R2) removed the older restriction banning failure order from being stronger than success order.",
+      "refs": ["[atomics.types.operations]"]
+    },
+    {
+      "id": "atomics-and-memory-ordering-q6",
+      "kind": "standardese",
+      "prompt": "How do `std::atomic_thread_fence(release)` and `std::atomic_thread_fence(acquire)` synchronize two threads communicating through a `relaxed` atomic `flag`?",
+      "code": "// T1: data = 42; atomic_thread_fence(release); flag.store(1, relaxed);\n// T2: if (flag.load(relaxed) == 1) { atomic_thread_fence(acquire); use(data); }",
+      "options": [
+        "A release fence followed by an atomic store X synchronizes with an atomic load reading X followed by an acquire fence",
+        "Fences only synchronize when paired with seq_cst stores",
+        "The release fence must appear AFTER flag.store(1, relaxed) on T1",
+        "Fences cannot establish happens-before edges across relaxed atomics"
+      ],
+      "answer": 0,
+      "explanation": "Under [atomics.fences], a release fence A followed by an atomic store X that is read by an atomic load Y followed by an acquire fence B causes fence A to synchronize-with fence B—establishing happens-before from data = 42 to use(data).",
+      "refs": ["[atomics.fences]"]
+    }
+  ]
+}

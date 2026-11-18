@@ -1,0 +1,108 @@
+{
+  "root": {
+    "label": "Forwarding References",
+    "note": "Perfect forwarding encodes the caller's value category into a deduced type T and unpacks it with std::forward.",
+    "children": [
+      {
+        "label": "Syntactic Conditions",
+        "note": "Only bare cv-unqualified T&& deduced at that function call acts as a forwarding reference.",
+        "children": [
+          {
+            "label": "Deduced Function T&&",
+            "note": "T must be a template parameter of the function itself written directly as T&&.",
+            "children": []
+          },
+          {
+            "label": "auto&& Variables & Lambdas",
+            "note": "auto&& obeys the exact same template deduction and collapsing rules for variables and generic lambdas.",
+            "children": []
+          },
+          {
+            "label": "Disqualified Forms",
+            "note": "const T&&, vector<T>&&, and class-template Box<T>::push(T&&) are plain rvalue references.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Deduction & Collapsing",
+        "note": "A special deduction rule pairs with reference collapsing to bind both lvalues and rvalues.",
+        "children": [
+          {
+            "label": "Lvalue Deduces T&",
+            "note": "Passing an lvalue U deduces T as U&, making T&& collapse to U&.",
+            "children": []
+          },
+          {
+            "label": "Rvalue Deduces T",
+            "note": "Passing a prvalue or xvalue U deduces T as U, leaving T&& as U&&.",
+            "children": []
+          },
+          {
+            "label": "Infectious Lvalue Collapse",
+            "note": "Any reference-to-reference containing & collapses to &; only && plus && stays &&.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Forwarding Mechanics",
+        "note": "Named parameters become lvalues inside bodies and must be cast back selectively.",
+        "children": [
+          {
+            "label": "Named Param Is Lvalue",
+            "note": "Every named function parameter—even typed Widget&&—acts as an lvalue expression inside the body.",
+            "children": []
+          },
+          {
+            "label": "std::forward Cast",
+            "note": "std::forward<T>(arg) performs static_cast<T&&>(arg) and forbids turning rvalues into lvalue refs.",
+            "children": []
+          },
+          {
+            "label": "C++23 forward_like",
+            "note": "std::forward_like<Self>(member) transfers Self's constness and value category onto a subobject or ref.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Variadic Forwarding",
+        "note": "Parameter packs forward arbitrary argument lists intact into constructors and factories.",
+        "children": [
+          {
+            "label": "Pack Expansion",
+            "note": "Writing std::forward<Args>(args)... forwards every argument with its independent value category.",
+            "children": []
+          },
+          {
+            "label": "Non-Deduced Braces",
+            "note": "Braced initializer lists like {1, 2} cannot deduce T&& and fail template deduction.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Common Traps",
+        "note": "Unconstrained forwarding signatures silently steal copies or introduce double-move bugs.",
+        "children": [
+          {
+            "label": "Greedy Copy Hijack",
+            "note": "An unconstrained T&& constructor beats const T& when copying a non-const lvalue.",
+            "children": []
+          },
+          {
+            "label": "Double Forward Bug",
+            "note": "Forwarding the same parameter twice can read from an already moved-from rvalue.",
+            "children": []
+          },
+          {
+            "label": "Dangling Forwarded Ref",
+            "note": "Returning a forwarded rvalue reference from a local temporary creates immediate dangling.",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "questions": [
+    {
+      "id": "type-deduction-auto-decltype-q1",
+      "kind": "warmup",
+      "prompt": "Given `const int ci = 7; const int& r = ci; auto x = r;`, what is the deduced type of `x`?",
+      "options": [
+        "const int&",
+        "const int",
+        "int",
+        "int&"
+      ],
+      "answer": 2,
+      "explanation": "By-value `auto` follows template parameter deduction (`template<class T> void f(T)`), which strips references first and then discards top-level cv-qualifiers. Therefore `x` is a plain mutable `int`.",
+      "refs": ["[dcl.type.auto.deduct]", "[temp.deduct.type]"]
+    },
+    {
+      "id": "type-deduction-auto-decltype-q2",
+      "kind": "warmup",
+      "prompt": "What are the deduced types of `a` and `b` in C++17 and later?",
+      "code": "auto a{10};\nauto b = {10};",
+      "options": [
+        "Both `a` and `b` are `std::initializer_list<int>`.",
+        "`a` is `int`; `b` is `std::initializer_list<int>`.",
+        "Both `a` and `b` are `int`.",
+        "`a` is ill-formed; `b` is `int`."
+      ],
+      "answer": 1,
+      "explanation": "Since C++17 (N3922), direct-list-initialization `auto a{10};` with a single element deduces `int`, whereas copy-list-initialization `auto b = {10};` continues to deduce `std::initializer_list<int>`.",
+      "refs": ["[dcl.type.auto.deduct]"]
+    },
+    {
+      "id": "type-deduction-auto-decltype-q3",
+      "kind": "tricky",
+      "prompt": "What happens when calling `auto& r = bad_return();` on this C++23 function?",
+      "code": "decltype(auto) bad_return() {\n    int local = 42;\n    return (local);\n}",
+      "options": [
+        "It returns a dangling reference (`int&`) to destroyed stack variable `local`.",
+        "It returns `int` by value cleanly.",
+        "It triggers guaranteed copy elision into the caller's object.",
+        "It fails to compile because parentheses around a return operand are forbidden."
+      ],
+      "answer": 0,
+      "explanation": "With `decltype(auto)`, `return (local);` applies `decltype((local))`. Because `(local)` is a parenthesized lvalue expression rather than an unparenthesized id-expression, `decltype` yields `int&`, returning a dangling reference to `local`.",
+      "refs": ["[dcl.type.decltype]", "[dcl.type.auto.deduct]"]
+    },
+    {
+      "id": "type-deduction-auto-decltype-q4",
+      "kind": "tricky",
+      "prompt": "Given `std::vector v1{1, 2, 3};`, what are the types of `v2` and `v3` deduced by CTAD?",
+      "code": "std::vector v1{1, 2, 3};\nstd::vector v2{v1};\nstd::vector v3{v1, v1};",
+      "options": [
+        "Both `v2` and `v3` are `std::vector<std::vector<int>>`.",
+        "`v2` is `std::vector<std::vector<int>>`; `v3` is ill-formed.",
+        "Both `v2` and `v3` are `std::vector<int>`.",
+        "`v2` is `std::vector<int>`; `v3` is `std::vector<std::vector<int>>`."
+      ],
+      "answer": 3,
+      "explanation": "Under [over.match.class.deduct], single-element `std::vector v2{v1}` selects the synthesized copy-deduction candidate, producing `std::vector<int>` as a copy of `v1`. Passing two `v1` arguments in `v3{v1, v1}` cannot match the copy constructor and instead matches `initializer_list<std::vector<int>>`.",
+      "refs": ["[over.match.class.deduct]"]
+    },
+    {
+      "id": "type-deduction-auto-decltype-q5",
+      "kind": "standardese",
+      "prompt": "Given `struct S { int x; double y; }; S s{1, 2.0}; auto& [a, b] = s;`, what are `decltype(a)` and `decltype((a))`?",
+      "code": "struct S { int x; double y; };\nS s{1, 2.0};\nauto& [a, b] = s;",
+      "options": [
+        "`decltype(a)` is `int&`; `decltype((a))` is `int&`.",
+        "`decltype(a)` is `int`; `decltype((a))` is `int`.",
+        "`decltype(a)` is `int`; `decltype((a))` is `int&`.",
+        "`decltype(a)` is `int&&`; `decltype((a))` is `int&`."
+      ],
+      "answer": 2,
+      "explanation": "Under [dcl.type.decltype] and [dcl.struct.bind], `a` is a structured binding rather than a reference variable, so `decltype(a)` yields the referenced member's declared type (`int`). Parenthesizing `(a)` turns it into a general lvalue expression, so `decltype((a))` yields `int&`.",
+      "refs": ["[dcl.struct.bind]", "[dcl.type.decltype]"]
+    },
+    {
+      "id": "type-deduction-auto-decltype-q6",
+      "kind": "standardese",
+      "prompt": "Given `int arr[4]{};`, why do `auto p = arr;` and `auto& r = arr;` deduce different types?",
+      "options": [
+        "Because `auto` without `&` performs array-to-pointer decay (`int*`), whereas `auto&` binds to the actual array type (`int(&)[4]`).",
+        "Because `auto&` converts `arr` to `std::span<int, 4>`.",
+        "Because `auto p = arr;` is ill-formed in C++20 unless `arr` is `std::array`.",
+        "Because `auto& r = arr;` decays `arr` into a reference to pointer `int*&`."
+      ],
+      "answer": 0,
+      "explanation": "By-value template parameter deduction (`template<class T> void f(T)`) applies lvalue-to-rvalue and array-to-pointer decay before deducing `T`, so `auto p = arr;` deduces `int*`. Reference parameter deduction (`template<class T> void g(T&)`) suppresses array decay, so `auto& r = arr;` deduces `int(&)[4]`.",
+      "refs": ["[dcl.type.auto.deduct]", "[temp.deduct.call]"]
+    }
+  ]
+}

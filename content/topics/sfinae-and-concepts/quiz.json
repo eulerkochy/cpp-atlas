@@ -1,0 +1,91 @@
+{
+  "questions": [
+    {
+      "id": "sfinae-and-concepts-q1",
+      "kind": "warmup",
+      "prompt": "During overload resolution, what happens when `std::enable_if_t<false, int>` is formed in a function template's return type?",
+      "options": [
+        "Compilation halts immediately with an error inside namespace std",
+        "Substitution fails in the immediate context and that candidate is silently removed from the overload set",
+        "The return type defaults to void and the template remains viable",
+        "std::enable_if_t throws std::bad_typeid at runtime"
+      ],
+      "answer": 1,
+      "explanation": "Under [temp.deduct], when `Cond` is false, `std::enable_if<false, int>` has no member `type`. Because this failure occurs in the immediate context of the function template's return type, SFINAE removes the candidate silently.",
+      "refs": ["[temp.deduct]", "[meta.trans.other]"]
+    },
+    {
+      "id": "sfinae-and-concepts-q2",
+      "kind": "warmup",
+      "prompt": "How do `template <class T> void f(T x) requires std::integral<T>;` and `void f(std::integral auto x);` compare in C++20?",
+      "options": [
+        "Both declare function templates constrained by std::integral on the deduced parameter type",
+        "Only the abbreviated form works with concepts; trailing requires only checks runtime values",
+        "Abbreviated auto allows virtual member functions whereas trailing requires forbids them",
+        "Abbreviated auto performs type erasure like std::any instead of template instantiation"
+      ],
+      "answer": 0,
+      "explanation": "Under [dcl.fct] and [temp.constr.decl], an abbreviated function template using a type-constraint before `auto` introduces an invented constrained template type parameter with the same constraint semantics.",
+      "refs": ["[dcl.fct]", "[temp.constr.decl]"]
+    },
+    {
+      "id": "sfinae-and-concepts-q3",
+      "kind": "tricky",
+      "prompt": "Why does defining these two overloads with default template type arguments fail to compile?",
+      "code": "template <class T, class = std::enable_if_t<std::is_integral_v<T>>>\nvoid log(T v) {}\n\ntemplate <class T, class = std::enable_if_t<!std::is_integral_v<T>>>\nvoid log(T v) {}",
+      "options": [
+        "std::enable_if_t cannot be placed inside a template parameter list",
+        "Both conditions evaluate to true when T is int",
+        "Default template arguments are not part of a function template's signature, so the second declaration redefines the first",
+        "is_integral_v requires C++20 concepts to negate"
+      ],
+      "answer": 2,
+      "explanation": "Two function templates with identical parameter lists and template parameter kinds have the exact same signature regardless of default template arguments ([temp.over.link]). The second `log` illegally redefines the first template with a different default argument.",
+      "refs": ["[temp.over.link]", "[temp.param]"]
+    },
+    {
+      "id": "sfinae-and-concepts-q4",
+      "kind": "tricky",
+      "prompt": "What does `AlwaysTrue<double>` evaluate to in the concept definition below?",
+      "code": "template <class T>\nconcept AlwaysTrue = requires {\n    std::same_as<T, int>;\n};",
+      "options": [
+        "false, because double is not the same type as int",
+        "Ill-formed: concepts cannot appear inside a requires-expression",
+        "false, because std::same_as evaluates at runtime",
+        "true, because without a nested `requires`, the line only checks whether the expression `std::same_as<double, int>` compiles"
+      ],
+      "answer": 3,
+      "explanation": "Inside a requires-expression, `std::same_as<T, int>;` without a leading `requires` is a simple requirement ([expr.prim.req.simple]). Since `std::same_as<double, int>` is a valid bool expression yielding `false`, the simple requirement succeeds and `AlwaysTrue<double>` is `true`!",
+      "refs": ["[expr.prim.req.simple]", "[expr.prim.req.nested]"]
+    },
+    {
+      "id": "sfinae-and-concepts-q5",
+      "kind": "standardese",
+      "prompt": "Why is calling `pick(42)` ambiguous between these two constrained overloads?",
+      "code": "template <class T> requires (sizeof(T) >= 2)\nvoid pick(T) {}\n\ntemplate <class T> requires (sizeof(T) >= 2 && std::integral<T>)\nvoid pick(T) {}",
+      "options": [
+        "sizeof(T) >= 2 is not a constant expression when T is deduced",
+        "The two inline `sizeof(T) >= 2` expressions are separate atomic constraints with distinct source identities, so neither subsumes the other",
+        "Subsumption only applies to class templates, never function templates",
+        "std::integral<T> cannot be combined with && inside a requires clause"
+      ],
+      "answer": 1,
+      "explanation": "Under [temp.constr.atomic] and [temp.constr.order], subsumption compares normalized atomic constraints by declaration identity and parameter mapping—not mathematical equivalence. Only factoring `sizeof(T) >= 2` into a shared named concept enables subsumption.",
+      "refs": ["[temp.constr.atomic]", "[temp.constr.order]"]
+    },
+    {
+      "id": "sfinae-and-concepts-q6",
+      "kind": "standardese",
+      "prompt": "Which failure triggers a hard compilation error rather than being silently discarded by SFINAE when instantiating for `T = int`?",
+      "options": [
+        "Forming `typename T::value_type` directly in a function template's return type",
+        "Forming an invalid call `decltype(std::declval<T&>().push_back(0))` in a trailing return type",
+        "A static_assert or invalid typedef triggered inside a helper struct's class definition instantiated during substitution",
+        "Failing a concept check in a function template's trailing requires-clause"
+      ],
+      "answer": 2,
+      "explanation": "Under [temp.deduct], SFINAE covers only errors in the immediate context of the function type and template parameter expressions. Instantiating a separate class template body to inspect its members leaves the immediate context and causes a hard error.",
+      "refs": ["[temp.deduct]"]
+    }
+  ]
+}

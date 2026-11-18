@@ -1,0 +1,94 @@
+{
+  "root": {
+    "label": "C++20 coroutines & generator",
+    "note": "Compiler-generated stackless state machines pause and resume without separate OS thread stacks.",
+    "children": [
+      {
+        "label": "Stackless frame mechanics",
+        "note": "Compiler transforms functions containing co_await, co_yield, or co_return into frames.",
+        "children": [
+          {
+            "label": "Frame stores spilled locals",
+            "note": "Holds promise, copied parameters, suspension index, and cross-suspend variables."
+          },
+          {
+            "label": "Custom operator new & HALO",
+            "note": "Promises may override allocation; compilers elide heap frames when lifetimes nest."
+          },
+          {
+            "label": "Runs on resumer thread",
+            "note": "Calling or resuming a coroutine executes synchronously on the invoking thread."
+          }
+        ]
+      },
+      {
+        "label": "Promise lifecycle",
+        "note": "coroutine_traits<R, Args...>::promise_type orchestrates startup, returns, and teardown.",
+        "children": [
+          {
+            "label": "initial_suspend laziness",
+            "note": "Returns suspend_always for lazy start or suspend_never for eager execution."
+          },
+          {
+            "label": "final_suspend must be noexcept",
+            "note": "Suspending lets RAII wrappers call destroy(); suspend_never self-deletes the frame."
+          },
+          {
+            "label": "unhandled_exception hook",
+            "note": "Captures uncaught body exceptions inside the promise before final_suspend runs."
+          }
+        ]
+      },
+      {
+        "label": "Awaitable protocol",
+        "note": "co_await drives await_transform, await_ready, await_suspend, and await_resume.",
+        "children": [
+          {
+            "label": "await_ready bypass",
+            "note": "Returns true when results are already ready, avoiding suspension overhead."
+          },
+          {
+            "label": "Symmetric transfer handle",
+            "note": "Returning coroutine_handle<> from await_suspend tail-resumes without stack growth."
+          },
+          {
+            "label": "Suspended before await_suspend",
+            "note": "Another thread can resume and destroy h immediately once await_suspend publishes h."
+          }
+        ]
+      },
+      {
+        "label": "Suspension lifetime hazards",
+        "note": "References and closure captures outlive temporaries across suspension boundaries.",
+        "children": [
+          {
+            "label": "Reference & view parameters",
+            "note": "const T& and string_view bind temporaries that die at the caller semicolon."
+          },
+          {
+            "label": "Lambda capture closure trap",
+            "note": "Temporary coroutine lambdas destroy captures at the semicolon, leaving dangling this."
+          },
+          {
+            "label": "Pass owning values",
+            "note": "By-value parameters move directly into the coroutine frame for safe later access."
+          }
+        ]
+      },
+      {
+        "label": "C++23 std::generator",
+        "note": "Standard synchronous ranges::view backed by co_yield and promise.yield_value.",
+        "children": [
+          {
+            "label": "co_yield lowers to co_await",
+            "note": "Every co_yield x evaluates co_await promise.yield_value(x)."
+          },
+          {
+            "label": "elements_of O(1) recursion",
+            "note": "Yielding nested generators via elements_of avoids linear trampoline overhead."
+          }
+        ]
+      }
+    ]
+  }
+}

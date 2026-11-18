@@ -1,0 +1,93 @@
+{
+  "questions": [
+    {
+      "id": "casts-and-qualifiers-q1",
+      "kind": "warmup",
+      "prompt": "Which cast operator should you use to convert a scoped enum class value into its underlying integer type in C++23?",
+      "code": "enum class Status : std::uint16_t { Ok = 0, Busy = 1 };",
+      "options": [
+        "std::to_underlying(Status::Busy) or static_cast<std::uint16_t>(Status::Busy)",
+        "reinterpret_cast<std::uint16_t>(Status::Busy)",
+        "const_cast<std::uint16_t>(Status::Busy)",
+        "dynamic_cast<std::uint16_t>(Status::Busy)"
+      ],
+      "answer": 0,
+      "explanation": "Scoped enums do not implicitly convert to integers, so static_cast or C++23 std::to_underlying (which wraps static_cast<std::underlying_type_t<E>>) is the idiomatic, type-safe conversion. reinterpret_cast rejects non-pointer enum-to-int conversions.",
+      "refs": ["[expr.static.cast]", "[utility.underlying]"]
+    },
+    {
+      "id": "casts-and-qualifiers-q2",
+      "kind": "warmup",
+      "prompt": "What guarantee does qualifying a variable as volatile provide in multi-threaded C++ code?",
+      "options": [
+        "Atomic reads and writes without tearing",
+        "Release/acquire memory ordering across CPU cores",
+        "Neither atomicity nor cross-thread ordering; it only prevents compiler access elision and reordering of volatile accesses",
+        "Hardware cache-line flushing on every store"
+      ],
+      "answer": 2,
+      "explanation": "volatile tells the compiler each access is an observable side effect for MMIO or signal handlers, forbidding register caching. It provides zero atomicity or happens-before guarantees across threads; use std::atomic for concurrency.",
+      "refs": ["[dcl.type.cv]", "[intro.races]"]
+    },
+    {
+      "id": "casts-and-qualifiers-q3",
+      "kind": "tricky",
+      "prompt": "Why does the assignment `const int** pp = &p;` fail to compile when `p` has type `int*`, whereas `const int* const* pp = &p;` compiles?",
+      "code": "int* p = nullptr;\n// const int** bad = &p;\nconst int* const* ok = &p;",
+      "options": [
+        "Because pointer-to-pointer types never allow implicit qualification conversions",
+        "Because converting int** to const int** would let *pp store a const int* into p, enabling mutation of a const object through p without a cast",
+        "Because const int* and int* have different sizes and alignments",
+        "Because C++ requires reinterpret_cast whenever two pointers differ in cv-qualification"
+      ],
+      "answer": 1,
+      "explanation": "Under [conv.qual], adding const at an inner pointer level requires every outer level up to the top to also become const. Otherwise *pp = &some_const_int would leave the non-const int* p pointing at a const object.",
+      "refs": ["[conv.qual]"]
+    },
+    {
+      "id": "casts-and-qualifiers-q4",
+      "kind": "tricky",
+      "prompt": "What happens when `modify(x)` executes on a variable defined as `const int x = 10;`?",
+      "code": "void modify(const int& ref) {\n    const_cast<int&>(ref) = 20;\n}\nconst int x = 10;\nmodify(x);",
+      "options": [
+        "x reliably becomes 20 because const_cast removes the reference's constness",
+        "Compilation fails because const_cast only accepts pointers, not references",
+        "Undefined behavior, because modifying an object that was originally defined const is UB regardless of const_cast",
+        "Implementation-defined write that succeeds whenever x has automatic storage duration"
+      ],
+      "answer": 2,
+      "explanation": "const_cast only removes const from the access path; [dcl.type.cv] states that any attempt to modify an object defined as const through a non-const glvalue results in undefined behavior.",
+      "refs": ["[dcl.type.cv]", "[expr.const.cast]"]
+    },
+    {
+      "id": "casts-and-qualifiers-q5",
+      "kind": "standardese",
+      "prompt": "Given `struct PrivDerived : private Base {};` and `PrivDerived* pd`, how do `static_cast<Base*>(pd)` and `(Base*)pd` differ?",
+      "code": "struct Base { int a; };\nstruct PrivDerived : private Base {};\nPrivDerived d;",
+      "options": [
+        "Both fail to compile because Base is an inaccessible private base class",
+        "static_cast<Base*>(&d) fails to compile, whereas (Base*)&d is well-formed and adjusts the pointer to the private Base subobject",
+        "Both succeed and invoke reinterpret_cast without adjusting subobject offsets",
+        "static_cast<Base*>(&d) succeeds via friendship rules while (Base*)&d calls reinterpret_cast"
+      ],
+      "answer": 1,
+      "explanation": "Under [expr.cast], an explicit C-style cast performs the same subobject pointer adjustment as static_cast even when the base class is private or protected—bypassing access checking that static_cast strictly enforces.",
+      "refs": ["[expr.cast]", "[expr.static.cast]"]
+    },
+    {
+      "id": "casts-and-qualifiers-q6",
+      "kind": "standardese",
+      "prompt": "Which technique inspects the bit pattern of a `float` as a `std::uint32_t` without violating `[basic.lval]` strict aliasing rules?",
+      "code": "float f = 1.5f;",
+      "options": [
+        "auto bits = *reinterpret_cast<std::uint32_t*>(&f);",
+        "union U { float f; std::uint32_t u; } x{f}; auto bits = x.u;",
+        "auto bits = *(std::uint32_t*)(void*)&f;",
+        "auto bits = std::bit_cast<std::uint32_t>(f);"
+      ],
+      "answer": 3,
+      "explanation": "Reading a float through a std::uint32_t* via reinterpret_cast or C-style cast violates strict aliasing ([basic.lval]), and reading an inactive union member is UB in C++. std::bit_cast<std::uint32_t>(f) (or std::memcpy) creates a valid std::uint32_t object from the bytes.",
+      "refs": ["[basic.lval]", "[bit.cast]"]
+    }
+  ]
+}

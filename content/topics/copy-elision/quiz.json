@@ -1,0 +1,94 @@
+{
+  "questions": [
+    {
+      "id": "copy-elision-q1",
+      "kind": "warmup",
+      "prompt": "Why does returning `NonMovable{42}` from `NonMovable make()` compile in C++17+ even though both its copy and move constructors are `= delete`?",
+      "code": "struct NonMovable {\n    NonMovable(int);\n    NonMovable(const NonMovable&) = delete;\n    NonMovable(NonMovable&&) = delete;\n};\nNonMovable make() { return NonMovable{42}; }",
+      "options": [
+        "Because C++17 ignores = delete inside return statements",
+        "Because NonMovable{42} is a prvalue that directly initializes the caller's target slot without materializing or moving a temporary",
+        "Because NRVO automatically synthesizes a private move constructor",
+        "Because return NonMovable{42} calls memcpy on the stack frame"
+      ],
+      "answer": 1,
+      "explanation": "Since C++17 ([basic.lval], [dcl.init]), a prvalue is an unmaterialized initializer rather than a temporary object. Initializing a NonMovable destination from a NonMovable prvalue constructs directly in place with zero copy or move calls.",
+      "refs": ["[dcl.init]", "[basic.lval]"]
+    },
+    {
+      "id": "copy-elision-q2",
+      "kind": "warmup",
+      "prompt": "What is the practical effect of writing `return std::move(s);` when `s` is a local `std::string` inside `std::string build()`?",
+      "code": "std::string build() {\n    std::string s = \"long heap string\";\n    return std::move(s);\n}",
+      "options": [
+        "It triggers guaranteed copy elision by converting s into a prvalue",
+        "It speeds up the function because plain return s would copy s",
+        "It prevents NRVO and forces a move construction instead of zero-cost in-place construction",
+        "It causes undefined behavior because s is destroyed before the move finishes"
+      ],
+      "answer": 2,
+      "explanation": "NRVO applies only when the return operand is the plain name of a local automatic variable. std::move(s) turns it into a function call xvalue, disabling NRVO and forcing a move constructor (-Wpessimizing-move).",
+      "refs": ["[class.copy.elision]"]
+    },
+    {
+      "id": "copy-elision-q3",
+      "kind": "tricky",
+      "prompt": "In C++23, which snippet fails to compile when `Token` has deleted copy and move constructors?",
+      "code": "struct Token {\n    explicit Token(int);\n    Token(const Token&) = delete;\n    Token(Token&&) = delete;\n};",
+      "options": [
+        "Token a = Token{1};",
+        "Token make() { return Token{2}; } Token b = make();",
+        "Token bad() { Token t{3}; return t; }",
+        "void f(Token); f(Token{4});"
+      ],
+      "answer": 2,
+      "explanation": "Returning a named local variable t relies on optional NRVO, not guaranteed prvalue elision. Because NRVO is optional under [class.copy.elision], the language still requires an accessible copy or move constructor for t.",
+      "refs": ["[class.copy.elision]", "[dcl.init]"]
+    },
+    {
+      "id": "copy-elision-q4",
+      "kind": "tricky",
+      "prompt": "Given `std::string passthrough(std::string param) { return param; }`, what happens in the `return param;` statement?",
+      "code": "std::string passthrough(std::string param) {\n    return param;\n}",
+      "options": [
+        "Mandatory prvalue elision constructs param directly in the caller's return slot",
+        "NRVO applies because param is a named variable inside passthrough",
+        "Copy constructor runs because param is an lvalue",
+        "NRVO is forbidden on function parameters, so implicit move invokes std::string(std::string&&)"
+      ],
+      "answer": 3,
+      "explanation": "Under [class.copy.elision], NRVO excludes function parameters because parameter storage lives in the caller/ABI frame. However, param is move-eligible, so implicit move constructs the return object using std::string's move constructor.",
+      "refs": ["[class.copy.elision]"]
+    },
+    {
+      "id": "copy-elision-q5",
+      "kind": "standardese",
+      "prompt": "Suppose `Derived` publicly inherits from `Base` and `Derived make_derived();` returns a prvalue. Does `Base b = make_derived();` bypass `Base`'s move constructor via mandatory copy elision?",
+      "code": "struct Base { Base(const Base&) = delete; Base(Base&&) = delete; };\nstruct Derived : Base {};\nDerived make_derived();",
+      "options": [
+        "No; mandatory prvalue elision requires the prvalue's cv-unqualified type to match Base, so make_derived() materializes and fails because Base(Base&&) is deleted",
+        "Yes; mandatory elision constructs only the Base subobject directly in b",
+        "Yes, provided Derived adds no data members",
+        "No; it invokes reinterpret_cast<Base&&>(make_derived())"
+      ],
+      "answer": 0,
+      "explanation": "[dcl.init] grants direct initialization without temporary materialization only when the prvalue has the same cv-unqualified class type as the destination object. When constructing Base from a Derived prvalue, Derived materializes via [conv.rval] and Base's deleted move constructor makes the initialization ill-formed.",
+      "refs": ["[dcl.init]", "[conv.rval]"]
+    },
+    {
+      "id": "copy-elision-q6",
+      "kind": "standardese",
+      "prompt": "Which statement about `x = make_widget();` (copy assignment to an already-constructed `Widget x`) is accurate under C++23?",
+      "code": "struct Widget {};\nWidget make_widget();\nvoid assign() {\n    Widget x;\n    x = make_widget();\n}",
+      "options": [
+        "Mandatory copy elision constructs the return value of make_widget() directly on top of x without calling operator=",
+        "make_widget() undergoes temporary materialization conversion ([conv.rval]) to an xvalue, and Widget::operator=(Widget&&) (or const Widget&) is called",
+        "x is automatically destroyed and placement-newed via NRVO",
+        "Assignment to an existing object is ill-formed if make_widget() returns a prvalue"
+      ],
+      "answer": 1,
+      "explanation": "Mandatory prvalue elision applies only to initialization of a new object, never assignment to an existing object. Because operator= takes a reference parameter, temporary materialization ([conv.rval]) creates a temporary xvalue bound to operator='s parameter.",
+      "refs": ["[conv.rval]", "[dcl.init]"]
+    }
+  ]
+}

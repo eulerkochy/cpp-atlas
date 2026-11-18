@@ -1,0 +1,90 @@
+{
+  "questions": [
+    {
+      "id": "translation-units-and-linkage-q1",
+      "kind": "warmup",
+      "prompt": "How does the compiler handle a #include \"config.hpp\" directive before phase 7 semantic analysis begins?",
+      "options": [
+        "It compiles config.hpp once into a cached symbol table shared across all .cpp files.",
+        "It defers resolving declarations in config.hpp until the linker merges object files in phase 9.",
+        "The preprocessor textually pastes config.hpp into the including file in phase 4 to form one translation unit.",
+        "It automatically assigns internal linkage to every function declared inside config.hpp."
+      ],
+      "answer": 2,
+      "explanation": "Under [lex.phases], preprocessing in phase 4 textually inserts the contents of included headers and expands macros. Phase 7 parses the resulting single translation unit with no separate concept of a header file.",
+      "refs": ["[lex.phases]"]
+    },
+    {
+      "id": "translation-units-and-linkage-q2",
+      "kind": "warmup",
+      "prompt": "You need a helper struct Buffer defined in two different .cpp files with different layouts and no ODR collision. Which declaration gives Buffer internal linkage?",
+      "options": [
+        "namespace { struct Buffer { int len; }; }",
+        "static struct Buffer { int len; };",
+        "inline struct Buffer { int len; };",
+        "extern \"C\" struct Buffer { int len; };"
+      ],
+      "answer": 0,
+      "explanation": "An unnamed namespace gives internal linkage to every declaration inside it, including class types and templates. The static specifier cannot be applied to a class definition itself.",
+      "refs": ["[basic.link]", "[namespace.unnamed]"]
+    },
+    {
+      "id": "translation-units-and-linkage-q3",
+      "kind": "tricky",
+      "prompt": "Why does putting this header snippet into two translation units violate the One Definition Rule?",
+      "code": "const int kRetries = 4;\ninline const int* retry_ptr() {\n    return &kRetries;\n}",
+      "options": [
+        "A const variable cannot have its address taken at namespace scope.",
+        "Returning a pointer from an inline function makes it non-inline.",
+        "Taking &kRetries forces dynamic initialization across translation units.",
+        "kRetries has internal linkage by default, so retry_ptr() resolves to a different object in each TU (IFNDR)."
+      ],
+      "answer": 3,
+      "explanation": "A namespace-scope const variable without extern or inline has internal linkage under [basic.link], giving each TU its own kRetries object. Because retry_ptr() has external linkage and its odr-used name kRetries resolves to different entities across TUs, the program violates [basic.def.odr] (IFNDR). Adding inline constexpr fixes this.",
+      "refs": ["[basic.link]", "[basic.def.odr]"]
+    },
+    {
+      "id": "translation-units-and-linkage-q4",
+      "kind": "tricky",
+      "prompt": "What happens if a header included by two .cpp files contains `extern \"C\" { int shared_status; }`?",
+      "options": [
+        "It compiles and links cleanly because extern suppresses allocating storage.",
+        "Linking fails with a duplicate definition error because braces restrict extern \"C\" to language linkage only.",
+        "shared_status automatically receives internal linkage in each translation unit.",
+        "It is ill-formed at compile time because variables cannot have C language linkage."
+      ],
+      "answer": 1,
+      "explanation": "Inside a braced linkage-specification (`extern \"C\" { ... }`), extern specifies language linkage rather than external-declaration-only status ([dcl.link]). Therefore `int shared_status;` is a variable definition in every TU that includes the header.",
+      "refs": ["[dcl.link]", "[basic.def.odr]"]
+    },
+    {
+      "id": "translation-units-and-linkage-q5",
+      "kind": "standardese",
+      "prompt": "What are the scope, storage duration, and linkage of `hits` in this inline function?",
+      "code": "inline int bump() {\n    static int hits = 0;\n    return ++hits;\n}",
+      "options": [
+        "Block scope, static storage duration, and no linkage (yet shared across TUs via bump's ODR identity).",
+        "Block scope, automatic storage duration, and external linkage.",
+        "Namespace scope, static storage duration, and internal linkage.",
+        "Block scope, static storage duration, and external linkage."
+      ],
+      "answer": 0,
+      "explanation": "A block-scope static variable has block scope, static storage duration, and no linkage ([basic.link]). However, [dcl.inline] requires that static local variables inside an inline function with external linkage refer to the same single object across all translation units.",
+      "refs": ["[basic.link]", "[basic.stc.static]", "[dcl.inline]"]
+    },
+    {
+      "id": "translation-units-and-linkage-q6",
+      "kind": "standardese",
+      "prompt": "Under [basic.link], which namespace-scope declaration still has external linkage in C++17 and later?",
+      "options": [
+        "const int port = 8080;",
+        "constexpr int port = 8080;",
+        "inline constexpr int port = 8080;",
+        "namespace { constexpr int port = 8080; }"
+      ],
+      "answer": 2,
+      "explanation": "Both `const` and `constexpr` at namespace scope imply const and yield internal linkage by default unless declared `inline` or `extern` (outside an unnamed namespace). Marking a constexpr variable `inline` gives it external linkage and merges all TU definitions into one object.",
+      "refs": ["[basic.link]", "[dcl.inline]"]
+    }
+  ]
+}

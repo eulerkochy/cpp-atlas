@@ -1,0 +1,123 @@
+{
+  "root": {
+    "label": "SFINAE & Concepts",
+    "note": "Compile-time template constraints evolved from silent SFINAE substitution failures to ordered C++20 concept lattices.",
+    "children": [
+      {
+        "label": "SFINAE Rules",
+        "note": "Invalid type or expression formation in a signature drops a candidate without failing the build.",
+        "children": [
+          {
+            "label": "Immediate Context",
+            "note": "Template parameters, function parameters, return types, and explicit/noexcept clauses participate in SFINAE.",
+            "children": []
+          },
+          {
+            "label": "Hard Instantiation Errors",
+            "note": "Failures inside instantiated helper class bodies or function bodies halt compilation immediately.",
+            "children": []
+          },
+          {
+            "label": "Expression SFINAE",
+            "note": "Trailing decltype expressions verify member calls or operators without evaluating operands.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Pre-C++20 Idioms",
+        "note": "Library patterns built explicit opt-in and trait detection on top of SFINAE.",
+        "children": [
+          {
+            "label": "std::enable_if",
+            "note": "Produces a nested type only when a compile-time boolean condition evaluates to true.",
+            "children": []
+          },
+          {
+            "label": "Default Arg Signature Trap",
+            "note": "Overloads differing only by a default template type argument collide as identical redeclarations.",
+            "children": []
+          },
+          {
+            "label": "std::void_t Detection",
+            "note": "Maps valid type expressions to void to select specialized type traits cleanly.",
+            "children": []
+          },
+          {
+            "label": "if constexpr Branches",
+            "note": "Discards untaken compile-time branches inside a single template body since C++17.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "C++20 Syntax",
+        "note": "Constraints evaluate before overload conversion sequences and yield clear diagnostics.",
+        "children": [
+          {
+            "label": "Named Concepts",
+            "note": "Reusable compile-time boolean predicates that serve as shared atoms for subsumption.",
+            "children": []
+          },
+          {
+            "label": "Requires-Clauses",
+            "note": "Attach compile-time boolean constraints on template heads or trailing member signatures.",
+            "children": []
+          },
+          {
+            "label": "Abbreviated Auto",
+            "note": "Constrained auto parameters synthesize constrained function templates concisely.",
+            "children": []
+          },
+          {
+            "label": "Requires-Expressions",
+            "note": "Evaluate syntactic validity of expressions and types at compile time, returning a bool.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Requirement Kinds",
+        "note": "Inside a requires-expression, four distinct clauses check syntax, types, returns, and values.",
+        "children": [
+          {
+            "label": "Simple & Type",
+            "note": "Verify that expressions compile and nested or specialized types exist without evaluating operands.",
+            "children": []
+          },
+          {
+            "label": "Compound Return Check",
+            "note": "Enforce expression validity, optional noexcept guarantee, and return type concept satisfaction.",
+            "children": []
+          },
+          {
+            "label": "Nested Requires Trap",
+            "note": "Omitting nested requires checks only whether a boolean trait expression compiles, not whether it is true.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Subsumption Ordering",
+        "note": "Overlapping constrained templates resolve ambiguity through normalized atomic constraint inclusion.",
+        "children": [
+          {
+            "label": "Atomic Constraints",
+            "note": "Constraints normalize down to source-located predicates paired with their template parameter mapping.",
+            "children": []
+          },
+          {
+            "label": "DNF and CNF Normalization",
+            "note": "The compiler expands named concepts into conjunctions and disjunctions before comparing candidates.",
+            "children": []
+          },
+          {
+            "label": "More Constrained Wins",
+            "note": "A candidate whose normalized constraints include all of another's wins overload resolution cleanly.",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

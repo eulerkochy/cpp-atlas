@@ -1,0 +1,96 @@
+{
+  "root": {
+    "label": "Ranges, views, and niebloids",
+    "note": "C++20 ranges replace raw iterator pairs with sentinels, lazy views, lifetime checks, and ADL-safe algorithms.",
+    "children": [
+      {
+        "label": "Iterators and sentinels",
+        "note": "A range pairs begin() with any sentinel type modeling sentinel_for<iterator_t<R>>.",
+        "children": [
+          {
+            "label": "Decoupled end types",
+            "note": "Sentinels represent termination conditions like null bytes without matching iterator types."
+          },
+          {
+            "label": "ref_view vs owning_view",
+            "note": "views::all borrows lvalues via ref_view and moves non-view rvalues into owning_view."
+          }
+        ]
+      },
+      {
+        "label": "Lazy views",
+        "note": "Views model movable ranges with O(1) move and destruction, computing elements on demand.",
+        "children": [
+          {
+            "label": "Const iteration caveat",
+            "note": "filter_view caches begin() internally, so const filter_view does not satisfy range.",
+            "children": [
+              {
+                "label": "Pass views by value",
+                "note": "Accept views by forwarding reference or value rather than const reference."
+              }
+            ]
+          },
+          {
+            "label": "Non-default views",
+            "note": "DR P2325R3 removed default_initializable from std::ranges::view requirements."
+          }
+        ]
+      },
+      {
+        "label": "Borrowed ranges and dangling",
+        "note": "Algorithms avoid returning dangling iterators from expiring temporary containers.",
+        "children": [
+          {
+            "label": "enable_borrowed_range opt-in",
+            "note": "Types like string_view, span, and subrange opt in because iterators outlive the handle."
+          },
+          {
+            "label": "std::ranges::dangling",
+            "note": "Non-borrowed rvalues return a compile-checked placeholder that refuses dereferencing."
+          }
+        ]
+      },
+      {
+        "label": "CPOs and niebloids",
+        "note": "Function objects replace fragile unqualified ADL calls with predictable lookup rules.",
+        "children": [
+          {
+            "label": "Customization point objects",
+            "note": "Inline constexpr objects like ranges::begin dispatch cleanly to member or ADL hooks."
+          },
+          {
+            "label": "Niebloids inhibit ADL",
+            "note": "Algorithms like ranges::sort block rogue ADL overloads and accept projection arguments.",
+            "children": [
+              {
+                "label": "Built-in projection parameter",
+                "note": "Niebloid algorithms accept a callable or member pointer projection directly."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "label": "Pipelines and materialization",
+        "note": "Pipe operators compose closures lazily until collected back into an owning container.",
+        "children": [
+          {
+            "label": "range_adaptor_closure",
+            "note": "C++23 base class lets user adaptors compose seamlessly via operator|."
+          },
+          {
+            "label": "std::ranges::to",
+            "note": "C++23 converter materializes lazy pipelines directly into owning containers.",
+            "children": [
+              {
+                "label": "Nested container conversion",
+                "note": "std::ranges::to recursively constructs nested containers without common_view adapters."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "questions": [
+    {
+      "id": "lambdas-q1",
+      "kind": "warmup",
+      "prompt": "Why does `[x]() { ++x; }` fail to compile when `x` is a local `int`, and how does `mutable` fix it?",
+      "code": "int x = 0;\nauto bad = [x]() { ++x; };\nauto ok  = [x]() mutable { ++x; };",
+      "options": [
+        "`x` is captured by `const int&` unless `mutable` switches it to `int&`.",
+        "Capturing `x` by value always makes `x` `const` everywhere in the enclosing function.",
+        "Lambdas cannot store non-static integer members without `mutable`.",
+        "The synthesized `operator()` is `const`-qualified by default, so `mutable` removes `const` to allow modifying the closure's copy of `x`."
+      ],
+      "answer": 3,
+      "explanation": "A lambda lowers to a closure class whose `operator()` is `const` by default (`[expr.prim.lambda.closure]/5`), preventing modification of by-value captured data members. Adding `mutable` drops the `const` qualifier from `operator()`, letting the closure mutate its own copy of `x` without changing the caller's `x`.",
+      "refs": [
+        "[expr.prim.lambda.closure]"
+      ]
+    },
+    {
+      "id": "lambdas-q2",
+      "kind": "warmup",
+      "prompt": "Why does `auto bump = [&x]() { ++x; };` compile without `mutable`, even though `operator()` is still `const`?",
+      "code": "int x = 0;\nauto bump = [&x]() { ++x; };\nbump();",
+      "options": [
+        "The closure stores a reference member `int&`, and a `const` member function can mutate the object a reference member refers to.",
+        "Reference captures automatically add `mutable` to the lambda.",
+        "Inside a lambda, `operator()` becomes non-`const` whenever `&` appears in the capture list.",
+        "`++x` resolves to a global variable lookup instead of a closure member."
+      ],
+      "answer": 0,
+      "explanation": "In C++, `const` on a member function applies to the closure object's direct members, not deeply through pointers or references. Because `[&x]` gives the closure an `int&` member, `const` prevents rebinding that reference (impossible anyway), while `++x` mutates the external `int` freely.",
+      "refs": [
+        "[expr.prim.lambda.capture]",
+        "[expr.prim.lambda.closure]"
+      ]
+    },
+    {
+      "id": "lambdas-q3",
+      "kind": "tricky",
+      "prompt": "Inside a member function of `Widget`, what happens if you return `[=]() { return id; }` and the `Widget` is destroyed before the returned lambda runs?",
+      "code": "struct Widget {\n    int id = 42;\n    auto make_reader() const {\n        return [=]() { return id; };\n    }\n};",
+      "options": [
+        "It returns `42` safely because `[=]` copies `id` by value into the closure.",
+        "It copies `*this` by value in C++17 and later.",
+        "It stores the `this` pointer by value, so invoking the returned lambda after `Widget` dies reads through a dangling pointer (UB).",
+        "It fails to compile in C++17 and C++23."
+      ],
+      "answer": 2,
+      "explanation": "Inside a member function, `id` is `this->id`, so `[=]` implicitly captures the `this` pointer—not a copy of `id` or `*this`. Calling the closure after `Widget` is destroyed is undefined behavior. C++20 deprecated implicit `this` capture via `[=]` in favor of explicit `[=, this]` or by-value `[=, *this]`.",
+      "refs": [
+        "[expr.prim.lambda.capture]"
+      ]
+    },
+    {
+      "id": "lambdas-q4",
+      "kind": "tricky",
+      "prompt": "What does the `static_assert` evaluate to when comparing two identical empty lambda expressions?",
+      "code": "constexpr bool same = std::is_same_v<decltype([]{}), decltype([]{})>;",
+      "options": [
+        "`true`, because captureless lambdas have a canonical empty closure type.",
+        "`false`, because each lambda expression generates its own unique unnamed closure type.",
+        "`true` in C++20+, since captureless lambdas became default-constructible.",
+        "Ill-formed, because lambdas cannot appear inside `decltype`."
+      ],
+      "answer": 1,
+      "explanation": "Under `[expr.prim.lambda.closure]/1`, every lambda expression introduces a unique unnamed class type distinct from all others—even with identical bodies and captures. Since C++20, lambdas are also valid in unevaluated operands like `decltype([]{})`.",
+      "refs": [
+        "[expr.prim.lambda.closure]",
+        "[expr.prim.lambda.general]"
+      ]
+    },
+    {
+      "id": "lambdas-q5",
+      "kind": "standardese",
+      "prompt": "When `N` is a local `constexpr int N = 10;` variable inside `main`, why does `auto f = []() { return N + 1; };` compile with an empty capture list `[]`?",
+      "code": "int main() {\n    constexpr int N = 10;\n    auto f = []() { return N + 1; };\n    return f();\n}",
+      "options": [
+        "Reading `N` for its integral constant value does not odr-use `N`, so `[expr.prim.lambda.capture]` requires no capture.",
+        "All `constexpr` local variables are silently given static storage duration.",
+        "`[]` automatically captures local variables that fit in a CPU register.",
+        "It only compiles in C++23; C++20 required `[N]` here."
+      ],
+      "answer": 0,
+      "explanation": "A lambda may refer to a reaching local variable without capturing it if that variable is not odr-used (`[expr.prim.lambda.capture]/4`, `[basic.def.odr]`). Because `N + 1` reads `N`'s constant value immediately without taking `&N` or binding a reference to `N`, no capture is needed.",
+      "refs": [
+        "[expr.prim.lambda.capture]",
+        "[basic.def.odr]"
+      ]
+    },
+    {
+      "id": "lambdas-q6",
+      "kind": "standardese",
+      "prompt": "Which restriction applies to C++23 lambdas declared with a `static` function call operator (`[](int x) static { ... }`)?",
+      "code": "auto scale = [](int x) static { return x * 2; };",
+      "options": [
+        "They cannot convert to a plain function pointer.",
+        "They cannot be `constexpr`.",
+        "They cannot have any captures and cannot be combined with `mutable` or an explicit object parameter.",
+        "They can only appear at namespace scope."
+      ],
+      "answer": 2,
+      "explanation": "In C++23 (`[expr.prim.lambda.general]` and `[expr.prim.lambda.closure]`), making `operator()` a `static` member function removes the implicit closure object parameter (`this`), so the closure cannot access captured members (`capture-default` or captures are ill-formed), nor can `static` be combined with `mutable` or `this auto`.",
+      "refs": [
+        "[expr.prim.lambda.general]",
+        "[expr.prim.lambda.closure]"
+      ]
+    }
+  ]
+}

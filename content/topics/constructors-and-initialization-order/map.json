@@ -1,0 +1,98 @@
+{
+  "root": {
+    "label": "Constructors & Init Order",
+    "note": "Object construction and destruction follow fixed declaration-order phases regardless of initializer list order.",
+    "children": [
+      {
+        "label": "Strict Subobject Sequence",
+        "note": "Every non-delegating constructor assembles subobjects in four rigid standard-mandated phases.",
+        "children": [
+          {
+            "label": "1. Virtual bases first",
+            "note": "The most-derived class initializes all virtual bases once depth-first left-to-right."
+          },
+          {
+            "label": "2. Direct bases left-to-right",
+            "note": "Non-virtual direct base classes construct in the order listed on the class header."
+          },
+          {
+            "label": "3. Members in declaration order",
+            "note": "Non-static data members initialize top-to-bottom as declared in the class body."
+          },
+          {
+            "label": "4. Constructor body runs last",
+            "note": "The compound statement executes only after every base and member has been constructed."
+          }
+        ]
+      },
+      {
+        "label": "Mem-Initializer Rules",
+        "note": "Member initializer lists supply construction arguments without altering initialization order.",
+        "children": [
+          {
+            "label": "Initializer order is ignored",
+            "note": "Reordering members in a colon list still runs them in declaration order, risking uninitialized reads."
+          },
+          {
+            "label": "Init beats body assignment",
+            "note": "Initializing members directly avoids default-constructing then reassigning and handles const or ref fields."
+          },
+          {
+            "label": "Default member initializers",
+            "note": "Inline member initializers serve as fallbacks skipped whenever a mem-initializer names that member."
+          }
+        ]
+      },
+      {
+        "label": "Destruction & Exceptions",
+        "note": "Teardown mirrors construction in reverse and handles partially built or delegated objects carefully.",
+        "children": [
+          {
+            "label": "Exact reverse teardown",
+            "note": "Destructors run their body first, then members, direct bases, and virtual bases in reverse."
+          },
+          {
+            "label": "Partial build unwinds subobjects",
+            "note": "Throwing in a non-delegating constructor destroys built subobjects without calling ~Class()."
+          },
+          {
+            "label": "Delegating completes lifetime",
+            "note": "Once a target constructor finishes, throwing in the delegating body invokes ~Class()."
+          }
+        ]
+      },
+      {
+        "label": "Virtual Dispatch Hazard",
+        "note": "Polymorphic dispatch treats the object under construction or destruction as its current class.",
+        "children": [
+          {
+            "label": "Dynamic type is current class",
+            "note": "Virtual calls inside Base::Base() resolve to Base overriders, never Derived."
+          },
+          {
+            "label": "Pure virtual call is UB",
+            "note": "Invoking an unimplemented pure virtual during construction or destruction causes undefined behavior."
+          }
+        ]
+      },
+      {
+        "label": "Special & Aggregate Rules",
+        "note": "Constructor declarations govern implicit conversions, default generation, and C++20 aggregate eligibility.",
+        "children": [
+          {
+            "label": "explicit stops silent conversions",
+            "note": "Use explicit and C++20 explicit(bool) to prevent unwanted scalar or braced conversions."
+          },
+          {
+            "label": "User ctor drops default",
+            "note": "Declaring any custom constructor suppresses the implicitly generated default constructor."
+          },
+          {
+            "label": "C++20 aggregate restriction",
+            "note": "Any user-declared constructor, even = default, disqualifies a type from aggregate initialization."
+          }
+        ]
+      }
+    ]
+  }
+}

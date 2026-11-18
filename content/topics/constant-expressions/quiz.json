@@ -1,0 +1,110 @@
+{
+  "questions": [
+    {
+      "id": "constant-expressions-q1",
+      "kind": "warmup",
+      "prompt": "Given `constexpr int a(int x) { return x + 1; }` and `consteval int b(int x) { return x + 1; }`, what happens when `main` calls both with a non-constant local `int n = 5;`?",
+      "code": "constexpr int a(int x) { return x + 1; }\nconsteval int b(int x) { return x + 1; }\n\nint main() {\n    int n = 5;\n    int r1 = a(n);\n    int r2 = b(n);\n    return r1 + r2;\n}",
+      "options": [
+        "Both `a(n)` and `b(n)` compile and run at runtime.",
+        "`a(n)` compiles and runs at runtime, while `b(n)` is a compile error.",
+        "`a(n)` is a compile error because `n` is not constant, while `b(n)` compiles.",
+        "Both `a(n)` and `b(n)` fail to compile because `n` is not `constexpr`."
+      ],
+      "answer": 1,
+      "explanation": "A `constexpr` function may execute either at compile time or at runtime depending on the call context, so `a(n)` runs cleanly at runtime. A `consteval` function is an immediate function (`[dcl.consteval]`) whose every evaluation must be a compile-time constant expression, so `b(n)` is ill-formed.",
+      "refs": [
+        "[dcl.constexpr]",
+        "[dcl.consteval]"
+      ]
+    },
+    {
+      "id": "constant-expressions-q2",
+      "kind": "warmup",
+      "prompt": "When should you declare a namespace-scope variable `constinit` instead of `constexpr`?",
+      "options": [
+        "When the variable is a local automatic variable inside a function.",
+        "When the initializer depends on runtime user input.",
+        "When you want the variable to have internal linkage automatically.",
+        "When you want guaranteed static initialization to avoid initialization-order bugs while still mutating the variable at runtime."
+      ],
+      "answer": 3,
+      "explanation": "`constinit` (`[dcl.constinit]`) requires constant initialization for a variable with static or thread storage duration—preventing dynamic initialization order bugs—without making the variable `const`. `constexpr` makes the variable implicitly `const`.",
+      "refs": [
+        "[dcl.constinit]",
+        "[dcl.constexpr]"
+      ]
+    },
+    {
+      "id": "constant-expressions-q3",
+      "kind": "tricky",
+      "prompt": "What is the bug in `compute(int x)` below when invoked with a runtime integer `n`?",
+      "code": "constexpr int compute(int x) {\n    if constexpr (std::is_constant_evaluated()) {\n        return x * 2;\n    } else {\n        return x + 1;\n    }\n}",
+      "options": [
+        "`std::is_constant_evaluated()` cannot be called in an `if constexpr` condition.",
+        "It returns `x + 1` at runtime and `x * 2` at compile time.",
+        "The `if constexpr` condition is manifestly constant-evaluated, so `std::is_constant_evaluated()` is always `true` and the `else` branch is discarded.",
+        "The code fails to compile because `x` is not a template parameter."
+      ],
+      "answer": 2,
+      "explanation": "The condition of `if constexpr` is always evaluated as a constant expression (`[stmt.if]`), so `std::is_constant_evaluated()` unconditionally returns `true` there. Even when `compute(n)` is called at runtime, it executes `x * 2`. Use plain `if (std::is_constant_evaluated())` in C++20 or `if consteval` in C++23.",
+      "refs": [
+        "[stmt.if]",
+        "[meta.const.eval]"
+      ]
+    },
+    {
+      "id": "constant-expressions-q4",
+      "kind": "tricky",
+      "prompt": "Which declaration using `std::vector` compiles cleanly in C++23?",
+      "code": "consteval std::size_t vec_len() {\n    std::vector<int> v{1, 2, 3};\n    return v.size();\n}\nconsteval std::vector<int> make_vec() {\n    return std::vector<int>{1, 2, 3};\n}",
+      "options": [
+        "`constexpr std::size_t n = vec_len();` compiles, while `constexpr auto v = make_vec();` fails.",
+        "Both `constexpr std::size_t n = vec_len();` and `constexpr auto v = make_vec();` compile.",
+        "Neither compiles because `std::vector` allocates dynamic heap memory.",
+        "`constexpr auto v = make_vec();` compiles only if `v` is declared `constinit`."
+      ],
+      "answer": 0,
+      "explanation": "C++20/23 supports transient allocation (`[expr.const]/5`): compile-time `new` and `delete` are permitted inside `vec_len()` because `v` is destroyed and freed before evaluation completes. Returning `std::vector` into a `constexpr` variable attempts to retain unfreed allocation past constant evaluation, which is ill-formed.",
+      "refs": [
+        "[expr.const]"
+      ]
+    },
+    {
+      "id": "constant-expressions-q5",
+      "kind": "standardese",
+      "prompt": "Why does calling a `consteval` helper `ce(x)` compile inside `if consteval` in C++23 when it fails inside `if (std::is_constant_evaluated())`?",
+      "code": "consteval int ce(int v) { return v * 3; }\n\nconstexpr int f(int x) {\n    if consteval {\n        return ce(x);\n    }\n    return x;\n}",
+      "options": [
+        "`if consteval` converts the parameter `x` into a template parameter automatically.",
+        "The compound statement of `if consteval` is an immediate-function context, whereas an ordinary `if` block is not.",
+        "`std::is_constant_evaluated()` is deprecated in C++23 and forbidden with `consteval`.",
+        "Inside `if consteval`, `ce(x)` is silently rewritten into a runtime call."
+      ],
+      "answer": 1,
+      "explanation": "Under `[stmt.if]` and `[expr.const]`, the true branch of `if consteval` places expressions in an immediate-function context, allowing calls to `consteval` functions using non-constant parameters of the enclosing `constexpr` function. A plain `if (std::is_constant_evaluated())` does not create an immediate context.",
+      "refs": [
+        "[stmt.if]",
+        "[expr.const]"
+      ]
+    },
+    {
+      "id": "constant-expressions-q6",
+      "kind": "standardese",
+      "prompt": "What does the C++ standard require when evaluating a `constexpr` variable initializer triggers signed integer overflow (`INT_MAX + 1`)?",
+      "code": "#include <limits>\nconstexpr int overflow = std::numeric_limits<int>::max() + 1;",
+      "options": [
+        "It wraps around cleanly using two's complement arithmetic.",
+        "It compiles with a warning and stores an unspecified value.",
+        "It only fails if `-Werror` or `-fsanitize=undefined` is enabled.",
+        "The program is ill-formed because any undefined behavior disqualifies a core constant expression."
+      ],
+      "answer": 3,
+      "explanation": "`[expr.const]/5` explicitly disqualifies any evaluation that triggers undefined behavior in the abstract machine from being a core constant expression. Since `constexpr` requires a constant expression initializer, the compiler must emit a diagnostic.",
+      "refs": [
+        "[expr.const]",
+        "[dcl.constexpr]"
+      ]
+    }
+  ]
+}

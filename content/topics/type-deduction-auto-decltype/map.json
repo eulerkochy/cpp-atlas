@@ -1,0 +1,86 @@
+{
+  "root": {
+    "label": "Type Deduction & CTAD",
+    "note": "Explains how auto, decltype, structured bindings, and CTAD infer types without spelling them explicitly.",
+    "children": [
+      {
+        "label": "Auto Deduction",
+        "note": "Applies function-template argument deduction rules to variable and return placeholders.",
+        "children": [
+          {
+            "label": "By-Value auto",
+            "note": "Strips references and top-level cv-qualifiers and decays arrays or functions to pointers."
+          },
+          {
+            "label": "const auto& & auto*",
+            "note": "Preserves pointee constness and stops array-to-pointer decay."
+          },
+          {
+            "label": "Forwarding auto&&",
+            "note": "Collapses to lvalue reference for lvalues and rvalue reference for rvalues."
+          }
+        ]
+      },
+      {
+        "label": "Braced Initializer Rule",
+        "note": "Special auto deduction divergence from standard template argument deduction.",
+        "children": [
+          {
+            "label": "Copy-List auto = {...}",
+            "note": "Copy-list syntax deduces std::initializer_list<T> when elements share a type."
+          },
+          {
+            "label": "auto x{val} (C++17)",
+            "note": "Direct-list syntax deduces single element type T and rejects multi-element lists."
+          }
+        ]
+      },
+      {
+        "label": "Decltype Rules",
+        "note": "Inspects declared entity types or expression value categories without evaluating operands.",
+        "children": [
+          {
+            "label": "Unparenthesized Id-Expression",
+            "note": "decltype(x) and decltype(obj.m) yield the exact declared type of that entity."
+          },
+          {
+            "label": "Parenthesized & Value Category",
+            "note": "Other expressions yield T& for lvalue, T&& for xvalue, and T for prvalue."
+          },
+          {
+            "label": "decltype(auto)",
+            "note": "Forwards return references exactly, though return (local); causes dangling reference UB."
+          }
+        ]
+      },
+      {
+        "label": "Structured Bindings",
+        "note": "Introduces a hidden deduced variable with named aliases into array, tuple, or struct fields.",
+        "children": [
+          {
+            "label": "Hidden Variable Qualifiers",
+            "note": "Qualifiers on auto apply to the hidden whole-object variable, not individual bindings."
+          },
+          {
+            "label": "decltype on Bindings",
+            "note": "decltype(binding) yields the member or tuple_element type rather than a reference."
+          }
+        ]
+      },
+      {
+        "label": "CTAD & Guides",
+        "note": "Deduces class template arguments from constructors, user guides, aggregates, and aliases.",
+        "children": [
+          {
+            "label": "User Deduction Guides",
+            "note": "Explicit Pattern -> Template<T> rules override or extend constructor synthesis."
+          },
+          {
+            "label": "Copy-Deduction Candidate",
+            "note": "Preferentially deduces std::vector{v1} as copying v1 rather than nesting vectors."
+          }
+        ]
+      }
+    ]
+  }
+}

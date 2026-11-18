@@ -1,0 +1,91 @@
+{
+  "questions": [
+    {
+      "id": "object-lifetime-and-storage-q1",
+      "kind": "warmup",
+      "prompt": "When does the lifetime of an object with a non-trivial destructor end according to [basic.life]?",
+      "options": [
+        "Only after free() or operator delete returns the storage to the OS",
+        "Once all pointers to the object go out of scope",
+        "The moment the destructor call starts, before its body finishes",
+        "When the last statement inside the destructor body finishes executing"
+      ],
+      "answer": 2,
+      "explanation": "Under [basic.life]/1, for an object of a class type with a non-trivial destructor, lifetime ends when the destructor call starts (or when storage is reused/released without running the destructor).",
+      "refs": ["[basic.life]"]
+    },
+    {
+      "id": "object-lifetime-and-storage-q2",
+      "kind": "warmup",
+      "prompt": "Which C++23 standard library function starts the lifetime of an implicit-lifetime type T in existing raw bytes without copying or overwriting their contents?",
+      "options": [
+        "std::start_lifetime_as<T>",
+        "std::launder<T>",
+        "std::construct_at<T>",
+        "std::assume_aligned<T>"
+      ],
+      "answer": 0,
+      "explanation": "C++23 std::start_lifetime_as<T>(ptr) implicitly creates an object of implicit-lifetime type T whose value corresponds to the existing byte representation at ptr, avoiding a redundant std::memcpy.",
+      "refs": ["[obj.lifetime]", "[intro.object]"]
+    },
+    {
+      "id": "object-lifetime-and-storage-q3",
+      "kind": "tricky",
+      "prompt": "In C++17 and C++20 (before C++23 P2718R0), what happens in this range-based for loop?",
+      "code": "struct Holder { std::vector<int> items{1, 2, 3}; };\nHolder make_holder();\nfor (int x : make_holder().items) {\n    use(x);\n}",
+      "options": [
+        "Well-defined because range-for always extends the entire initializer expression",
+        "Ill-formed because make_holder() returns a prvalue",
+        "Well-defined only if int x is replaced with auto&& x",
+        "Undefined behavior because the Holder temporary is destroyed before the loop body begins"
+      ],
+      "answer": 3,
+      "explanation": "Before C++23, range-for desugared to auto&& __range = make_holder().items;. Because __range bound to the member reference returned/accessed rather than extending Holder across the whole expression, Holder died at the semicolon before iteration started. C++23 P2718R0 fixed this specifically for range-for.",
+      "refs": ["[stmt.ranged]", "[class.temporary]"]
+    },
+    {
+      "id": "object-lifetime-and-storage-q4",
+      "kind": "tricky",
+      "prompt": "Why does std::string_view sv = std::string(\"hello\") + \" world\"; produce a dangling view despite const reference extension rules?",
+      "code": "std::string_view sv = std::string(\"hello\") + \" world\";",
+      "options": [
+        "std::string_view allocates on the heap and leaks",
+        "Temporary lifetime extension applies to direct reference bindings, not user-defined class values like std::string_view",
+        "std::string literals are destroyed at block entry",
+        "String concatenation yields an lvalue rather than a prvalue"
+      ],
+      "answer": 1,
+      "explanation": "Lifetime extension under [class.temporary] extends a temporary ONLY when bound directly to a reference (const T& or T&&). std::string_view is a class type holding a pointer and length; the temporary std::string dies at the semicolon, leaving sv dangling.",
+      "refs": ["[class.temporary]"]
+    },
+    {
+      "id": "object-lifetime-and-storage-q5",
+      "kind": "standardese",
+      "prompt": "After destroying a Node with a const int member and constructing a new Node in the same storage via ::new (p) Node{2}, why is reading p->id directly undefined behavior?",
+      "code": "struct Node { const int id; };\nNode* p = new Node{1};\np->~Node();\n::new (p) Node{2};",
+      "options": [
+        "Because Node has a const non-static data member, old pointer p is not transparently replaceable under [basic.life]/8",
+        "Because placement new changes the virtual address of p",
+        "Because const int members cannot be destroyed explicitly",
+        "Because Node lacks a user-declared move constructor"
+      ],
+      "answer": 0,
+      "explanation": "Under [basic.life]/8, an old pointer automatically refers to a newly created object at the same storage ONLY if the class has no const or reference non-static data members (among other rules). You must use the pointer returned by placement new or std::launder(p).",
+      "refs": ["[basic.life]", "[ptr.launder]"]
+    },
+    {
+      "id": "object-lifetime-and-storage-q6",
+      "kind": "standardese",
+      "prompt": "Which of the following is true of std::launder(p) when p points to raw bytes where no object of type T has ever been constructed?",
+      "options": [
+        "std::launder(p) implicitly begins the lifetime of a T at p",
+        "std::launder(p) disables strict aliasing rules for T",
+        "Calling std::launder(p) violates its precondition because no live object of type T exists at that address",
+        "std::launder(p) converts any void* into a valid T* safely"
+      ],
+      "answer": 2,
+      "explanation": "Per [ptr.launder], std::launder(p) requires that an object of type T is ALREADY within its lifetime at the address represented by p. It never creates an object (use placement new, std::construct_at, or std::start_lifetime_as for that).",
+      "refs": ["[ptr.launder]"]
+    }
+  ]
+}

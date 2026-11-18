@@ -1,0 +1,80 @@
+{
+  "root": {
+    "label": "Initialization Forms",
+    "note": "Declaration syntax picks the C++ initialization algorithm before constructor overload resolution runs.",
+    "children": [
+      {
+        "label": "Default, Value & Zero",
+        "note": "Controls whether scalar fields start uninitialized or deterministically zeroed.",
+        "children": [
+          {
+            "label": "Default-Initialization",
+            "note": "Leaves stack scalars indeterminate and invokes default constructors on classes."
+          },
+          {
+            "label": "Value-Initialization",
+            "note": "Zeroes scalars and defaulted classes without user-provided constructors before calling ctor."
+          },
+          {
+            "label": "Zero-Initialization",
+            "note": "Clears static and thread-local storage before any dynamic initialization executes."
+          }
+        ]
+      },
+      {
+        "label": "Direct vs. Copy",
+        "note": "Separates explicit constructor eligibility and resolves the most vexing parse.",
+        "children": [
+          {
+            "label": "Direct-Initialization",
+            "note": "Syntax T x(args) considers all constructors including explicit ones."
+          },
+          {
+            "label": "Copy-Initialization",
+            "note": "Syntax T x = expr skips explicit constructors and conversion functions."
+          },
+          {
+            "label": "Most Vexing Parse",
+            "note": "Widget w(); parses as a function declaration rather than a default-initialized variable."
+          }
+        ]
+      },
+      {
+        "label": "List Initialization",
+        "note": "Braced syntax prevents narrowing and function-parse ambiguity while adding two-phase lookup.",
+        "children": [
+          {
+            "label": "Narrowing Prohibition",
+            "note": "Rejects lossy conversions unless converting a constant expression whose value fits."
+          },
+          {
+            "label": "Greedy initializer_list",
+            "note": "Non-empty braces strongly prefer std::initializer_list constructors over normal overloads."
+          },
+          {
+            "label": "Empty Braces Rule",
+            "note": "Empty T x{} selects the default constructor rather than an empty initializer_list."
+          }
+        ]
+      },
+      {
+        "label": "Aggregate Initialization",
+        "note": "Initializes public-member arrays and constructor-free structs directly in declaration order.",
+        "children": [
+          {
+            "label": "C++20 Aggregate Rule",
+            "note": "Any user-declared constructor including = default or = delete disqualifies aggregate status."
+          },
+          {
+            "label": "Designated Initializers",
+            "note": "Syntax {.field = val} initializes named aggregate members strictly in declaration order."
+          },
+          {
+            "label": "Parenthesized Aggregates",
+            "note": "C++20 allows T(a, b) for aggregates so emplace and make_unique work seamlessly."
+          }
+        ]
+      }
+    ]
+  }
+}

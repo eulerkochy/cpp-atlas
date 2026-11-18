@@ -1,0 +1,98 @@
+{
+  "root": {
+    "label": "Vocabulary types and format",
+    "note": "Modern C++ encodes optionality, sum types, qualified callables, and checked formatting directly in types.",
+    "children": [
+      {
+        "label": "std::optional values",
+        "note": "Stores T inline plus an engaged boolean with zero heap allocation.",
+        "children": [
+          {
+            "label": "Checked vs unchecked access",
+            "note": "Calling value() throws bad_optional_access while operator* assumes engagement."
+          },
+          {
+            "label": "C++23 monadic ops",
+            "note": "and_then, transform, and or_else chain optional steps cleanly.",
+            "children": [
+              {
+                "label": "Flat error pipelines",
+                "note": "Monadic combinators forward nullopt cleanly without nested conditional branches."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "label": "std::variant sum types",
+        "note": "Discriminated union sized to the largest alternative plus an active index.",
+        "children": [
+          {
+            "label": "overloaded and std::visit",
+            "note": "Variadic lambda inheritance enforces exhaustive compile-time dispatch across alternatives.",
+            "children": [
+              {
+                "label": "Avoid catch-all arms",
+                "note": "Skipping generic auto lambdas preserves compiler errors on new alternatives."
+              }
+            ]
+          },
+          {
+            "label": "valueless_by_exception",
+            "note": "Occurs only if type-changing assignment throws after destroying the old alternative."
+          }
+        ]
+      },
+      {
+        "label": "std::any open erasure",
+        "note": "Type-erased container storing any CopyConstructible value via SBO or heap.",
+        "children": [
+          {
+            "label": "any_cast pointer vs value",
+            "note": "Pointer any_cast returns nullptr on mismatch while value cast throws bad_any_cast."
+          }
+        ]
+      },
+      {
+        "label": "Callable wrappers",
+        "note": "Type-erased invokables differ sharply in copyability and const propagation.",
+        "children": [
+          {
+            "label": "std::function pitfalls",
+            "note": "Requires CopyConstructible targets and breaks const correctness on mutable lambdas."
+          },
+          {
+            "label": "move_only_function",
+            "note": "C++23 wrapper supports unique_ptr captures and honors const and noexcept qualifiers.",
+            "children": [
+              {
+                "label": "No empty-call overhead",
+                "note": "Calling an empty move_only_function is UB, removing branches and RTTI."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "label": "std::format and std::print",
+        "note": "Type-safe formatting checked at compile time with zero stream state.",
+        "children": [
+          {
+            "label": "consteval format_string",
+            "note": "Rejects mismatched placeholders at compile time; dynamic strings require std::vformat.",
+            "children": [
+              {
+                "label": "Lvalues in make_format_args",
+                "note": "Defect report P2905R2 restricts make_format_args to lvalues to avoid dangling."
+              }
+            ]
+          },
+          {
+            "label": "Custom std::formatter",
+            "note": "Specialize parse and format to integrate user types and C++23 std::println."
+          }
+        ]
+      }
+    ]
+  }
+}

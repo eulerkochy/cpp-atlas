@@ -1,0 +1,110 @@
+{
+  "questions": [
+    {
+      "id": "overload-resolution-q1",
+      "kind": "warmup",
+      "prompt": "Given `void f(int, double);` and `void f(double, int);`, what happens at the call site `f(1, 2);`?",
+      "code": "void f(int, double);\nvoid f(double, int);\n\nf(1, 2);",
+      "options": [
+        "Calls `f(int, double)` because the first parameter is an exact match.",
+        "Ill-formed due to ambiguity because each candidate is strictly better on one argument and worse on the other.",
+        "Calls `f(double, int)` because the second parameter converts last.",
+        "Calls whichever overload was declared earlier in the translation unit."
+      ],
+      "answer": 1,
+      "explanation": "Under `[over.match.best]`, a winner must be at least as good on *all* arguments and strictly better on at least one. On `f(1, 2)`, the first overload wins argument 1 (`int` exact vs `int->double`), while the second wins argument 2, resulting in an ambiguity error.",
+      "refs": [
+        "[over.match.best]"
+      ]
+    },
+    {
+      "id": "overload-resolution-q2",
+      "kind": "warmup",
+      "prompt": "Given `void g(int);` and `void g(double) = delete;`, what happens when calling `g(2.5)`?",
+      "code": "void g(int);\nvoid g(double) = delete;\n\ng(2.5);",
+      "options": [
+        "Calls `g(int)` by truncating `2.5` to `2` because the deleted overload is skipped during viability.",
+        "Ambiguous between `g(int)` and `g(double)`.",
+        "Compile error: `g(double)` wins overload resolution and is then rejected as deleted.",
+        "Undefined behavior at runtime."
+      ],
+      "answer": 2,
+      "explanation": "Deleted functions participate in Phase 1 and Phase 2 of overload resolution just like ordinary functions (`[dcl.fct.def.delete]`). Because `2.5` (`double`) is an exact match for `g(double)`, overload resolution selects `g(double)` and then diagnoses the call to a deleted function.",
+      "refs": [
+        "[over.match.viable]",
+        "[dcl.fct.def.delete]"
+      ]
+    },
+    {
+      "id": "overload-resolution-q3",
+      "kind": "tricky",
+      "prompt": "Given `int log(bool);` and `int log(const std::string&);`, which overload does `log(\"hello\")` invoke?",
+      "code": "#include <string>\nint log(bool);\nint log(const std::string&);\n\nint r = log(\"hello\");",
+      "options": [
+        "`log(bool)`, because array-to-pointer plus pointer-to-boolean is a Standard Conversion Sequence.",
+        "`log(const std::string&)`, because `\"hello\"` is text.",
+        "Ambiguous, because both `bool` and `std::string` require one conversion step.",
+        "Ill-formed, because string literals cannot convert to `bool`."
+      ],
+      "answer": 0,
+      "explanation": "In `[over.ics.rank]/2`, *every* Standard Conversion Sequence strictly outranks *every* User-Defined Conversion Sequence. Turning `const char[6]` into `bool` (array-to-pointer + boolean conversion) is purely a Standard Conversion, defeating `std::string(const char*)`.",
+      "refs": [
+        "[over.ics.rank]",
+        "[conv.bool]"
+      ]
+    },
+    {
+      "id": "overload-resolution-q4",
+      "kind": "tricky",
+      "prompt": "Given `int pick(const int&);` and `template <class T> int pick(T&);`, what does `int x = 10; pick(x);` return?",
+      "code": "int pick(const int&) { return 1; }\ntemplate <class T> int pick(T&) { return 2; }\n\nint x = 10;\nint r = pick(x);",
+      "options": [
+        "`1`, because non-template functions always beat function templates.",
+        "Compile error: ambiguous between `const int&` and `T&`.",
+        "`1`, because `const int&` is preferred for scalar types.",
+        "`2`, because `int&` has a strictly better reference-binding conversion than `const int&`, before template tie-breaking runs."
+      ],
+      "answer": 3,
+      "explanation": "Overload resolution compares conversion sequences *before* applying the non-template-vs-template tie-breaker (`[over.match.best]/2`). Binding mutable lvalue `x` to `int&` (deduced from `T&`) is strictly better than binding to `const int&` (`[over.ics.rank]/3.2.6`), so the template wins.",
+      "refs": [
+        "[over.match.best]",
+        "[over.ics.rank]"
+      ]
+    },
+    {
+      "id": "overload-resolution-q5",
+      "kind": "standardese",
+      "prompt": "Why does declaring both `void h(int);` and `void h(const int&);` make the call `h(5)` ambiguous?",
+      "code": "void h(int);\nvoid h(const int&);\n\nh(5);",
+      "options": [
+        "`const int&` cannot bind to a prvalue literal `5`.",
+        "Both `int` (identity/Exact Match) and `const int&` (Exact Match binding a materialized temporary) have indistinguishable conversion ranks.",
+        "By-value `int` always ranks lower than reference parameters.",
+        "Only `h(const int&)` is viable for literals."
+      ],
+      "answer": 1,
+      "explanation": "Under `[over.best.ics]` and `[over.ics.rank]`, passing a prvalue `5` to `int` is an Identity Exact Match, and binding it to `const int&` is also an Exact Match with no distinguishing sub-rank difference against a non-reference parameter. Neither sequence is better, so the call is ambiguous.",
+      "refs": [
+        "[over.best.ics]",
+        "[over.ics.rank]"
+      ]
+    },
+    {
+      "id": "overload-resolution-q6",
+      "kind": "standardese",
+      "prompt": "In C++20 and C++23, why does `7 != Key{7}` compile when `Key` only defines `friend bool operator==(const Key&, int);`?",
+      "code": "struct Key {\n    int id;\n    friend bool operator==(const Key& a, int b) { return a.id == b; }\n};\nbool diff = (7 != Key{7});",
+      "options": [
+        "The compiler generates an implicit conversion from `int` to `Key` automatically.",
+        "Friend declarations inject free operators for both argument orders automatically.",
+        "`[over.match.oper]` synthesizes rewritten `!=` and reversed `operator==` candidates during overload resolution.",
+        "Because `Key` is an aggregate, `!=` performs memberwise comparison."
+      ],
+      "answer": 2,
+      "explanation": "In C++20 (`[over.match.oper]/3`), an expression `a != b` considers rewritten candidates `!(a == b)` and `!(b == a)` synthesized from viable `operator==` overloads, allowing `7 != Key{7}` to resolve to `!(Key{7} == 7)` without writing boilerplate reverse overloads.",
+      "refs": [
+        "[over.match.oper]"
+      ]
+    }
+  ]
+}

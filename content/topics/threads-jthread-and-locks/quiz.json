@@ -1,0 +1,107 @@
+{
+  "questions": [
+    {
+      "id": "threads-jthread-and-locks-q1",
+      "kind": "warmup",
+      "prompt": "If do_work() throws an exception after t is launched below, what happens when stack unwinding destroys t?",
+      "code": "void run() {\n    std::thread t([] { /* work */ });\n    do_work(); // throws std::runtime_error\n    t.join();\n}",
+      "options": [
+        "~std::thread() automatically calls t.join() before propagating the exception",
+        "~std::thread() automatically detaches t so it runs in the background",
+        "~std::thread() calls std::terminate() because t.joinable() is still true",
+        "Compilation fails because std::thread requires a try/catch block"
+      ],
+      "answer": 2,
+      "explanation": "Because t was neither joined nor detached before unwinding reached ~std::thread(), t.joinable() remains true. Under [thread.thread.destr], destroying a joinable std::thread immediately calls std::terminate(), unlike C++20 std::jthread, which requests stop and joins automatically.",
+      "refs": [
+        "[thread.thread.destr]",
+        "[thread.jthread.cons]"
+      ]
+    },
+    {
+      "id": "threads-jthread-and-locks-q2",
+      "kind": "warmup",
+      "prompt": "What bug exists in the transfer function below?",
+      "code": "void transfer(std::mutex& m1, std::mutex& m2) {\n    std::scoped_lock(m1, m2);\n    // critical section modifying shared state\n}",
+      "options": [
+        "std::scoped_lock(m1, m2); creates an unnamed temporary that locks and immediately unlocks at the semicolon, leaving the critical section unprotected",
+        "std::scoped_lock deadlocks when passed two mutexes",
+        "std::scoped_lock only accepts one mutex in C++23",
+        "The function leaks both mutexes when returning"
+      ],
+      "answer": 0,
+      "explanation": "Because no variable name is given, std::scoped_lock(m1, m2); constructs a temporary object whose lifetime ends at the semicolon, unlocking m1 and m2 right before the critical section executes. Writing std::scoped_lock lk(m1, m2); binds a named guard to the scope.",
+      "refs": [
+        "[thread.lock.scoped]"
+      ]
+    },
+    {
+      "id": "threads-jthread-and-locks-q3",
+      "kind": "tricky",
+      "prompt": "Look closely at the member declaration order inside Pipeline. Why is ~Pipeline() unsafe when Pipeline goes out of scope?",
+      "code": "class Pipeline {\n    std::jthread worker_;\n    std::mutex mtx_;\n    bool active_ = true;\npublic:\n    Pipeline() : worker_([this](std::stop_token st) {\n        while (!st.stop_requested()) {\n            std::scoped_lock lk(mtx_);\n            if (!active_) break;\n        }\n    }) {}\n};",
+      "options": [
+        "std::jthread cannot capture this in its constructor lambda",
+        "std::scoped_lock cannot be constructed inside a while loop",
+        "~jthread() does not call request_stop() unless stop_source is passed manually",
+        "Members are destroyed in reverse declaration order, so mtx_ is destroyed BEFORE ~jthread() requests stop and joins worker_"
+      ],
+      "answer": 3,
+      "explanation": "Class data members are always destroyed in reverse order of declaration ([class.dtor]). Because worker_ is declared first, mtx_ and active_ are destroyed first while worker_ is still running its loop—invoking undefined behavior. Declaring std::jthread worker_; last guarantees it stops and joins before mtx_ and active_ die.",
+      "refs": [
+        "[class.dtor]",
+        "[thread.jthread.destr]"
+      ]
+    },
+    {
+      "id": "threads-jthread-and-locks-q4",
+      "kind": "tricky",
+      "prompt": "Thread A needs to signal Thread B that a buffer is ready, so Thread B can proceed and unblock. Which synchronization primitive is legal when Thread A unlocks/signals and Thread B acquires?",
+      "options": [
+        "Locking a std::mutex on Thread B and calling m.unlock() from Thread A",
+        "Calling sem.release() on Thread A and sem.acquire() on Thread B with std::binary_semaphore sem{0}",
+        "Destroying a std::lock_guard created on Thread A from Thread B",
+        "Using std::shared_lock on Thread A and unlocking it from Thread B"
+      ],
+      "answer": 1,
+      "explanation": "std::mutex has strict thread ownership: unlocking a mutex from a thread that does not own the lock is undefined behavior ([thread.mutex.requirements.mutex]). By contrast, std::counting_semaphore and std::binary_semaphore have no thread ownership—any thread may call release() while another calls acquire().",
+      "refs": [
+        "[thread.mutex.requirements.mutex]",
+        "[thread.sema.cnt]"
+      ]
+    },
+    {
+      "id": "threads-jthread-and-locks-q5",
+      "kind": "standardese",
+      "prompt": "Why does std::condition_variable_any::wait(lk, st, pred) still check pred() inside a loop, even with a std::stop_token?",
+      "options": [
+        "Only std::condition_variable suffers from spurious wakeups; condition_variable_any never wakes spuriously",
+        "A stop_token disables mutex locking inside condition_variable_any",
+        "Condition variable waits may experience spurious wakeups ([thread.condition.condvarany]), so the overload loops until either pred() returns true or st.stop_requested() becomes true",
+        "wait(lk, st, pred) throws std::system_error when st.stop_requested() is true"
+      ],
+      "answer": 2,
+      "explanation": "Under [thread.condition.condvarany], wait(lock, stoken, pred) repeatedly waits while !stoken.stop_requested() and !pred(), returning pred() once either the predicate holds or stop was requested. This handles both spurious wakeups and stop requests delivered before or during the wait.",
+      "refs": [
+        "[thread.condition.condvarany]"
+      ]
+    },
+    {
+      "id": "threads-jthread-and-locks-q6",
+      "kind": "standardese",
+      "prompt": "Which statement accurately captures the C++ standard rules for std::barrier's CompletionFunction and std::call_once's callable if exceptions occur?",
+      "options": [
+        "std::barrier catches and ignores exceptions thrown by CompletionFunction, while std::call_once marks the once_flag permanently failed on exception",
+        "Both std::barrier and std::call_once call std::terminate() if their callables throw",
+        "Neither std::barrier nor std::call_once constrains exceptions on its callable",
+        "std::barrier mandates std::is_nothrow_invocable_v<CompletionFunction&> (noexcept), whereas an exception from std::call_once leaves the once_flag uncompleted so another thread retries"
+      ],
+      "answer": 3,
+      "explanation": "Under [thread.barrier], std::barrier<CompletionFunction> requires is_nothrow_invocable_v<CompletionFunction&> to be true (a non-noexcept completion callable is ill-formed). Under [thread.once.callonce], an invocation of std::call_once that exits via an exception is classified as an exceptional execution rather than returning, allowing a subsequent waiting invocation to try again.",
+      "refs": [
+        "[thread.barrier]",
+        "[thread.once.callonce]"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "root": {
+    "label": "Lambdas and Closure Types",
+    "note": "Every lambda expression lowers to a unique unnamed closure struct holding captured members and operator().",
+    "children": [
+      {
+        "label": "Closure Type Anatomy",
+        "note": "The compiler synthesizes an unnamed non-union class type for each lambda expression.",
+        "children": [
+          {
+            "label": "Unique unnamed struct",
+            "note": "Two identical lambda expressions still produce two distinct closure types."
+          },
+          {
+            "label": "const-by-default operator()",
+            "note": "By-value captures are read-only inside operator() unless mutable removes const."
+          },
+          {
+            "label": "Implicitly constexpr calls",
+            "note": "A lambda's operator() is implicitly constexpr whenever its body satisfies constant-expression rules."
+          }
+        ]
+      },
+      {
+        "label": "Capture Modes",
+        "note": "Capture clauses define which local variables become value or reference members in the closure.",
+        "children": [
+          {
+            "label": "Value captures and mutable",
+            "note": "Value captures copy variables at lambda creation; mutable permits mutating the closure's copies."
+          },
+          {
+            "label": "Reference captures bind aliases",
+            "note": "Reference captures store aliases to outer variables and can mutate them without mutable."
+          },
+          {
+            "label": "Init-capture moves ownership",
+            "note": "C++14 init-captures deduce member types so move-only handles transfer into the closure."
+          },
+          {
+            "label": "Non-odr constexpr reads",
+            "note": "Reading a local constexpr value without taking its address needs no capture."
+          }
+        ]
+      },
+      {
+        "label": "Object and Lifetime Traps",
+        "note": "Dangling reference captures and implicit this pointer captures are common lifetime hazards.",
+        "children": [
+          {
+            "label": "Dangling reference captures",
+            "note": "Closures outliving local variables with reference captures cause undefined behavior when invoked."
+          },
+          {
+            "label": "[=, this] captures pointer",
+            "note": "C++20 deprecated bare [=] capturing this silently; [=, this] makes pointer capture explicit."
+          },
+          {
+            "label": "[=, *this] copies object",
+            "note": "C++17 [*this] stores a full copy of the enclosing object inside the closure."
+          }
+        ]
+      },
+      {
+        "label": "Stateless and Unevaluated",
+        "note": "Captureless lambdas behave as zero-overhead stateless callables and function-pointer sources.",
+        "children": [
+          {
+            "label": "Converts to function pointer",
+            "note": "Captureless lambdas expose a constexpr conversion to a matching C function pointer."
+          },
+          {
+            "label": "Default constructible in C++20",
+            "note": "Captureless closure types can be default-constructed and copy-assigned as comparator types."
+          },
+          {
+            "label": "Allowed in decltype types",
+            "note": "C++20 allows lambdas in unevaluated operands such as unique_ptr custom deleters."
+          }
+        ]
+      },
+      {
+        "label": "Generic and C++23 Extensions",
+        "note": "Modern revisions turned lambdas into full template and recursive callable primitives.",
+        "children": [
+          {
+            "label": "auto parameters create templates",
+            "note": "Each auto parameter generates an independent template type parameter on operator()."
+          },
+          {
+            "label": "Explicit template parameter list",
+            "note": "C++20 <class T> syntax exposes deduced types directly for constraints and forwarding."
+          },
+          {
+            "label": "this auto self recursion",
+            "note": "C++23 explicit object parameters enable self-recursion, while static operator() drops unused this."
+          }
+        ]
+      }
+    ]
+  }
+}

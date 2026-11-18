@@ -1,0 +1,96 @@
+{
+  "root": {
+    "label": "C++26 core additions",
+    "note": "Four C++26 pillars modernize safety, compile-time introspection, async concurrency, and uninitialized locals.",
+    "children": [
+      {
+        "label": "Contracts (P2900)",
+        "note": "Language-level pre, post, and contract_assert assertions with configurable runtime semantics.",
+        "children": [
+          {
+            "label": "Four evaluation semantics",
+            "note": "Toolchains choose ignore, observe, enforce, or quick_enforce outside source code.",
+            "children": [
+              {
+                "label": "Enforce vs quick_enforce",
+                "note": "Both terminate on failure, with quick_enforce skipping the violation handler."
+              }
+            ]
+          },
+          {
+            "label": "Constification rules",
+            "note": "Predicates view variables as const; postconditions require const value parameters."
+          },
+          {
+            "label": "Violation handler",
+            "note": "contract_violation reports kind, semantic, mode, location, and terminating status."
+          }
+        ]
+      },
+      {
+        "label": "Static reflection (P2996)",
+        "note": "Value-based compile-time introspection via ^^ and consteval std::meta::info.",
+        "children": [
+          {
+            "label": "Reflection operator ^^",
+            "note": "Produces a consteval std::meta::info value for types, members, functions, or templates."
+          },
+          {
+            "label": "Splicing and template for",
+            "note": "Splices [:r:] reify reflections while template for unrolls reflection ranges.",
+            "children": [
+              {
+                "label": "std::define_static_array",
+                "note": "Converts compile-time reflection vectors into static arrays usable by template for."
+              }
+            ]
+          },
+          {
+            "label": "Access context",
+            "note": "access_context::current() enforces member visibility unless unchecked() is requested."
+          }
+        ]
+      },
+      {
+        "label": "std::execution (P2300)",
+        "note": "Zero-allocation structured async pipelines built from senders, receivers, and schedulers.",
+        "children": [
+          {
+            "label": "Three completion channels",
+            "note": "Every sender finishes with set_value, set_error, or cooperative set_stopped.",
+            "children": [
+              {
+                "label": "Structured cancellation",
+                "note": "set_stopped propagates cancellation signals downstream without throwing exceptions."
+              }
+            ]
+          },
+          {
+            "label": "Connect and start",
+            "note": "Sender pipelines stay inert until connected into an operation state and started.",
+            "children": [
+              {
+                "label": "std::this_thread::sync_wait",
+                "note": "Blocks the caller at the pipeline boundary until the sender completes."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "label": "Erroneous behavior (P2795)",
+        "note": "Eliminates time-travel UB from uninitialized automatic scalars while preserving opt-out.",
+        "children": [
+          {
+            "label": "Deterministic erroneous value",
+            "note": "Reading an uninitialized local triggers well-defined erroneous behavior, not unbounded UB."
+          },
+          {
+            "label": "[[indeterminate]] opt-out",
+            "note": "Explicitly marks hot-path scratch buffers to retain uninitialized storage semantics."
+          }
+        ]
+      }
+    ]
+  }
+}

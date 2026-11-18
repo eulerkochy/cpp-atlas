@@ -1,0 +1,103 @@
+{
+  "questions": [
+    {
+      "id": "containers-and-iterator-invalidation-q1",
+      "kind": "warmup",
+      "prompt": "A std::unordered_map<int, Widget> triggers a rehash during emplace(). Which handles to existing elements remain valid?",
+      "options": [
+        "All iterators, pointers, and references remain valid",
+        "All iterators are invalidated, while pointers and references to existing elements remain valid",
+        "Iterators remain valid, while pointers and references become dangling",
+        "All iterators, pointers, and references are invalidated"
+      ],
+      "answer": 1,
+      "explanation": "Rehashing rebuilds the bucket array and may change element iteration order, invalidating every iterator ([unord.req]). Because elements live in individually allocated nodes that are relinked rather than relocated, pointers and references to elements stay valid.",
+      "refs": [
+        "[unord.req]"
+      ]
+    },
+    {
+      "id": "containers-and-iterator-invalidation-q2",
+      "kind": "warmup",
+      "prompt": "A std::vector<int> holds 5 elements with capacity() == 16, and you call v.push_back(42);. Which existing handles are invalidated?",
+      "options": [
+        "Only the past-the-end iterator (v.end()); existing element iterators, pointers, and references remain valid",
+        "All iterators, pointers, and references, including v.begin()",
+        "None at all, including v.end()",
+        "Only pointers and references to v.back()"
+      ],
+      "answer": 0,
+      "explanation": "Under [vector.modifiers], if no reallocation occurs (size() < capacity()), push_back invalidates only the past-the-end iterator (end()), leaving iterators, pointers, and references to all pre-existing elements valid.",
+      "refs": [
+        "[vector.modifiers]"
+      ]
+    },
+    {
+      "id": "containers-and-iterator-invalidation-q3",
+      "kind": "tricky",
+      "prompt": "In the snippet below, what happens to it and ref after dq.push_back(40) executes?",
+      "code": "std::deque<int> dq{10, 20, 30};\nauto it = dq.begin();\nint& ref = dq.front();\ndq.push_back(40);",
+      "options": [
+        "Both it and ref remain valid unless the spine reallocates",
+        "Both it and ref are guaranteed to be invalidated",
+        "it is invalidated (even if existing elements didn't move), whereas ref remains valid and still refers to 10",
+        "ref is invalidated, whereas it remains valid"
+      ],
+      "answer": 2,
+      "explanation": "Under [deque.modifiers], push_back and push_front invalidate all iterators to the deque (because deque iterators reference the spine array), yet have no effect on the validity of references or pointers to existing elements.",
+      "refs": [
+        "[deque.modifiers]"
+      ]
+    },
+    {
+      "id": "containers-and-iterator-invalidation-q4",
+      "kind": "tricky",
+      "prompt": "What happens when compiling and running the following snippet using std::vector<bool>?",
+      "code": "std::vector<bool> flags{true, false};\nauto b = flags[0];\nflags.assign(1000, false);\nbool val = b;",
+      "options": [
+        "Well-defined: val is true because auto deduced bool",
+        "Fails to compile because std::vector<bool>::operator[] returns void",
+        "Well-defined: flags.assign updates b to false automatically",
+        "Undefined behavior: auto b deduced a proxy std::vector<bool>::reference pointing into the old buffer freed by flags.assign(...)"
+      ],
+      "answer": 3,
+      "explanation": "std::vector<bool> returns a bit-proxy reference class from operator[] rather than bool& ([vector.bool]). auto b = flags[0] stores that proxy pointing into flags's bit-word storage; once flags.assign(1000, false) reallocates, b dangles and bool val = b; exhibits undefined behavior.",
+      "refs": [
+        "[vector.bool]"
+      ]
+    },
+    {
+      "id": "containers-and-iterator-invalidation-q5",
+      "kind": "standardese",
+      "prompt": "Compare v.push_back(v[0]); vs v.insert(v.end(), v.begin(), v.end()); on a non-empty std::vector<int> v at full capacity (v.size() == v.capacity()). What does the C++ standard say?",
+      "code": "std::vector<int> v{1, 2, 3};\nv.shrink_to_fit();\n// Case 1: v.push_back(v[0]);\n// Case 2: v.insert(v.end(), v.begin(), v.end());",
+      "options": [
+        "Both Case 1 and Case 2 are undefined behavior when v reallocates",
+        "Both Case 1 and Case 2 are guaranteed to succeed since C++11",
+        "Case 1 (v.push_back(v[0])) is well-defined and must handle self-aliasing, whereas Case 2 (v.insert with iterators into *this) is undefined behavior",
+        "Case 2 is well-defined, whereas Case 1 is undefined behavior"
+      ],
+      "answer": 2,
+      "explanation": "Since C++11 ([sequence.reqmts]), single-element insertion/append (push_back(v[0]) or insert(pos, x)) must work even when x aliases an element inside *this during reallocation. Conversely, range insert(p, i, j) carries the precondition that i and j are not iterators into *this—making Case 2 undefined behavior.",
+      "refs": [
+        "[sequence.reqmts]"
+      ]
+    },
+    {
+      "id": "containers-and-iterator-invalidation-q6",
+      "kind": "standardese",
+      "prompt": "According to [deque.modifiers], if dq has 4 elements and you call dq.pop_front(), which iterators and references are invalidated?",
+      "options": [
+        "All iterators to dq, including dq.end(), plus references to the first element",
+        "Only iterators and references to the erased first element (dq.end() and all other elements' iterators/references remain valid)",
+        "All iterators and references to every element in dq",
+        "Only dq.end() and dq.begin()"
+      ],
+      "answer": 1,
+      "explanation": "Under [deque.modifiers], erasing at the beginning (pop_front() or erase starting at begin(), provided the last element is not also erased) invalidates only iterators and references to the erased elements—preserving dq.end() and all other iterators and references. (By contrast, pop_back() also invalidates dq.end().)",
+      "refs": [
+        "[deque.modifiers]"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "questions": [
+    {
+      "id": "smart-pointers-and-allocators-q1",
+      "kind": "warmup",
+      "prompt": "On a 64-bit platform (8-byte pointers), what are the sizes of p1 (empty functor deleter) and p2 (function pointer deleter)?",
+      "code": "struct EmptyDeleter { void operator()(int* p) const noexcept { delete p; } };\nvoid fn_deleter(int* p) noexcept { delete p; }\n\nstd::unique_ptr<int, EmptyDeleter> p1;\nstd::unique_ptr<int, void(*)(int*)> p2(nullptr, fn_deleter);",
+      "options": [
+        "Both p1 and p2 are 8 bytes",
+        "p1 is 8 bytes and p2 is 16 bytes",
+        "p1 is 16 bytes and p2 is 8 bytes",
+        "Both p1 and p2 are 16 bytes"
+      ],
+      "answer": 1,
+      "explanation": "std::unique_ptr compresses an empty stateless functor deleter (like EmptyDeleter or std::default_delete) to zero extra bytes via empty-base optimization or [[no_unique_address]], so p1 stays 8 bytes. A function pointer void(*)(int*) carries runtime address state stored inside p2, doubling its size to 16 bytes.",
+      "refs": [
+        "[unique.ptr.single.general]"
+      ]
+    },
+    {
+      "id": "smart-pointers-and-allocators-q2",
+      "kind": "warmup",
+      "prompt": "Two threads share access to an object observed through std::weak_ptr<Session> wp. What is the correct way to safely use the Session if it is still alive?",
+      "options": [
+        "Call if (auto sp = wp.lock()) { sp->ping(); }",
+        "Call if (!wp.expired()) { wp.lock()->ping(); }",
+        "Cast wp with std::static_pointer_cast<Session>",
+        "Read wp.use_count() > 0 before calling wp.lock()"
+      ],
+      "answer": 0,
+      "explanation": "Checking expired() or use_count() before locking creates a time-of-check-to-time-of-use race: another thread can destroy the final shared_ptr in between, causing wp.lock() to return null. Calling wp.lock() directly atomically checks and increments the strong reference count.",
+      "refs": [
+        "[util.smartptr.weak.obs]"
+      ]
+    },
+    {
+      "id": "smart-pointers-and-allocators-q3",
+      "kind": "tricky",
+      "prompt": "A BigBuffer object is created via std::make_shared<BigBuffer>(), a std::weak_ptr<BigBuffer> observer is saved, and all std::shared_ptr handles are then destroyed while observer stays alive. What happens to BigBuffer's destructor and its heap memory?",
+      "code": "auto sp = std::make_shared<BigBuffer>();\nstd::weak_ptr<BigBuffer> observer = sp;\nsp.reset();\n// observer is still alive here",
+      "options": [
+        "Neither ~BigBuffer() runs nor is any memory freed until observer is destroyed",
+        "Both ~BigBuffer() runs and the entire heap allocation is freed immediately on sp.reset()",
+        "~BigBuffer() runs immediately on sp.reset(), but the underlying memory block stays allocated until observer expires",
+        "observer.lock() reconstructs BigBuffer on demand from the control block"
+      ],
+      "answer": 2,
+      "explanation": "std::make_shared allocates the control block and BigBuffer in a single contiguous heap allocation. When the strong count hits zero, ~BigBuffer() is invoked immediately, yet the combined memory chunk cannot be passed to deallocate until weak_count also reaches zero.",
+      "refs": [
+        "[util.smartptr.shared.create]"
+      ]
+    },
+    {
+      "id": "smart-pointers-and-allocators-q4",
+      "kind": "tricky",
+      "prompt": "In the snippet below, src allocates from a stack monotonic_buffer_resource, whereas dst uses std::pmr::get_default_resource(). What happens during dst = std::move(src);?",
+      "code": "std::array<std::byte, 512> buf{};\nstd::pmr::monotonic_buffer_resource arena{buf.data(), buf.size()};\nstd::pmr::vector<int> src(&arena);\nsrc.assign({1, 2, 3, 4});\n\nstd::pmr::vector<int> dst; // default memory resource\ndst = std::move(src);",
+      "options": [
+        "dst steals src's buffer pointer in O(1) time and adopts arena as its allocator",
+        "Compilation fails because pmr::vector objects with different resources have incompatible types",
+        "Undefined behavior because arena and the default resource compare unequal",
+        "dst retains the default memory resource and moves/copies the elements into newly allocated storage because polymorphic_allocator's POCMA is false_type"
+      ],
+      "answer": 3,
+      "explanation": "std::pmr::polymorphic_allocator defines propagate_on_container_move_assignment as std::false_type. Because dst.get_allocator() != src.get_allocator(), move assignment cannot transfer ownership of src's arena buffer and instead moves elements individually into memory allocated by dst's resource.",
+      "refs": [
+        "[mem.poly.allocator.class]",
+        "[container.alloc.reqmts]"
+      ]
+    },
+    {
+      "id": "smart-pointers-and-allocators-q5",
+      "kind": "standardese",
+      "prompt": "Base has a non-virtual destructor and Derived publicly inherits from Base. Compare destroying sp (std::shared_ptr<Base>) vs destroying up (std::unique_ptr<Base>) when both were initialized from new Derived.",
+      "code": "struct Base { int a = 1; }; // non-virtual ~Base()\nstruct Derived : Base { std::string s = \"data\"; };\n\nstd::shared_ptr<Base> sp(new Derived);\nstd::unique_ptr<Base> up(new Derived);",
+      "options": [
+        "Both invoke undefined behavior when destroyed because Base lacks a virtual destructor",
+        "sp cleanly invokes ~Derived() via its control block's type-erased deleter, whereas up invokes undefined behavior (delete on Base* with non-virtual destructor)",
+        "up cleanly invokes ~Derived() via default_delete, whereas sp leaks s",
+        "Both safely invoke ~Derived() in C++20 and later"
+      ],
+      "answer": 1,
+      "explanation": "std::shared_ptr<Base>(new Derived) captures the static type Derived* inside its control block's type-erased deleter at construction time, so teardown deletes the complete Derived object safely. By contrast, std::unique_ptr<Base> stores only std::default_delete<Base>, calling delete static_cast<Base*>(p), which is undefined behavior under [expr.delete] when ~Base() is non-virtual.",
+      "refs": [
+        "[util.smartptr.shared.const]",
+        "[expr.delete]"
+      ]
+    },
+    {
+      "id": "smart-pointers-and-allocators-q6",
+      "kind": "standardese",
+      "prompt": "A class Node publicly inherits from std::enable_shared_from_this<Node>. In C++17 and later, what happens if Node::Node() calls shared_from_this() inside its constructor body?",
+      "code": "struct Node : std::enable_shared_from_this<Node> {\n    Node() { auto self = shared_from_this(); }\n};\nauto p = std::make_shared<Node>();",
+      "options": [
+        "Returns a valid std::shared_ptr<Node> sharing the incoming make_shared control block",
+        "Silent undefined behavior with a null control block",
+        "Throws std::bad_weak_ptr because weak_this is not initialized until after Node construction finishes",
+        "Fails to compile unless Node is created via std::shared_ptr<Node>(new Node)"
+      ],
+      "answer": 2,
+      "explanation": "The std::shared_ptr constructor populates enable_shared_from_this's internal weak_this member only after the managed Node object has finished constructing. Under C++17+ [util.smartptr.enab], shared_from_this() is specified as return shared_ptr<T>(weak_this), which throws std::bad_weak_ptr when weak_this is empty.",
+      "refs": [
+        "[util.smartptr.enab]"
+      ]
+    }
+  ]
+}

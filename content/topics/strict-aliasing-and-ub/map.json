@@ -1,0 +1,86 @@
+{
+  "root": {
+    "label": "Strict Aliasing and UB",
+    "note": "Type-based alias guarantees, undefined behavior optimizer effects, and safe bit reinterpretation.",
+    "children": [
+      {
+        "label": "UB and Optimizer Contract",
+        "note": "How the as-if rule empowers compilers to prune impossible paths.",
+        "children": [
+          {
+            "label": "As-If Rule Guarantees",
+            "note": "Compilers preserve observable behavior only for well-defined program executions."
+          },
+          {
+            "label": "Retroactive Dead-Code Elimination",
+            "note": "Assuming UB never occurs lets optimizers delete earlier null checks or bounds tests."
+          }
+        ]
+      },
+      {
+        "label": "Strict Aliasing Rule",
+        "note": "Restrictions in [basic.lval] enabling type-based alias analysis.",
+        "children": [
+          {
+            "label": "Type Provenance vs Address",
+            "note": "Matching addresses alone never authorizes reading an object through an unrelated pointer."
+          },
+          {
+            "label": "Permitted Aliasing Categories",
+            "note": "Dynamic type, signedness variants, enclosing aggregates, bases, and byte types."
+          },
+          {
+            "label": "Byte Types Without signed char",
+            "note": "Only char, unsigned char, and std::byte may inspect arbitrary object representations."
+          }
+        ]
+      },
+      {
+        "label": "Broken C Punning Idioms",
+        "note": "Legacy patterns that break standard C++ object semantics.",
+        "children": [
+          {
+            "label": "reinterpret_cast Dereference",
+            "note": "Casting float* to uint32_t* and dereferencing violates [basic.lval] under TBAA."
+          },
+          {
+            "label": "Union Type Punning UB",
+            "note": "Reading an inactive union member is UB in C++ except for common initial sequences."
+          }
+        ]
+      },
+      {
+        "label": "Safe Bit Inspection",
+        "note": "Zero-overhead standard primitives that satisfy the abstract machine.",
+        "children": [
+          {
+            "label": "C++20 std::bit_cast",
+            "note": "Constexpr-friendly value reinterpretation between equal-sized trivially copyable types."
+          },
+          {
+            "label": "Portable std::memcpy",
+            "note": "Copies bytes into a live destination object while compiling to register moves."
+          },
+          {
+            "label": "std::as_bytes Spans",
+            "note": "Exposes std::span<const std::byte> views safely for hashing and serialization."
+          }
+        ]
+      },
+      {
+        "label": "Neighboring UB Hazards",
+        "note": "Arithmetic and pointer traps unrelated to aliasing.",
+        "children": [
+          {
+            "label": "Signed Integer Overflow",
+            "note": "Unlike unsigned wraparound, signed overflow allows algebraic simplification of guards."
+          },
+          {
+            "label": "Out-of-Bounds Pointer Math",
+            "note": "Forming any pointer beyond [begin, end] is UB even without dereferencing."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,26 +1,375 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+/*
+ * Light theme only. Pin `dark:` utilities that ship inside shadcn primitives
+ * to a class we never set, so an OS dark preference cannot half-apply a dark theme.
+ */
+@custom-variant dark (&:is(.dark-theme-disabled *));
+
+/*
+ * Design tokens. The look is a sunlit reading room: warm paper, black ink,
+ * one yellow that behaves like daylight. Yellow is reserved for the hero wash,
+ * the active/selected state and highlighter marks. Nothing else is coloured
+ * except quiz verdicts and syntax.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #fbfaf6;
+  --paper-raised: #ffffff;
+  --paper-sunk: #f3f1e9;
+  --ink: #000000;
+  --ink-body: rgb(0 0 0 / 0.85);
+  --ink-soft: rgb(0 0 0 / 0.6);
+  --ink-faint: rgb(0 0 0 / 0.56);
+  --line: rgb(0 0 0 / 0.09);
+  --line-strong: rgb(0 0 0 / 0.18);
+
+  --sun: #ffc93a;
+  --sun-deep: #f0a800;
+  --sun-wash: #fff3c9;
+  --sky-wash: #e4edf7;
+
+  --right: #23744a;
+  --right-wash: #e3f1e6;
+  --wrong: #b23a2a;
+  --wrong-wash: #f8e4df;
+
+  /* Radii carry hierarchy: windows are large, controls are pills, chips small. */
+  --radius-window: 20px;
+  --radius-panel: 16px;
+  --radius-chip: 8px;
+
+  --shadow-window: 0 1px 0 rgb(255 255 255 / 0.7) inset,
+    0 24px 60px -24px rgb(120 80 0 / 0.28), 0 2px 6px rgb(0 0 0 / 0.05);
+  --shadow-float: 0 8px 28px -10px rgb(0 0 0 / 0.18), 0 0 0 1px var(--line);
+
+  --measure: 68ch;
+
+  /*
+   * shadcn/ui theme variables, mapped onto the tokens above so the primitives
+   * speak the same palette. Light theme only.
+   */
+  --background: var(--paper);
+  --foreground: var(--ink-body);
+  --card: var(--paper-raised);
+  --card-foreground: var(--ink-body);
+  --popover: var(--paper-raised);
+  --popover-foreground: var(--ink-body);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--paper-raised);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-sunk);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--sun-wash);
+  --accent-foreground: var(--ink);
+  --destructive: var(--wrong);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--ink);
+  --radius: 12px;
 }
 
 @theme inline {
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-paper-sunk: var(--paper-sunk);
+  --color-ink: var(--ink);
+  --color-ink-body: var(--ink-body);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-sun: var(--sun);
+  --color-sun-deep: var(--sun-deep);
+  --color-sun-wash: var(--sun-wash);
+  --color-sky-wash: var(--sky-wash);
+  --color-right: var(--right);
+  --color-right-wash: var(--right-wash);
+  --color-wrong: var(--wrong);
+  --color-wrong-wash: var(--wrong-wash);
+
+  --font-display: var(--font-display-face), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-sans-face), "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-heading: var(--font-display-face), "Iowan Old Style", Georgia, serif;
+
+  --radius-window: var(--radius-window);
+  --radius-panel: var(--radius-panel);
+  --radius-chip: var(--radius-chip);
+  --shadow-window: var(--shadow-window);
+  --shadow-float: var(--shadow-float);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
   }
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 6rem;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink-body);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--sun);
+  color: var(--ink);
+}
+
+.sunlight ::selection {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* White surfaces inside the sunlit hero keep the standard yellow selection. */
+.sunlight .bg-paper-raised ::selection {
+  background: var(--sun);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Display type                                                         */
+/* ------------------------------------------------------------------ */
+
+.font-display {
+  font-variation-settings:
+    "SOFT" 50,
+    "WONK" 0;
+  font-optical-sizing: auto;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero: sunlight wash, dappled shade, the convex arc into paper        */
+/* ------------------------------------------------------------------ */
+
+.sunlight {
+  background:
+    radial-gradient(120% 80% at 50% 0%, #fff6d6 0%, rgb(255 246 214 / 0) 60%),
+    linear-gradient(180deg, #ffe7a0 0%, var(--sun) 55%, #ffc12a 100%);
+}
+
+.dapple {
+  position: absolute;
+  border-radius: 9999px;
+  background: var(--sun-deep);
+  filter: blur(70px);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.hero-arc {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 220%;
+  aspect-ratio: 6 / 1;
+  transform: translate(-50%, 62%);
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+@keyframes settle-letters {
+  from {
+    opacity: 0;
+    transform: translateY(6%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes settle-window {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes settle-line {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.settle-line {
+  animation: settle-line 700ms ease-out both;
+}
+.settle-letters {
+  animation: settle-letters 1100ms cubic-bezier(0.2, 0.7, 0.1, 1) 120ms both;
+}
+.settle-window {
+  animation: settle-window 900ms cubic-bezier(0.2, 0.7, 0.1, 1) 420ms both;
+}
+
+/* ------------------------------------------------------------------ */
+/* Article prose & restrained code palette                              */
+/* ------------------------------------------------------------------ */
+
+@layer components {
+  .prose-atlas {
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    color: var(--ink-body);
+  }
+
+  @media (min-width: 768px) {
+    .prose-atlas {
+      font-size: 1.125rem;
+    }
+  }
+
+  .prose-atlas > * + * {
+    margin-top: 1.25em;
+  }
+
+  .prose-atlas h2 {
+    font-family: var(--font-display);
+    font-variation-settings:
+      "SOFT" 50,
+      "WONK" 0;
+    font-weight: 450;
+    font-size: 1.85rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-top: 2.2em;
+    text-wrap: balance;
+  }
+
+  .prose-atlas h3 {
+    font-weight: 600;
+    font-size: 1.125rem;
+    line-height: 1.4;
+    color: var(--ink);
+    margin-top: 1.75em;
+  }
+
+  .prose-atlas h2 + *,
+  .prose-atlas h3 + * {
+    margin-top: 0.75em;
+  }
+
+  .prose-atlas a {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--line-strong);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+
+  .prose-atlas a:hover {
+    text-decoration-color: var(--ink);
+  }
+
+  .prose-atlas strong {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .prose-atlas :not(pre) > code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background: var(--paper-sunk);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 0.08em 0.32em;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+
+  mark,
+  .highlight {
+    background: linear-gradient(
+      180deg,
+      transparent 0 52%,
+      var(--sun) 52% 92%,
+      transparent 92%
+    );
+    color: inherit;
+    padding: 0 0.1em;
+  }
+}
+
+/* Syntax tokens emitted by highlightCppCode (src/lib/cpp-highlight.ts), matching .cppref */
+.tok-kw {
+  color: #000000;
+  font-weight: 600;
+}
+.tok-type,
+.tok-string,
+.tok-num {
+  color: #2c5684;
+}
+.tok-preproc {
+  color: #6b6b6b;
+}
+.tok-comment {
+  color: #4f7a55;
+  font-style: italic;
 }

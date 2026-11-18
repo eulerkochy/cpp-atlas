@@ -1,0 +1,105 @@
+{
+  "questions": [
+    {
+      "id": "coroutines-q1",
+      "kind": "warmup",
+      "prompt": "A Task RAII wrapper holds std::coroutine_handle<promise_type> h and calls if (h) h.destroy(); in ~Task(). What happens if promise_type::final_suspend() returns std::suspend_never?",
+      "options": [
+        "h.destroy() safely releases any remaining promise fields",
+        "When the coroutine finishes, its frame self-destructs before ~Task() runs, causing double destruction / use-after-free in ~Task()",
+        "Compilation fails unless final_suspend() returns std::suspend_always",
+        "The coroutine restarts from initial_suspend()"
+      ],
+      "answer": 1,
+      "explanation": "Under [dcl.fct.def.coroutine], if a coroutine does not suspend at final_suspend(), execution flows off the end and automatically destroys the coroutine state. Any Task handle still pointing to that frame now dangles, so checking h.done() or calling h.destroy() in ~Task() is undefined behavior.",
+      "refs": [
+        "[dcl.fct.def.coroutine]"
+      ]
+    },
+    {
+      "id": "coroutines-q2",
+      "kind": "warmup",
+      "prompt": "Inside a coroutine body, how does the compiler translate co_yield expr;?",
+      "options": [
+        "Into co_await promise.yield_value(expr);",
+        "Into promise.return_value(expr);",
+        "Into co_await expr; bypassing the promise",
+        "Into a thread yield call std::this_thread::yield()"
+      ],
+      "answer": 0,
+      "explanation": "Per [expr.yield], co_yield expr is defined to be equivalent to co_await p.yield_value(expr), where p is the coroutine's promise object.",
+      "refs": [
+        "[expr.yield]"
+      ]
+    },
+    {
+      "id": "coroutines-q3",
+      "kind": "tricky",
+      "prompt": "Assuming Task starts lazily (initial_suspend() returns std::suspend_always), what happens when t.handle.resume() executes below?",
+      "code": "Task t = [msg = std::string(\"hello\")]() -> Task {\n    co_await std::suspend_always{};\n    std::size_t n = msg.size();\n    (void)n;\n}();\nt.handle.resume();",
+      "options": [
+        "msg was copied into the coroutine frame automatically, so msg.size() returns 5",
+        "Compilation fails because lambdas cannot be coroutines",
+        "Undefined behavior: the temporary lambda closure dies at the semicolon while t is suspended, so msg inside the coroutine reads a dangling closure this",
+        "HALO automatically extends the lambda closure lifetime to match t"
+      ],
+      "answer": 2,
+      "explanation": "A coroutine lambda's captures reside in the closure object (*this), not in the coroutine's parameter list. Calling (...)() stores only the closure's this pointer inside the coroutine frame; when the temporary closure is destroyed at the semicolon, resuming t later dereferences a dangling this pointer.",
+      "refs": [
+        "[dcl.fct.def.coroutine]",
+        "[expr.prim.lambda.closure]"
+      ]
+    },
+    {
+      "id": "coroutines-q4",
+      "kind": "tricky",
+      "prompt": "Why does make_task(std::string(\"transient\")) exhibit undefined behavior when resumed after its initial suspension point?",
+      "code": "Task make_task(std::string_view sv) {\n    co_await std::suspend_always{};\n    use(sv);\n}\nTask t = make_task(std::string(\"transient\"));\nt.handle.resume();",
+      "options": [
+        "std::string_view cannot be copied into a coroutine frame",
+        "co_await std::suspend_always{} clears all parameters",
+        "std::string temporaries cannot convert to std::string_view in coroutines",
+        "The coroutine frame stores a copy of sv (a pointer+length view), while the temporary std::string is destroyed at the semicolon before t.handle.resume() runs"
+      ],
+      "answer": 3,
+      "explanation": "Coroutine parameters are copied/moved into the frame according to their declared parameter types. Because sv is a non-owning std::string_view (just like const std::string&), it does not extend or copy the backing std::string temporary, which dies at the end of the full-expression creating t.",
+      "refs": [
+        "[dcl.fct.def.coroutine]",
+        "[class.temporary]"
+      ]
+    },
+    {
+      "id": "coroutines-q5",
+      "kind": "standardese",
+      "prompt": "In void await_suspend(std::coroutine_handle<> h), the awaiter pushes h into a lock-free queue watched by another thread, and then reads this->result on the next line of await_suspend. Why is this a race / use-after-free?",
+      "options": [
+        "await_suspend cannot accept a type-erased std::coroutine_handle<>",
+        "The coroutine is already suspended before await_suspend begins ([expr.await]), so the worker thread can resume and destroy the coroutine (and the awaited temporary awaiter) before await_suspend finishes",
+        "await_suspend automatically holds an internal mutex on h",
+        "Only bool await_suspend permits multi-threaded resumption"
+      ],
+      "answer": 1,
+      "explanation": "Under [expr.await], the coroutine saves state and suspends before await_suspend(h) is entered. Once h is published to another thread, that thread may immediately resume h, run past co_await, and destroy both h and any stack/member awaiter object before await_suspend returns.",
+      "refs": [
+        "[expr.await]"
+      ]
+    },
+    {
+      "id": "coroutines-q6",
+      "kind": "standardese",
+      "prompt": "How does returning std::coroutine_handle<> from await_suspend prevent stack overflow across long chains of completed coroutines, and what handle stops the chain?",
+      "options": [
+        "It pushes continuations onto a heap queue; nullptr stops the chain",
+        "It spawns a fresh thread for each continuation; std::coroutine_handle<>::from_address(nullptr) stops it",
+        "It performs symmetric transfer via a tail call to the returned handle's resume() without growing the stack; returning std::noop_coroutine() returns control to the caller",
+        "It runs await_resume() recursively and unwinds with exceptions"
+      ],
+      "answer": 2,
+      "explanation": "Under [expr.await], if await_suspend returns a std::coroutine_handle<Z>, the compiler emits a tail transfer calling resume() on that handle without allocating another C++ stack frame. Returning std::noop_coroutine() invokes a no-op resumption that immediately returns control to whichever caller invoked resume().",
+      "refs": [
+        "[expr.await]",
+        "[coroutine.handle.noop]"
+      ]
+    }
+  ]
+}

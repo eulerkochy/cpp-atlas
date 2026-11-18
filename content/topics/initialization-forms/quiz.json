@@ -1,0 +1,91 @@
+{
+  "questions": [
+    {
+      "id": "initialization-forms-q1",
+      "kind": "warmup",
+      "prompt": "Why does `Widget w();` inside a function fail when you subsequently call `w.run()`?",
+      "options": [
+        "`Widget w();` declares a function named `w` taking no arguments and returning `Widget`, not a variable.",
+        "`Widget` has no copy constructor.",
+        "Parentheses can only initialize fundamental types, not classes.",
+        "`Widget w();` value-initializes `w` as `const`."
+      ],
+      "answer": 0,
+      "explanation": "Under C++'s ambiguity resolution (the most vexing parse, [stmt.ambig]), any statement that can be parsed as a declaration is parsed as a declaration—so `Widget w();` declares a function `w()`. Using `Widget w{};` or `Widget w;` constructs an object.",
+      "refs": ["[stmt.ambig]", "[dcl.init.general]"]
+    },
+    {
+      "id": "initialization-forms-q2",
+      "kind": "warmup",
+      "prompt": "Given `std::vector<int> a(4, 9);` and `std::vector<int> b{4, 9};`, what are the sizes of `a` and `b`?",
+      "options": [
+        "`a` has size 2; `b` has size 4.",
+        "Both `a` and `b` have size 2.",
+        "`a` has size 4 (four 9s); `b` has size 2 (elements 4 and 9).",
+        "Both `a` and `b` have size 4."
+      ],
+      "answer": 2,
+      "explanation": "Parentheses `a(4, 9)` invoke `std::vector(size_type count, const int& value)`, creating 4 copies of 9. Braces `b{4, 9}` trigger `[over.match.list]`, strongly preferring `std::vector(std::initializer_list<int>)` and creating 2 elements.",
+      "refs": ["[over.match.list]", "[dcl.init.list]"]
+    },
+    {
+      "id": "initialization-forms-q3",
+      "kind": "tricky",
+      "prompt": "Which initialization is well-formed in C++20/23 given `struct Box { explicit Box(int) {} };`?",
+      "code": "struct Box {\n    explicit Box(int) {}\n};",
+      "options": [
+        "`Box b = 5;`",
+        "`Box b = {5};`",
+        "`void f(Box); f({5});`",
+        "`Box b{5};`"
+      ],
+      "answer": 3,
+      "explanation": "`Box b{5};` is direct-list-initialization, which allows `explicit` constructors. All three other forms (`= 5`, `= {5}`, and passing `{5}` to a parameter) are copy-initialization or copy-list-initialization, which reject `explicit` constructors under [over.match.list].",
+      "refs": ["[dcl.init.general]", "[over.match.list]"]
+    },
+    {
+      "id": "initialization-forms-q4",
+      "kind": "tricky",
+      "prompt": "What is the value of `a.x` and `b.x` after running this C++23 function?",
+      "code": "struct A { int x; };\nstruct B { int x; B() {} };\nvoid f() {\n    A a{};\n    B b{};\n}",
+      "options": [
+        "`a.x` is 0; `b.x` is indeterminate.",
+        "Both `a.x` and `b.x` are guaranteed to be 0.",
+        "Both `a.x` and `b.x` are indeterminate.",
+        "`a.x` is indeterminate; `b.x` is 0."
+      ],
+      "answer": 0,
+      "explanation": "Value-initialization (`{}`) zero-initializes `A` first because `A` has no user-provided or deleted default constructor, setting `a.x` to 0. Because `B` has a user-provided default constructor `B() {}`, value-initialization skips zero-initialization and directly runs `B()`, leaving `b.x` indeterminate.",
+      "refs": ["[dcl.init.general]"]
+    },
+    {
+      "id": "initialization-forms-q5",
+      "kind": "standardese",
+      "prompt": "Why does `struct S { S() = default; int x; };` fail `S s{42};` starting in C++20 even though it compiled in C++17?",
+      "options": [
+        "C++20 banned `= default` on constructors inside structs.",
+        "C++20 changed aggregate rules from 'no user-provided constructors' to 'no user-declared constructors', disqualifying S.",
+        "C++20 treats `42` as narrowing when initializing `int` in an aggregate.",
+        "`S{42}` now calls `std::initializer_list<int>` automatically."
+      ],
+      "answer": 1,
+      "explanation": "In C++17, `S() = default;` inside the class body was user-declared but not user-provided, so `S` remained an aggregate. C++20 ([dcl.init.aggr]) changed the requirement to 'no user-declared or inherited constructors', so `S` is no longer an aggregate and has no constructor taking `int`.",
+      "refs": ["[dcl.init.aggr]"]
+    },
+    {
+      "id": "initialization-forms-q6",
+      "kind": "standardese",
+      "prompt": "Which braced conversion is NOT considered a narrowing conversion under [dcl.init.list]?",
+      "code": "constexpr int ok = 100;\nint runtime_val = 100;\ndouble d = 2.0;",
+      "options": [
+        "`char c{runtime_val};`",
+        "`int n{d};`",
+        "`char c{ok};`",
+        "`float f{1e300};`"
+      ],
+      "answer": 2,
+      "explanation": "Under [dcl.init.list], converting an integer type to another integer type is NOT narrowing if the source is a constant expression whose value can be represented exactly in the target type (`constexpr int ok = 100` fits in `char`). Non-constant `runtime_val`, floating-to-integer `int{d}`, and out-of-range `float{1e300}` are all ill-formed narrowing conversions.",
+      "refs": ["[dcl.init.list]"]
+    }
+  ]
+}

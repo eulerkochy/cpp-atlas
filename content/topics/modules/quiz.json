@@ -1,0 +1,90 @@
+{
+  "questions": [
+    {
+      "id": "modules-q1",
+      "kind": "warmup",
+      "prompt": "Where must legacy `#include <vector>` directives appear inside a module interface file?",
+      "options": [
+        "Between `module;` and `export module M;` inside the global module fragment.",
+        "Immediately after `export module M;` inside the module purview.",
+        "Inside `export { #include <vector> }` so callers receive `std::vector`.",
+        "Inside `module :private;` at the end of the file."
+      ],
+      "answer": 0,
+      "explanation": "Including a header after `export module M;` attaches all of its declarations to module M, conflicting with other units that include `<vector>` in the global module. Placing `#include` in the global module fragment (`module;`) keeps those declarations in the global module.",
+      "refs": ["[module.global.frag]"]
+    },
+    {
+      "id": "modules-q2",
+      "kind": "warmup",
+      "prompt": "What happens to a `#define DEBUG_TAG 1` macro written inside a named module interface unit `export module app;`?",
+      "options": [
+        "It leaks to importers if placed after `export module app;`.",
+        "It is exported only if written as `export #define DEBUG_TAG 1`.",
+        "It never leaks to importers of `app`, because named modules do not export preprocessor macros.",
+        "It causes a compile error because `#define` is forbidden inside any module unit."
+      ],
+      "answer": 2,
+      "explanation": "Named modules expose semantic declarations, never preprocessor state. Unlike `#include` or header units (`import <h>;`), macros defined in a named module never affect importing translation units.",
+      "refs": ["[module.import]", "[cpp.import]"]
+    },
+    {
+      "id": "modules-q3",
+      "kind": "tricky",
+      "prompt": "Given module `demo` below, which statement in `main.cpp` compiles cleanly?",
+      "code": "// demo.cppm\nexport module demo;\nstruct Box { int x = 9; };\nexport Box make_box() { return {}; }\n\n// main.cpp\nimport demo;",
+      "options": [
+        "Box b = make_box();",
+        "auto b = make_box(); int y = b.x;",
+        "export Box b = make_box();",
+        "Neither `Box` nor `b.x` can be used because `Box` is not exported."
+      ],
+      "answer": 1,
+      "explanation": "Although `Box` is not exported—making its name invisible to unqualified lookup (`Box b` fails)—`Box` is reachable because exported `make_box()` returns it ([module.reach]). Therefore `auto b = make_box();` and accessing `b.x` are well-formed.",
+      "refs": ["[module.interface]", "[module.reach]"]
+    },
+    {
+      "id": "modules-q4",
+      "kind": "tricky",
+      "prompt": "Why does writing `import math:core;` directly inside `main.cpp` (a non-module consumer file) fail to compile?",
+      "options": [
+        "Because module partitions must be named with `::` instead of `:`.",
+        "Because module partitions can only be imported by translation units belonging to the same module `math`.",
+        "Because partitions cannot contain exported functions.",
+        "Because `main.cpp` must declare `module math;` before importing any module."
+      ],
+      "answer": 1,
+      "explanation": "Under [module.import], a module-partition import (`import :core;`) has no module name prefix and is valid only inside translation units of the owning module. External consumers import the primary module (`import math;`), which uses `export import :core;` to expose interface partitions.",
+      "refs": ["[module.import]", "[module.unit]"]
+    },
+    {
+      "id": "modules-q5",
+      "kind": "standardese",
+      "prompt": "Why is an `export inline` function inside module `M` ill-formed if it calls a `static` helper function declared in `M`'s purview?",
+      "code": "export module M;\nstatic int secret() { return 1; }\nexport inline int api() { return secret(); }",
+      "options": [
+        "Because `static` gives `secret` internal linkage (making it TU-local), and an exported inline entity cannot expose TU-local entities.",
+        "Because `inline` functions are forbidden inside C++20 module interfaces.",
+        "Because `static` functions in a module purview automatically receive external linkage and clash across units.",
+        "Because `api()` must be declared `constexpr` to call non-exported helpers."
+      ],
+      "answer": 0,
+      "explanation": "In [basic.link], entities with internal linkage (such as namespace-scope `static` functions or unnamed-namespace declarations) are translation-unit-local. Exposing a TU-local entity from a non-TU-local inline function or template is ill-formed; dropping `static` gives `secret()` module linkage instead.",
+      "refs": ["[basic.link]", "[module.interface]"]
+    },
+    {
+      "id": "modules-q6",
+      "kind": "standardese",
+      "prompt": "In `int module = 3; int import = module + 1;` inside a regular function body, how does the lexer classify `module` and `import`?",
+      "options": [
+        "Syntax error, because `module` and `import` became hard keywords in C++20.",
+        "Valid only when compiled without `-std=c++20`.",
+        "Valid only if placed inside `module :private;`.",
+        "Valid identifiers, because `module` and `import` are identifiers with special meaning only in module/import directive positions."
+      ],
+      "answer": 3,
+      "explanation": "To preserve backward compatibility with existing C++ codebases using `module` or `import` as variable, parameter, or field names, C++20 made them identifiers with special meaning ([lex.name]) recognized only at the start of module-declarations and import-declarations.",
+      "refs": ["[lex.name]", "[module.unit]"]
+    }
+  ]
+}

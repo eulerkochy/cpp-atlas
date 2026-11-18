@@ -1,0 +1,82 @@
+{
+  "root": {
+    "label": "Name Lookup & ADL",
+    "note": "Maps identifiers to candidate declarations before template deduction, overload resolution, and access control run.",
+    "children": [
+      {
+        "label": "Lookup Pipeline",
+        "note": "Runs strictly before deduction, overload ranking, and private/protected access checks.",
+        "children": [
+          {
+            "label": "Name Hiding First",
+            "note": "Inner scopes stop lookup before parameter types are ever compared."
+          },
+          {
+            "label": "Access Checking Last",
+            "note": "Overload resolution can select a private best match and then fail access control."
+          }
+        ]
+      },
+      {
+        "label": "Unqualified Lookup",
+        "note": "Searches outward through enclosing blocks, classes, and namespaces until the first match.",
+        "children": [
+          {
+            "label": "using-declarations",
+            "note": "Brings base or namespace names into the current scope so overloads stay visible."
+          },
+          {
+            "label": "using-directives",
+            "note": "Exposes namespace members from the nearest common enclosing namespace for unqualified calls."
+          }
+        ]
+      },
+      {
+        "label": "Qualified Lookup",
+        "note": "Inspects only the named class or namespace scope and disables ADL.",
+        "children": [
+          {
+            "label": "Scope Qualifier ::",
+            "note": "Confines search to the target namespace or class hierarchy while ignoring caller directives."
+          },
+          {
+            "label": "Injected Class Name",
+            "note": "Places the class's own name inside its scope so templates and constructors resolve."
+          }
+        ]
+      },
+      {
+        "label": "Argument-Dependent Lookup",
+        "note": "Extends unqualified function calls into the associated namespaces and classes of arguments.",
+        "children": [
+          {
+            "label": "Associated Namespaces",
+            "note": "Contributed by class types, bases, enclosing namespaces, and template arguments."
+          },
+          {
+            "label": "Hidden Friends",
+            "note": "Inline friend definitions inside a class are callable solely via ADL."
+          },
+          {
+            "label": "ADL Suppression",
+            "note": "Blocked by scope qualification, parentheses around callee, class members, or block declarations."
+          }
+        ]
+      },
+      {
+        "label": "Two-Phase Template Lookup",
+        "note": "Separates non-dependent lookup at template definition from dependent lookup at instantiation.",
+        "children": [
+          {
+            "label": "Phase 1 (Definition)",
+            "note": "Resolves non-dependent names early and ignores dependent base classes like Base<T>."
+          },
+          {
+            "label": "Phase 2 (Instantiation)",
+            "note": "Looks up dependent calls via ADL in instantiation context, missing fundamental types."
+          }
+        ]
+      }
+    ]
+  }
+}

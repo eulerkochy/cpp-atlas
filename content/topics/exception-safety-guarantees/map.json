@@ -1,0 +1,90 @@
+{
+  "root": {
+    "label": "Exception-Safety Guarantees",
+    "note": "Contracts governing object invariants, resource cleanup, and container behavior when C++ code throws.",
+    "children": [
+      {
+        "label": "Abrahams Guarantee Levels",
+        "note": "Four graduated promises defining what state survives an exception.",
+        "children": [
+          {
+            "label": "Nothrow and Nofail",
+            "note": "Operations guaranteed never to emit exceptions, forming the bedrock for commit phases."
+          },
+          {
+            "label": "Strong Commit-Rollback",
+            "note": "Failed calls leave program state identical to before the call began."
+          },
+          {
+            "label": "Basic No-Leak Invariants",
+            "note": "Mandatory baseline guaranteeing zero leaked resources and destructible, valid objects."
+          }
+        ]
+      },
+      {
+        "label": "Stack Unwinding Mechanics",
+        "note": "How runtime cleanup executes between throw and catch.",
+        "children": [
+          {
+            "label": "Exception Object Storage",
+            "note": "Throw initializes an implementation-managed exception object outside unwinding frames."
+          },
+          {
+            "label": "Partial Subobject Cleanup",
+            "note": "Completed bases and members destroy in reverse order while the outer destructor is skipped."
+          },
+          {
+            "label": "std::terminate Triggers",
+            "note": "Uncaught exceptions or throws escaping noexcept functions abort without guaranteed unwinding."
+          }
+        ]
+      },
+      {
+        "label": "Strong Guarantee Patterns",
+        "note": "Idioms that isolate failure-prone work from state mutation.",
+        "children": [
+          {
+            "label": "Copy-and-Swap Idiom",
+            "note": "By-value parameter construction isolates allocations before a nothrow swap mutates this."
+          },
+          {
+            "label": "Prepare-Then-Commit Split",
+            "note": "Stage new allocations locally first, then publish with noexcept swaps and pointer moves."
+          }
+        ]
+      },
+      {
+        "label": "noexcept and Move Semantics",
+        "note": "Compile-time checks linking exception specs to container efficiency.",
+        "children": [
+          {
+            "label": "std::move_if_noexcept",
+            "note": "Containers copy instead of moving unless the move constructor is noexcept or non-copyable."
+          },
+          {
+            "label": "Conditional noexcept",
+            "note": "Propagate member noexcept traits using noexcept(expr) on generic wrappers."
+          },
+          {
+            "label": "Implicitly noexcept Destructors",
+            "note": "Every destructor defaults to noexcept(true) unless a subobject or specifier opts out."
+          }
+        ]
+      },
+      {
+        "label": "Unwinding Edge Cases",
+        "note": "Language rules around constructor handlers and nested exceptions.",
+        "children": [
+          {
+            "label": "Constructor Function-Try Blocks",
+            "note": "Handlers around member initializers can translate errors but implicitly rethrow on exit."
+          },
+          {
+            "label": "std::uncaught_exceptions Depth",
+            "note": "Counting active exceptions lets scope guards detect new unwinds inside outer catches."
+          }
+        ]
+      }
+    ]
+  }
+}

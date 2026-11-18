@@ -1,0 +1,82 @@
+{
+  "root": {
+    "label": "C++20 Modules",
+    "note": "Replaces textual header inclusion with semantic binary interfaces, explicit exports, and module linkage.",
+    "children": [
+      {
+        "label": "Module Isolation",
+        "note": "Compiles an interface once semantically without leaking preprocessor state or parsing order.",
+        "children": [
+          {
+            "label": "Macro Encapsulation",
+            "note": "Macros defined inside a named module never escape export boundaries to importers."
+          },
+          {
+            "label": "Order Independence",
+            "note": "Importing named modules in any sequence produces identical lookup and compilation."
+          }
+        ]
+      },
+      {
+        "label": "Unit Structure",
+        "note": "A module unit transitions from global fragment through module purview to optional private fragment.",
+        "children": [
+          {
+            "label": "Global Module Fragment",
+            "note": "Region between module; and export module M; reserved solely for legacy #include directives."
+          },
+          {
+            "label": "Module Purview",
+            "note": "All declarations after the module declaration attach to that named module."
+          },
+          {
+            "label": "Private Module Fragment",
+            "note": "Optional module :private; tail hiding single-TU implementation details from importers."
+          }
+        ]
+      },
+      {
+        "label": "Visibility vs. Reachability",
+        "note": "Exporting controls name lookup visibility while referenced unexported types stay reachable.",
+        "children": [
+          {
+            "label": "Visible Declarations",
+            "note": "Exported names can be spelled directly by importing translation units."
+          },
+          {
+            "label": "Reachable Unexported Types",
+            "note": "Return or parameter types omitted from export still work via auto and member access."
+          }
+        ]
+      },
+      {
+        "label": "Linkage & TU-Local",
+        "note": "Separates module-wide internal sharing from translation-unit-private symbols.",
+        "children": [
+          {
+            "label": "Module Linkage",
+            "note": "Non-exported purview entities share one definition across units of the same module."
+          },
+          {
+            "label": "TU-Local Exposure",
+            "note": "Exported inline functions and templates must not expose static or unnamed-namespace entities."
+          }
+        ]
+      },
+      {
+        "label": "Partitions & Header Units",
+        "note": "Supports modular sub-units internally and macro-preserving header imports for migration.",
+        "children": [
+          {
+            "label": "Module Partitions",
+            "note": "Interface and internal partitions split module M and are importable only within M."
+          },
+          {
+            "label": "Header Units",
+            "note": "Syntactic import <header>; builds a precompiled semantic unit while exporting macros."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "root": {
+    "label": "Inheritance & Virtuals",
+    "note": "C++ separates embedded subobject layout and compile-time lookup rules from runtime virtual dispatch.",
+    "children": [
+      {
+        "label": "Object Layout",
+        "note": "Derived objects embed base subobjects contiguously in memory rather than holding hidden heap pointers.",
+        "children": [
+          {
+            "label": "Embedded Base Subobject",
+            "note": "Every Derived instance stores its Base subobjects directly inside its own footprint.",
+            "children": []
+          },
+          {
+            "label": "Object Slicing",
+            "note": "Passing Derived by value copies only the Base subobject and resets the dynamic type to Base.",
+            "children": []
+          },
+          {
+            "label": "Pointer Adjustment",
+            "note": "Converting a non-null derived pointer to a secondary base shifts the address by that base offset.",
+            "children": []
+          },
+          {
+            "label": "Virtual Bases",
+            "note": "Virtual inheritance merges diamond bases into one subobject initialized by the most-derived class.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Virtual Dispatch",
+        "note": "Polymorphic classes select overriders at runtime using the dynamic type rather than the pointer type.",
+        "children": [
+          {
+            "label": "Static vs Dynamic Type",
+            "note": "Expressions carry a fixed compile-time static type while pointers and references point to a dynamic type.",
+            "children": []
+          },
+          {
+            "label": "vptr and vtable",
+            "note": "Each polymorphic object holds a vptr pointing to its class vtable of virtual function entries.",
+            "children": []
+          },
+          {
+            "label": "override and final",
+            "note": "These specifiers catch signature mismatches at compile time and enable devirtualization.",
+            "children": []
+          },
+          {
+            "label": "Pure Virtual Functions",
+            "note": "Marking a virtual function pure makes the class abstract while still allowing a qualified definition.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Lookup & Access",
+        "note": "Name hiding, access specifiers, and default arguments resolve statically before virtual dispatch runs.",
+        "children": [
+          {
+            "label": "Name Hiding",
+            "note": "Declaring any same-named member in Derived hides all Base overloads unless brought in with using.",
+            "children": []
+          },
+          {
+            "label": "Static Access Check",
+            "note": "Access rules on a virtual call are enforced against the static type at the call site.",
+            "children": []
+          },
+          {
+            "label": "Static Default Args",
+            "note": "Default argument expressions come from the static receiver type even when a derived override executes.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Lifetime Boundaries",
+        "note": "Polymorphic deletion and constructor or destructor execution obey strict dynamic-type boundaries.",
+        "children": [
+          {
+            "label": "Virtual Destructors",
+            "note": "Deleting Derived through a non-virtual Base destructor is undefined behavior rather than a partial free.",
+            "children": []
+          },
+          {
+            "label": "Ctor and Dtor Dispatch",
+            "note": "During Base construction or destruction the object's dynamic type is Base, preventing derived dispatch.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "RTTI & Casts",
+        "note": "Runtime type identification inspects polymorphic objects for safe downcasts and cross-casts.",
+        "children": [
+          {
+            "label": "dynamic_cast",
+            "note": "Navigates polymorphic hierarchies safely, returning null for invalid pointers or throwing bad_cast for references.",
+            "children": []
+          },
+          {
+            "label": "typeid Operator",
+            "note": "Evaluates the dynamic type_info for dereferenced polymorphic pointers and throws bad_typeid on null.",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

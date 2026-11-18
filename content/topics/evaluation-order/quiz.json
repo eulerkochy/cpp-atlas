@@ -1,0 +1,112 @@
+{
+  "questions": [
+    {
+      "id": "evaluation-order-q1",
+      "kind": "warmup",
+      "prompt": "In `int x = a() + b() * c();` (C++23), what does operator precedence guarantee about runtime execution?",
+      "code": "int x = a() + b() * c();",
+      "options": [
+        "`b()` and `c()` must both execute before `a()` executes.",
+        "`a()` must execute first because reading happens left-to-right.",
+        "The result of `b() * c()` is added to `a()`, while `a()`, `b()`, and `c()` may run in any order.",
+        "The expression is undefined behavior unless parentheses are added around `b() * c()`."
+      ],
+      "answer": 2,
+      "explanation": "Operator precedence makes `*` bind tighter than `+`, building the syntax tree `a() + (b() * c())`. It does not schedule the three function calls: `a()`, `b()`, and `c()` are indeterminately sequenced and may run in any non-overlapping order.",
+      "refs": [
+        "[intro.execution]",
+        "[expr.mul]"
+      ]
+    },
+    {
+      "id": "evaluation-order-q2",
+      "kind": "warmup",
+      "prompt": "Since C++17, what does `std::cout << first() << second() << '\\n';` guarantee?",
+      "code": "int first();\nint second();\nstd::cout << first() << second() << '\\n';",
+      "options": [
+        "`first()` is sequenced before `second()`, regardless of optimization level.",
+        "`first()` and `second()` are still indeterminately sequenced because `operator<<` is overloaded.",
+        "`second()` runs before `first()` because arguments bind right-to-left.",
+        "The behavior is unspecified unless `first()` and `second()` are `noexcept`."
+      ],
+      "answer": 0,
+      "explanation": "C++17 made `E1 << E2` sequence `E1` before `E2`, and `[over.match.oper]/2` applies that built-in sequencing rule to overloaded operator syntax as well. Therefore `std::cout << first()` completes before `second()` starts.",
+      "refs": [
+        "[expr.shift]",
+        "[over.match.oper]"
+      ]
+    },
+    {
+      "id": "evaluation-order-q3",
+      "kind": "tricky",
+      "prompt": "Consider a type `Flag` with an overloaded `operator&&`. When evaluating `left() && right()`, what happens if `left()` returns `Flag{false}`?",
+      "code": "struct Flag {\n    bool ok;\n    friend bool operator&&(Flag a, Flag b) { return a.ok && b.ok; }\n};\nFlag left();\nFlag right();\nbool r = left() && right();",
+      "options": [
+        "`right()` is skipped due to short-circuit evaluation.",
+        "`right()` still executes because overloaded `operator&&` is a function call without short-circuiting.",
+        "`right()` may execute before `left()` because function arguments are unsequenced.",
+        "The program is ill-formed because overloading `operator&&` is forbidden since C++17."
+      ],
+      "answer": 1,
+      "explanation": "Overloaded `operator&&` is dispatched as a regular function call, so both argument expressions (`left()` and `right()`) must be evaluated before the function body starts—short-circuiting is lost. Meanwhile, `[over.match.oper]/2` still sequences `left()` before `right()`.",
+      "refs": [
+        "[expr.log.and]",
+        "[over.match.oper]"
+      ]
+    },
+    {
+      "id": "evaluation-order-q4",
+      "kind": "tricky",
+      "prompt": "In C++23, what is true about `consume(std::shared_ptr<Widget>(new Widget{1}), compute());` if `compute()` can throw?",
+      "code": "struct Widget { explicit Widget(int); };\nint compute();\nvoid consume(std::shared_ptr<Widget>, int);\n\nconsume(std::shared_ptr<Widget>(new Widget{1}), compute());",
+      "options": [
+        "It can leak `Widget` if `compute()` runs between `new Widget{1}` and the `shared_ptr` constructor.",
+        "Argument 1 is guaranteed to finish before `compute()` is called.",
+        "`compute()` is guaranteed to run before `new Widget{1}`.",
+        "No leak occurs because argument evaluations cannot interleave, though `compute()` and argument 1 may run in either order."
+      ],
+      "answer": 3,
+      "explanation": "Since C++17, function argument expressions are indeterminately sequenced rather than unsequenced (`[expr.call]/7`). Neither argument can interleave with the other—preventing the pre-C++17 leak—but the compiler may still evaluate argument 1 first or `compute()` first.",
+      "refs": [
+        "[expr.call]",
+        "[intro.execution]"
+      ]
+    },
+    {
+      "id": "evaluation-order-q5",
+      "kind": "standardese",
+      "prompt": "In C++23, what does `pick_lhs(a) = make_rhs();` print when `Target` defines `operator=`?",
+      "code": "struct Target {\n    Target& operator=(const Target&) {\n        std::cout << \"assign \";\n        return *this;\n    }\n};\nTarget& pick_lhs(Target& t) { std::cout << \"lhs \"; return t; }\nTarget make_rhs() { std::cout << \"rhs \"; return Target{}; }\n\nTarget a;\npick_lhs(a) = make_rhs();",
+      "options": [
+        "`lhs rhs assign ` because member calls evaluate their left object before arguments.",
+        "`rhs lhs assign ` because operator-syntax assignment sequences the right operand before the left.",
+        "Either `lhs rhs assign ` or `rhs lhs assign ` because the order is unspecified.",
+        "Undefined behavior because `pick_lhs` and `make_rhs` are unsequenced."
+      ],
+      "answer": 1,
+      "explanation": "In `[expr.ass]/1`, the right operand of an assignment is sequenced before the left operand. Under `[over.match.oper]/2`, expressions written with operator syntax (`pick_lhs(a) = make_rhs()`) preserve the built-in operator's operand sequencing rather than member-call order.",
+      "refs": [
+        "[expr.ass]",
+        "[over.match.oper]"
+      ]
+    },
+    {
+      "id": "evaluation-order-q6",
+      "kind": "standardese",
+      "prompt": "Under C++23 rules, what is the behavior of `int i = 0; int v[2] = {10, 20}; v[i] = i++;`?",
+      "code": "int i = 0;\nint v[2] = {10, 20};\nv[i] = i++;",
+      "options": [
+        "Well-defined: sets `v[1] = 0` and leaves `i == 1`.",
+        "Undefined behavior because `i` is modified and read unsequenced.",
+        "Well-defined: sets `v[0] = 0` and leaves `i == 1`.",
+        "Unspecified whether `v[0]` or `v[1]` receives `0`."
+      ],
+      "answer": 0,
+      "explanation": "While `v[i] = i++;` was undefined behavior in C++14, C++17 `[expr.ass]/1` sequenced the right operand (`i++`, yielding `0` and incrementing `i` to `1`) completely before the left operand (`v[i]`). Thus `v[1]` is assigned `0` and `i` becomes `1`.",
+      "refs": [
+        "[expr.ass]",
+        "[intro.execution]"
+      ]
+    }
+  ]
+}

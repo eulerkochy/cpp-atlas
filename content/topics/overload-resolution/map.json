@@ -1,0 +1,98 @@
+{
+  "root": {
+    "label": "Overload Resolution",
+    "note": "Every overloaded call passes through candidate lookup, viability filtering, and conversion ranking.",
+    "children": [
+      {
+        "label": "Three-Phase Pipeline",
+        "note": "Overload resolution constructs candidates, eliminates non-viable matches, and crowns one winner.",
+        "children": [
+          {
+            "label": "1. Build candidate set",
+            "note": "Name lookup, ADL, and template argument deduction gather all visible overloads."
+          },
+          {
+            "label": "2. Filter viable functions",
+            "note": "Requires matching arity, satisfied C++20 constraints, and an implicit conversion per argument."
+          },
+          {
+            "label": "3. Pick best viable",
+            "note": "Selects the candidate no worse on every parameter and strictly better on at least one."
+          }
+        ]
+      },
+      {
+        "label": "Conversion Sequence Tiers",
+        "note": "Implicit conversion sequences rank across three strict tiers before tie-breakers apply.",
+        "children": [
+          {
+            "label": "Standard conversion sequence",
+            "note": "Built-in language conversions outrank all user-defined constructors and operators."
+          },
+          {
+            "label": "User-defined conversion sequence",
+            "note": "Uses at most one converting constructor or conversion operator between standard conversions."
+          },
+          {
+            "label": "Ellipsis conversion sequence",
+            "note": "Matches C-style variadic parameters only when no better conversion exists."
+          }
+        ]
+      },
+      {
+        "label": "Standard Sub-Ranks",
+        "note": "Within standard conversions, exact matches beat promotions, which beat conversions.",
+        "children": [
+          {
+            "label": "Exact match and qualification",
+            "note": "Includes identity, array-to-pointer decay, lvalue-to-rvalue, and adding const qualifiers."
+          },
+          {
+            "label": "Promotions preserve value",
+            "note": "Widening char, short, or bool to int and float to double beats general conversions."
+          },
+          {
+            "label": "Lossy and pointer conversions",
+            "note": "Includes int-to-double, Derived*-to-Base*, and pointer-to-bool conversions."
+          }
+        ]
+      },
+      {
+        "label": "Reference and Qualifier Rules",
+        "note": "Value category and const qualifiers break exact-match ties on references and *this.",
+        "children": [
+          {
+            "label": "Lvalue prefers T& over const",
+            "note": "A mutable lvalue selects T& over const T& because it requires fewer cv-qualifications."
+          },
+          {
+            "label": "Rvalue prefers T&& over const",
+            "note": "Temporaries and xvalues prefer rvalue references T&& over const T&."
+          },
+          {
+            "label": "Implicit *this ref-qualifiers",
+            "note": "Member cv and & or && qualifiers participate as the implicit object parameter."
+          }
+        ]
+      },
+      {
+        "label": "Tie-Breakers and Traps",
+        "note": "When conversions tie completely, language-level rules settle templates, concepts, and deleted calls.",
+        "children": [
+          {
+            "label": "Non-template wins equal ties",
+            "note": "Non-template overloads win only after parameter conversion ranks tie completely."
+          },
+          {
+            "label": "C++20 constraint subsumption",
+            "note": "More constrained templates beat less constrained templates when conversions tie."
+          },
+          {
+            "label": "Deleted and private checked last",
+            "note": "Overload resolution selects = delete or private winners before rejecting the call."
+          }
+        ]
+      }
+    ]
+  }
+}

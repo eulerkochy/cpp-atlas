@@ -1,0 +1,93 @@
+{
+  "questions": [
+    {
+      "id": "raii-and-resource-management-q1",
+      "kind": "warmup",
+      "prompt": "In what order are local variables and class data members destroyed when a scope exits?",
+      "options": [
+        "Alphabetical by identifier name for members, declaration order for locals",
+        "Reverse order of construction completion for locals, and reverse declaration order for class members",
+        "Forward declaration order so earlier handles close before later ones",
+        "Unspecified order unless wrapped inside std::tuple"
+      ],
+      "answer": 1,
+      "explanation": "Under [basic.stc.auto] and [class.dtor], block-scope objects unwind in exact reverse order of construction completion, while class members are destroyed in reverse order of declaration inside the class definition.",
+      "refs": ["[basic.stc.auto]", "[class.dtor]"]
+    },
+    {
+      "id": "raii-and-resource-management-q2",
+      "kind": "warmup",
+      "prompt": "What is the hidden consequence of adding `~Packet() = default;` to a struct that holds a std::vector<std::byte>?",
+      "code": "struct Packet {\n    std::vector<std::byte> payload;\n    ~Packet() = default;\n};",
+      "options": [
+        "Nothing changes; = default leaves all implicitly generated special members identical",
+        "The vector cannot be destroyed unless std::destroy_at is called manually",
+        "The struct becomes non-copyable until copy operations are also defaulted",
+        "Implicit move constructor and move assignment are suppressed, so moves silently fall back to copying payload"
+      ],
+      "answer": 3,
+      "explanation": "Under [class.copy.ctor] and [class.copy.assign], any user-declared destructor—even `= default;`—prevents implicit declaration of the move constructor and move assignment operator, turning `std::move(pkt)` into a copy.",
+      "refs": ["[class.copy.ctor]", "[class.copy.assign]"]
+    },
+    {
+      "id": "raii-and-resource-management-q3",
+      "kind": "tricky",
+      "prompt": "Assume Part(1) succeeds and Part(2) throws std::runtime_error during construction of Assembly. Which destructors run?",
+      "code": "struct Part {\n    explicit Part(int id);\n    ~Part();\n};\nstruct Assembly {\n    Part first;\n    Part second;\n    Assembly() : first(1), second(2) {}\n    ~Assembly();\n};",
+      "options": [
+        "Only ~Part() for first runs; ~Part() for second and ~Assembly() do NOT run",
+        "~Part() for both first and second run, followed by ~Assembly()",
+        "Only ~Assembly() runs to clean up both members",
+        "No destructors run because the expression failed before Assembly existed"
+      ],
+      "answer": 0,
+      "explanation": "Under [except.ctor], because Assembly's constructor exited via an exception, Assembly's lifetime never began and ~Assembly() never runs. Every already-completed subobject (here only first) is destroyed immediately.",
+      "refs": ["[except.ctor]"]
+    },
+    {
+      "id": "raii-and-resource-management-q4",
+      "kind": "tricky",
+      "prompt": "Why does `std::unique_ptr<std::FILE, FileCloser>` (with stateless functor `FileCloser`) typically match `sizeof(std::FILE*)`, whereas `std::unique_ptr<std::FILE, int(*)(std::FILE*)>` is larger?",
+      "code": "struct FileCloser {\n    void operator()(std::FILE* f) const noexcept { if (f) std::fclose(f); }\n};\nusing P1 = std::unique_ptr<std::FILE, FileCloser>;\nusing P2 = std::unique_ptr<std::FILE, int(*)(std::FILE*)>;",
+      "options": [
+        "std::unique_ptr uses std::shared_ptr's control block whenever a function pointer is passed",
+        "Function pointers disable move semantics, forcing std::unique_ptr to allocate a flag",
+        "P2 must store the runtime function pointer address inside the smart pointer, while stateless FileCloser takes zero bytes via empty-base / [[no_unique_address]] optimization",
+        "FileCloser deletes the pointer at compile time during constexpr evaluation"
+      ],
+      "answer": 2,
+      "explanation": "A function pointer type `int(*)(std::FILE*)` is stateful runtime data (different pointers share the same type), so unique_ptr must store it. A stateless functor encodes the deleter in the type itself and occupies zero extra bytes.",
+      "refs": ["[unique.ptr.single]"]
+    },
+    {
+      "id": "raii-and-resource-management-q5",
+      "kind": "standardese",
+      "prompt": "What happens in C++23 if a user-declared destructor `~Guard() { cleanup(); }` (with no exception specification) throws an exception at runtime during normal scope exit?",
+      "code": "struct Guard {\n    ~Guard() { throw std::runtime_error(\"boom\"); }\n};",
+      "options": [
+        "The exception propagates normally to the caller's catch block because noexcept was not written",
+        "std::terminate() is called because user-declared destructors are implicitly noexcept(true)",
+        "The compiler rejects ~Guard() at compile time whenever throw appears inside a destructor",
+        "Only throws during stack unwinding terminate; normal scope-exit throws propagate"
+      ],
+      "answer": 1,
+      "explanation": "Since C++11 ([class.dtor] / [except.spec]), a destructor with no explicit exception specification inherits the exception specification of an implicitly declared destructor—which is `noexcept(true)` unless a base or member destructor can throw. Exiting it via exception calls std::terminate().",
+      "refs": ["[class.dtor]", "[except.spec]"]
+    },
+    {
+      "id": "raii-and-resource-management-q6",
+      "kind": "standardese",
+      "prompt": "Suppose `Wrapper` declares a custom destructor `~Wrapper() { ... }` and omits copy/move declarations. Why does copying `Wrapper` still compile today despite violating the Rule of Five?",
+      "code": "struct Wrapper {\n    int fd = -1;\n    ~Wrapper() { /* ... */ }\n};",
+      "options": [
+        "Implicit copy operations are forbidden; copying Wrapper only works via memcpy",
+        "Move operations are still generated instead of copy operations",
+        "User-declared destructors only suppress special members if virtual",
+        "Implicit generation of copy constructor and copy assignment is deprecated when a user-declared destructor exists, though still permitted for backward compatibility"
+      ],
+      "answer": 3,
+      "explanation": "Under [depr.impldec] and [class.copy.ctor], declaring a destructor suppresses implicit move operations outright, whereas implicit copy constructor and copy assignment generation remain allowed—but explicitly deprecated.",
+      "refs": ["[depr.impldec]", "[class.copy.ctor]"]
+    }
+  ]
+}

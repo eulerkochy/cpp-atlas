@@ -1,0 +1,105 @@
+{
+  "questions": [
+    {
+      "id": "constructors-and-initialization-order-q1",
+      "kind": "warmup",
+      "prompt": "Why does `Buffer(std::size_t n) : cap(n), data(new int[cap]) {}` exhibit undefined behavior?",
+      "code": "struct Buffer {\n    int* data;\n    std::size_t cap;\n    Buffer(std::size_t n) : cap(n), data(new int[cap]) {}\n};",
+      "options": [
+        "`new int[cap]` cannot appear inside a member initializer list.",
+        "`std::size_t` cannot be converted inside an initializer list.",
+        "`data` is declared before `cap`, so `data` initializes first and reads an uninitialized `cap`.",
+        "Member initializer lists evaluate strictly right-to-left."
+      ],
+      "answer": 2,
+      "explanation": "Under `[class.base.init]/13`, non-static data members always initialize in declaration order inside the class body (`data`, then `cap`), ignoring the order written in the colon initializer list. `data(new int[cap])` reads indeterminate `cap` before `cap(n)` runs.",
+      "refs": [
+        "[class.base.init]"
+      ]
+    },
+    {
+      "id": "constructors-and-initialization-order-q2",
+      "kind": "warmup",
+      "prompt": "When constructing a `std::string` member `name_` from a parameter, why should you prefer `: name_(std::move(s))` over `name_ = std::move(s);` in the constructor body?",
+      "options": [
+        "The member initializer constructs `name_` once in place instead of default-constructing it first and then move-assigning.",
+        "Assignment inside a constructor body is forbidden for standard library types.",
+        "`std::move` only works inside member initializer lists.",
+        "Member initializers skip calling `~std::string()` at destruction."
+      ],
+      "answer": 0,
+      "explanation": "Every member not named in the mem-initializer list is initialized before entering the constructor body (`[class.base.init]/9`), so assigning inside `{ ... }` performs default construction followed by assignment. Mem-initializers construct once directly and are mandatory for `const`, reference, and non-default-constructible members.",
+      "refs": [
+        "[class.base.init]"
+      ]
+    },
+    {
+      "id": "constructors-and-initialization-order-q3",
+      "kind": "tricky",
+      "prompt": "Given `Base::Base()` calling `virtual const char* kind() const`, what does `Derived d;` cause `Base::Base()` to observe when `Derived` overrides `kind()`?",
+      "code": "struct Base {\n    Base() { std::cout << kind(); }\n    virtual const char* kind() const { return \"Base\"; }\n    virtual ~Base() = default;\n};\nstruct Derived : Base {\n    const char* kind() const override { return \"Derived\"; }\n};\nDerived d;",
+      "options": [
+        "\"Derived\", because the vptr already points to `Derived`'s vtable.",
+        "Undefined behavior whenever any virtual function is called from a constructor.",
+        "Compile error: virtual functions cannot be called inside constructors.",
+        "\"Base\", because during `Base::Base()` the dynamic type of the object is `Base`."
+      ],
+      "answer": 3,
+      "explanation": "Under `[class.cdtor]/4`, while a base constructor or destructor is executing, the object's dynamic type is that base class (`Base`), not the still-uninitialized `Derived` class. Virtual dispatch resolves to `Base::kind()`.",
+      "refs": [
+        "[class.cdtor]"
+      ]
+    },
+    {
+      "id": "constructors-and-initialization-order-q4",
+      "kind": "tricky",
+      "prompt": "In a virtual-inheritance diamond `struct Derived : Left, Right`, where `Left() : VBase(1)` and `Right() : VBase(2)` and `Derived() : Left(), Right()` omits `VBase`, how is `VBase` initialized?",
+      "code": "struct VBase { VBase(int x = 0); };\nstruct Left : virtual VBase { Left() : VBase(1) {} };\nstruct Right : virtual VBase { Right() : VBase(2) {} };\nstruct Derived : Left, Right { Derived() : Left(), Right() {} };",
+      "options": [
+        "`VBase(1)` runs via `Left`, and `Right`'s `VBase(2)` is skipped.",
+        "`Derived` acts as the most-derived class and default-initializes `VBase(0)`, ignoring both `Left` and `Right`'s `VBase` initializers.",
+        "Compile error: `Derived` must explicitly repeat `VBase(1)` or `VBase(2)`.",
+        "`VBase` is constructed twice—once with `1` and once with `2`."
+      ],
+      "answer": 1,
+      "explanation": "`[class.base.init]/7` specifies that virtual base classes are initialized solely by the most-derived class (`Derived`), ignoring `VBase(...)` mem-initializers in intermediate bases `Left` and `Right`. Because `Derived` omitted `VBase`, `VBase` is default-initialized with `0`.",
+      "refs": [
+        "[class.base.init]"
+      ]
+    },
+    {
+      "id": "constructors-and-initialization-order-q5",
+      "kind": "standardese",
+      "prompt": "If a delegating constructor finishes calling its target constructor and then throws inside its own compound body `{ ... }`, does `~Widget()` execute?",
+      "code": "struct Widget {\n    Widget(int) {}\n    Widget() : Widget(0) { throw 1; }\n    ~Widget();\n};",
+      "options": [
+        "No; `~Widget()` never executes if any constructor throws.",
+        "Only if `Widget(int)` was marked `noexcept`.",
+        "Yes; once the target constructor completes, the object's lifetime has begun so `~Widget()` runs during unwinding.",
+        "Undefined behavior unless caught inside a function-try-block."
+      ],
+      "answer": 2,
+      "explanation": "Unlike a non-delegating constructor (where throwing destroys only constructed subobjects), `[except.ctor]/3` states that an object whose constructor delegates is considered fully constructed once the target constructor returns normally. Therefore throwing in the delegating body invokes `~Widget()`.",
+      "refs": [
+        "[except.ctor]"
+      ]
+    },
+    {
+      "id": "constructors-and-initialization-order-q6",
+      "kind": "standardese",
+      "prompt": "Why does `Point p{1, 2};` fail to compile in C++20 and C++23 when `Point` declares `Point() = default;`?",
+      "code": "struct Point {\n    int x;\n    int y;\n    Point() = default;\n};\nPoint p{1, 2};",
+      "options": [
+        "`= default` makes `Point` trivial rather than initializable with braces.",
+        "In C++20+, any user-declared constructor—even `= default` or `= delete`—disqualifies a class from being an aggregate.",
+        "Aggregate initialization only works when all members have default member initializers.",
+        "`Point()` must be declared `constexpr` to support `{1, 2}`."
+      ],
+      "answer": 1,
+      "explanation": "Prior to C++20, defaulted or deleted constructors did not prevent a class from being an aggregate. C++20 (`[dcl.init.aggr]/1`) changed the definition so *any* user-declared or inherited constructor makes the class a non-aggregate, leaving `Point p{1, 2}` with no matching two-argument constructor.",
+      "refs": [
+        "[dcl.init.aggr]"
+      ]
+    }
+  ]
+}

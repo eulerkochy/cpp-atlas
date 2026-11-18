@@ -1,0 +1,90 @@
+{
+  "root": {
+    "label": "Value categories",
+    "note": "Every C++ expression is classified by object identity and eligibility to be moved from.",
+    "children": [
+      {
+        "label": "Expression vs variable",
+        "note": "Types belong to declarations whereas value categories describe evaluated expressions.",
+        "children": [
+          {
+            "label": "Named T&& parameter",
+            "note": "A named rvalue-reference parameter has type T&& yet evaluates as an lvalue expression."
+          },
+          {
+            "label": "Function return types",
+            "note": "Calls returning T, T&, and T&& produce prvalues, lvalues, and xvalues respectively."
+          }
+        ]
+      },
+      {
+        "label": "Two orthogonal axes",
+        "note": "Combining glvalue identity and rvalue movability partitions all expressions into three leaves.",
+        "children": [
+          {
+            "label": "lvalue (glvalue only)",
+            "note": "Designates an existing addressable object or function that cannot be implicitly moved."
+          },
+          {
+            "label": "xvalue (glvalue and rvalue)",
+            "note": "Designates an existing expiring object whose resources may be safely transferred."
+          },
+          {
+            "label": "prvalue (rvalue only)",
+            "note": "Represents an unmaterialized computation or initializer with no storage address yet."
+          }
+        ]
+      },
+      {
+        "label": "Temporary materialization",
+        "note": "C++17 converts a prvalue to an xvalue only when an operation requires object identity.",
+        "children": [
+          {
+            "label": "Reference binding",
+            "note": "Binding const T& or T&& materializes a prvalue into a temporary xvalue."
+          },
+          {
+            "label": "Member and array access",
+            "note": "Reading a member or subscripting a temporary array triggers materialization first."
+          },
+          {
+            "label": "Discarded prvalue expression",
+            "note": "Evaluating a standalone class prvalue materializes it so constructor and destructor run."
+          }
+        ]
+      },
+      {
+        "label": "Subtle expression rules",
+        "note": "Several common C++ expressions break naive left-of-equals intuition.",
+        "children": [
+          {
+            "label": "String vs numeric literals",
+            "note": "String literals are static lvalues of const char[N], whereas numeric literals are prvalues."
+          },
+          {
+            "label": "Prefix vs postfix ++",
+            "note": "Built-in ++i returns an lvalue to i while i++ yields a prvalue copy."
+          },
+          {
+            "label": "Member access E1.E2",
+            "note": "A data member on an rvalue yields an xvalue, whereas a reference member yields an lvalue."
+          }
+        ]
+      },
+      {
+        "label": "decltype probes",
+        "note": "Parenthesized decltype((e)) reveals lvalue, xvalue, or prvalue directly in the type system.",
+        "children": [
+          {
+            "label": "Unparenthesized id-expression",
+            "note": "decltype(x) inspects the declared type of x rather than its expression category."
+          },
+          {
+            "label": "Parenthesized expression",
+            "note": "decltype((e)) produces T& for lvalues, T&& for xvalues, and T for prvalues."
+          }
+        ]
+      }
+    ]
+  }
+}

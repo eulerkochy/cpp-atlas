@@ -1,0 +1,86 @@
+{
+  "root": {
+    "label": "References and temporaries",
+    "note": "Reference initialization governs what expressions bind, when temporaries materialize, and how long they survive.",
+    "children": [
+      {
+        "label": "Reference binding rules",
+        "note": "Four reference signatures accept distinct combinations of lvalues, rvalues, and constness.",
+        "children": [
+          {
+            "label": "Non-const lvalue T&",
+            "note": "Binds exclusively to non-const lvalues and rejects temporaries or const objects."
+          },
+          {
+            "label": "Rvalue reference T&&",
+            "note": "Binds exclusively to non-const xvalues and prvalues to enable resource stealing."
+          },
+          {
+            "label": "Universal const T&",
+            "note": "Binds to lvalues, rvalues, and implicitly convertible expressions of different types."
+          }
+        ]
+      },
+      {
+        "label": "Implicit conversion temporaries",
+        "note": "Binding const T& across incompatible types materializes a fresh unrelated temporary object.",
+        "children": [
+          {
+            "label": "Type mismatch copy",
+            "note": "Binding const int& to a double creates a separate int temporary unaffected by later writes."
+          },
+          {
+            "label": "C++23 detection traits",
+            "note": "reference_constructs_from_temporary and reference_converts_from_temporary catch dangling binds."
+          }
+        ]
+      },
+      {
+        "label": "Direct lifetime extension",
+        "note": "Binding a local reference directly to a temporary extends its lifetime to that scope.",
+        "children": [
+          {
+            "label": "Full-expression baseline",
+            "note": "Unextended temporaries destruct at the end of the enclosing full-expression in reverse order."
+          },
+          {
+            "label": "Subobject and aggregate",
+            "note": "Binding a temporary's data member or aggregate reference field extends the whole temporary."
+          }
+        ]
+      },
+      {
+        "label": "Where extension stops",
+        "note": "Syntactic indirection through calls or constructors cancels temporary lifetime extension.",
+        "children": [
+          {
+            "label": "Function call return",
+            "note": "Passing a temporary through an identity function or accessor lets it die at the semicolon."
+          },
+          {
+            "label": "Constructor member init",
+            "note": "Binding a temporary to a reference member inside a constructor always dangles after construction."
+          },
+          {
+            "label": "Return and new expressions",
+            "note": "Temporaries bound inside return statements or new expressions never extend past their context."
+          }
+        ]
+      },
+      {
+        "label": "Range-for and P2718R0",
+        "note": "C++23 closes the classic chained-temporary dangling loophole inside range-based for loops.",
+        "children": [
+          {
+            "label": "Pre-C++23 __range cliff",
+            "note": "Chaining a member accessor in C++11 through C++20 left the outer temporary dead before iteration."
+          },
+          {
+            "label": "C++23 loop-wide lifetime",
+            "note": "P2718R0 extends every temporary in the range-initializer expression until the loop ends."
+          }
+        ]
+      }
+    ]
+  }
+}

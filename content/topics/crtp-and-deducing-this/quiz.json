@@ -1,0 +1,92 @@
+{
+  "questions": [
+    {
+      "id": "crtp-and-deducing-this-q1",
+      "kind": "warmup",
+      "prompt": "What primary performance advantage does CRTP offer over virtual dispatch when all concrete types are known at compile time?",
+      "options": [
+        "CRTP lets you store unrelated derived types inside a single std::vector<Base>",
+        "Calls resolve statically via static_cast with no vptr memory overhead, no vtable lookup, and full inlining",
+        "CRTP moves object construction onto the stack automatically",
+        "CRTP allows overriding private virtual functions without virtual destructors"
+      ],
+      "answer": 1,
+      "explanation": "Because Base<Derived> knows the concrete Derived type at compile time, static_cast<Derived&>(*this) resolves calls statically, eliminating the hidden vptr per object and enabling inline optimization.",
+      "refs": ["[class.derived]", "[temp.inst]"]
+    },
+    {
+      "id": "crtp-and-deducing-this-q2",
+      "kind": "warmup",
+      "prompt": "What problem does C++23's explicit object parameter `(this auto&& self)` solve directly inside a lambda expression?",
+      "code": "auto fib = [](this auto&& self, int n) -> int {\n    return n <= 1 ? n : self(n - 1) + self(n - 2);\n};",
+      "options": [
+        "It makes the lambda capture local variables by move automatically",
+        "It turns the lambda into a virtual function callable through a base pointer",
+        "It evaluates every call to the lambda as consteval",
+        "It lets the lambda call itself recursively without std::function or passing itself as an extra argument"
+      ],
+      "answer": 3,
+      "explanation": "Under [dcl.fct] and [expr.prim.lambda], naming an explicit object parameter `this auto&& self` binds `self` to the lambda's closure object, enabling direct, zero-overhead recursion.",
+      "refs": ["[dcl.fct]", "[expr.prim.lambda]"]
+    },
+    {
+      "id": "crtp-and-deducing-this-q3",
+      "kind": "tricky",
+      "prompt": "Why does the member function `Widget::read` below fail to compile in C++23?",
+      "code": "struct Widget {\n    int count = 5;\n    int read(this const Widget& self) {\n        return this->count;\n    }\n};",
+      "options": [
+        "Inside an explicit object member function there is no implicit `this` pointer; it must write `self.count`",
+        "An explicit object parameter cannot be const-qualified as `const Widget&`",
+        "Explicit object member functions must be templates",
+        "Members cannot be accessed inside explicit object functions unless declared mutable"
+      ],
+      "answer": 0,
+      "explanation": "Under [expr.prim.this] and [class.mfct], `this` is not in scope as an expression inside an explicit object member function body. All member access must go explicitly through the named parameter `self` (`self.count`).",
+      "refs": ["[expr.prim.this]", "[class.mfct]"]
+    },
+    {
+      "id": "crtp-and-deducing-this-q4",
+      "kind": "tricky",
+      "prompt": "What is the exact type of `fn` when taking the address of explicit object member function `Counter::bump`?",
+      "code": "struct Counter {\n    int value = 0;\n    void bump(this Counter& self) { ++self.value; }\n};\nauto fn = &Counter::bump;",
+      "options": [
+        "void (Counter::*)()",
+        "void (Counter::*)(Counter&)",
+        "void (*)(Counter&)",
+        "Ill-formed: you cannot take the address of an explicit object member function"
+      ],
+      "answer": 2,
+      "explanation": "Under [dcl.fct] and [expr.unary.op], an explicit object member function behaves like a non-member function for pointer formation: `&Counter::bump` yields a plain function pointer `void (*)(Counter&)`, not a pointer-to-member-function.",
+      "refs": ["[dcl.fct]", "[expr.unary.op]"]
+    },
+    {
+      "id": "crtp-and-deducing-this-q5",
+      "kind": "standardese",
+      "prompt": "Which declaration of an explicit object member function is legal in C++23?",
+      "options": [
+        "virtual void draw(this Shape& self);",
+        "void draw(this const Shape& self) noexcept;",
+        "void draw(this Shape& self) const;",
+        "static void draw(this Shape& self);"
+      ],
+      "answer": 1,
+      "explanation": "Under [dcl.fct], a function declaration with an explicit object parameter cannot be `virtual`, `static`, cv-qualified (`const`/`volatile`), or ref-qualified (`&`/`&&`)—those properties belong on the explicit object parameter itself. Exception specifications like `noexcept` remain valid.",
+      "refs": ["[dcl.fct]", "[class.mfct]"]
+    },
+    {
+      "id": "crtp-and-deducing-this-q6",
+      "kind": "standardese",
+      "prompt": "In `Box` below, why does `std::move(b).bad()` yield `std::string&` instead of `std::string&&`, whereas `std::move(b).good()` yields `std::string&&`?",
+      "code": "struct Box {\n    std::string& item;\n    template <class Self>\n    decltype(auto) bad(this Self&& self) {\n        return std::forward<Self>(self).item;\n    }\n    template <class Self>\n    decltype(auto) good(this Self&& self) {\n        return std::forward_like<Self>(self.item);\n    }\n};",
+      "options": [
+        "std::forward<Self>(self) ignores template deduction when Self is an explicit object parameter",
+        "Member access on a template always decays rvalues to lvalues",
+        "std::forward_like forces a copy of item onto the stack",
+        "Under [expr.ref], accessing a reference member `E1.m` where `m` is `T&` produces an lvalue even when `E1` is an rvalue, whereas `std::forward_like<Self>` applies Self's value category onto `item`"
+      ],
+      "answer": 3,
+      "explanation": "By [expr.ref], member access on an rvalue yields an xvalue only for non-reference, non-static data members; when the member itself is an lvalue reference (`std::string&`), `E1.item` stays an lvalue. `std::forward_like<Self>(self.item)` transfers `Self`'s constness and value category onto `item` ([forward]).",
+      "refs": ["[expr.ref]", "[forward]"]
+    }
+  ]
+}

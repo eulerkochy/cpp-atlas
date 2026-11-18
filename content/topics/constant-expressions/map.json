@@ -1,0 +1,94 @@
+{
+  "root": {
+    "label": "Constant Expressions",
+    "note": "Compile-time evaluation obeys strict abstract-machine rules governed by constexpr, consteval, and constinit.",
+    "children": [
+      {
+        "label": "Core Constant Rules",
+        "note": "Core constant expressions disallow runtime-only operations, dangling outputs, and all undefined behavior.",
+        "children": [
+          {
+            "label": "No undefined behavior",
+            "note": "Signed overflow, out-of-bounds reads, and inactive union access fail to compile."
+          },
+          {
+            "label": "No dangling results",
+            "note": "Final constant values cannot point to local stack slots or unfreed heap storage."
+          },
+          {
+            "label": "Manifestly constant contexts",
+            "note": "static_assert, template arguments, constexpr vars, and consteval calls force compile-time evaluation."
+          }
+        ]
+      },
+      {
+        "label": "Three Specifiers",
+        "note": "Each keyword controls timing and mutability differently across variables and functions.",
+        "children": [
+          {
+            "label": "constexpr allows compile time",
+            "note": "constexpr functions run at compile time or runtime; constexpr variables are implicitly const."
+          },
+          {
+            "label": "consteval forces compile time",
+            "note": "Immediate functions execute solely during translation and reject runtime arguments."
+          },
+          {
+            "label": "constinit enforces static init",
+            "note": "constinit prevents dynamic initialization order bugs while keeping static or thread-local variables mutable."
+          }
+        ]
+      },
+      {
+        "label": "Transient Allocation",
+        "note": "C++20 allows dynamic allocations inside constant evaluation provided they are freed before returning.",
+        "children": [
+          {
+            "label": "Compile-time new and delete",
+            "note": "Dynamic allocations and deallocations succeed inside constexpr evaluation contexts."
+          },
+          {
+            "label": "Allocations cannot escape",
+            "note": "Heap pointers from constant evaluation cannot persist into runtime global objects."
+          },
+          {
+            "label": "Copy to std::array",
+            "note": "Extract results from temporary std::vector buffers into fixed arrays to persist data."
+          }
+        ]
+      },
+      {
+        "label": "Dual-Path Branching",
+        "note": "Select portable compile-time logic or optimized runtime code within one constexpr function.",
+        "children": [
+          {
+            "label": "std::is_constant_evaluated",
+            "note": "Returns true inside a plain if statement only during constant evaluation."
+          },
+          {
+            "label": "if constexpr trap",
+            "note": "Wrapping std::is_constant_evaluated inside if constexpr always evaluates to true."
+          },
+          {
+            "label": "C++23 if consteval",
+            "note": "Enters an immediate context that avoids the trap and permits calling consteval helpers."
+          }
+        ]
+      },
+      {
+        "label": "Subtle Boundaries",
+        "note": "Specifier placement and function pointers follow rules distinct from ordinary runtime code.",
+        "children": [
+          {
+            "label": "Pointer top-level const",
+            "note": "constexpr on a pointer variable makes the pointer itself const rather than the pointee."
+          },
+          {
+            "label": "Immediate function pointers",
+            "note": "Taking the runtime address of a consteval function is ill-formed outside constant evaluation."
+          }
+        ]
+      }
+    ]
+  }
+}

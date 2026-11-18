@@ -1,0 +1,91 @@
+{
+  "questions": [
+    {
+      "id": "forwarding-references-and-perfect-forwarding-q1",
+      "kind": "warmup",
+      "prompt": "Which parameter declaration actually behaves as a forwarding reference capable of binding both lvalues and rvalues?",
+      "options": [
+        "template <class T> void f(const T&& x);",
+        "template <class T> void f(std::vector<T>&& x);",
+        "template <class T> struct Holder { void put(T&& x); };",
+        "template <class T> void f(T&& x);"
+      ],
+      "answer": 3,
+      "explanation": "Under [temp.deduct.call], T&& is a forwarding reference only when T is a cv-unqualified template parameter deduced for that exact function call. Adding const, wrapping in vector<T>, or using an enclosing class template's T produces a plain rvalue reference.",
+      "refs": ["[temp.deduct.call]"]
+    },
+    {
+      "id": "forwarding-references-and-perfect-forwarding-q2",
+      "kind": "warmup",
+      "prompt": "Given `template <class T> void relay(T&& arg)` called with `int count = 7; relay(count);`, what are T, the declared type of arg, and the value category of expression `arg` inside relay?",
+      "options": [
+        "T is int&, arg has type int&, and expression arg is an lvalue",
+        "T is int, arg has type int&&, and expression arg is an xvalue",
+        "T is int&, arg has type int&&, and expression arg is an lvalue",
+        "T is int, arg has type int&, and expression arg is a prvalue"
+      ],
+      "answer": 0,
+      "explanation": "Passing an lvalue `count` deduces T = int& ([temp.deduct.call]). Reference collapsing turns T&& (int& &&) into int& ([dcl.ref]), and as a named variable `arg` is an lvalue.",
+      "refs": ["[temp.deduct.call]", "[dcl.ref]"]
+    },
+    {
+      "id": "forwarding-references-and-perfect-forwarding-q3",
+      "kind": "tricky",
+      "prompt": "Why does constructing `p2` from non-const `p1` fail to compile (or select the wrong constructor) below?",
+      "code": "struct Person {\n    std::string name;\n    template <class S>\n    explicit Person(S&& s) : name(std::forward<S>(s)) {}\n    Person(const Person& other) = default;\n};\nPerson p1{\"Ada\"};\nPerson p2(p1);",
+      "options": [
+        "Defaulted copy constructors cannot coexist with template constructors",
+        "Person(S&&) is explicit while copy construction requires an implicit constructor",
+        "The template constructor deduces S = Person&, which is an exact match that beats Person(const Person&)'s qualification conversion",
+        "std::forward<Person&>(p1) returns a moved-from Person"
+      ],
+      "answer": 2,
+      "explanation": "Because `p1` is a non-const `Person` lvalue, `Person(S&&)` instantiates `Person(Person&)`, which requires no `const` qualification conversion and beats `Person(const Person&)` in overload resolution—then fails trying to construct `std::string` from `Person&`.",
+      "refs": ["[over.match.best]", "[temp.deduct.call]"]
+    },
+    {
+      "id": "forwarding-references-and-perfect-forwarding-q4",
+      "kind": "tricky",
+      "prompt": "What happens when calling `forward_to_vec({1, 2, 3})` where `forward_to_vec` takes `T&&`?",
+      "code": "void take_vec(std::vector<int> v);\ntemplate <class T>\nvoid forward_to_vec(T&& arg) {\n    take_vec(std::forward<T>(arg));\n}\n// forward_to_vec({1, 2, 3});",
+      "options": [
+        "T deduces to std::initializer_list<int>, constructing std::vector<int>",
+        "Compilation fails because a braced-init-list is a non-deduced context for T&&",
+        "T deduces to int[3] and converts to std::vector<int>",
+        "Compiles only if T&& is replaced with const T&"
+      ],
+      "answer": 1,
+      "explanation": "Unlike `auto x = {1, 2, 3};`, template deduction against a bare `T&&` parameter cannot deduce `std::initializer_list` from a braced-init-list ({...} is a non-deduced context under [temp.deduct.call]).",
+      "refs": ["[temp.deduct.call]"]
+    },
+    {
+      "id": "forwarding-references-and-perfect-forwarding-q5",
+      "kind": "standardese",
+      "prompt": "Why does `std::forward<T>(arg)` use `std::remove_reference_t<T>&` in its parameter instead of deducing `T` from `arg` automatically?",
+      "options": [
+        "Inside the forwarding function, `arg` is always an lvalue; deducing T from `arg` would always yield an lvalue reference and lose whether the caller passed an rvalue",
+        "Template parameters can never be deduced for functions inside namespace std",
+        "std::remove_reference_t<T>& prevents std::forward from accepting const objects",
+        "Automatic deduction would trigger copy elision on `arg`"
+      ],
+      "answer": 0,
+      "explanation": "By placing `T` inside the non-deduced type `std::remove_reference_t<T>&`, `[forward]` forces callers to pass the outer deduced `T` explicitly—preserving the distinction between `T = U&` (caller gave lvalue) and `T = U` (caller gave rvalue).",
+      "refs": ["[forward]", "[temp.deduct.type]"]
+    },
+    {
+      "id": "forwarding-references-and-perfect-forwarding-q6",
+      "kind": "standardese",
+      "prompt": "What does the C++ standard specify for `std::forward<int&>(42)`?",
+      "code": "int& bad() {\n    return std::forward<int&>(42);\n}",
+      "options": [
+        "Returns a dangling int& bound to temporary 42",
+        "Implicitly converts 42 into a static storage int so the reference stays valid",
+        "Ill-formed: the rvalue overload of std::forward mandates `!std::is_lvalue_reference_v<T>`",
+        "Returns an int prvalue by decaying the reference"
+      ],
+      "answer": 2,
+      "explanation": "Under [forward], the overload `template<class T> constexpr T&& forward(remove_reference_t<T>&& t)` mandates that `is_lvalue_reference_v<T>` is `false`. Passing an rvalue (`42`) while requesting an lvalue-reference `T` (`int&`) is explicitly ill-formed.",
+      "refs": ["[forward]"]
+    }
+  ]
+}

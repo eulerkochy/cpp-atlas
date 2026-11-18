@@ -1,0 +1,86 @@
+{
+  "root": {
+    "label": "Object Lifetime and Storage",
+    "note": "Distinguishing when raw memory exists from when a C++ object legally lives inside it.",
+    "children": [
+      {
+        "label": "Four Storage Durations",
+        "note": "Rules governing allocation and release of raw memory backing objects.",
+        "children": [
+          {
+            "label": "Static and Thread",
+            "note": "Program-wide shared globals and per-thread thread_local storage lifetimes."
+          },
+          {
+            "label": "Automatic and Dynamic",
+            "note": "Scope-bound stack storage versus explicit heap allocations via new or malloc."
+          }
+        ]
+      },
+      {
+        "label": "Lifetime Lifecycle Rules",
+        "note": "Exact boundaries when an object starts and stops existing.",
+        "children": [
+          {
+            "label": "Start Upon Initialization",
+            "note": "Lifetime begins only once aligned storage is obtained and initialization completes."
+          },
+          {
+            "label": "End When Destructor Starts",
+            "note": "Non-trivial objects lose lifetime the moment their destructor starts executing."
+          },
+          {
+            "label": "construct_at and destroy_at",
+            "note": "C++20 utilities starting and ending lifetimes explicitly even inside constexpr."
+          }
+        ]
+      },
+      {
+        "label": "Implicit-Lifetime Types",
+        "note": "C++20 and C++23 rules blessing raw byte buffers without constructors.",
+        "children": [
+          {
+            "label": "Implicit Object Creation",
+            "note": "malloc, memcpy, and byte arrays implicitly create scalars and eligible aggregates."
+          },
+          {
+            "label": "std::start_lifetime_as",
+            "note": "C++23 zero-copy helper beginning object lifetime over existing wire bytes."
+          }
+        ]
+      },
+      {
+        "label": "Storage Reuse and Launder",
+        "note": "Pointer validity rules when placement new replaces an existing object.",
+        "children": [
+          {
+            "label": "Transparent Replaceability",
+            "note": "Old pointers stay valid only for exact same types lacking const or reference members."
+          },
+          {
+            "label": "std::launder Barrier",
+            "note": "Prevents optimizers from caching stale const or reference values across placement new."
+          }
+        ]
+      },
+      {
+        "label": "Temporary Lifetime Extension",
+        "note": "When materialized prvalues outlive their enclosing full-expression.",
+        "children": [
+          {
+            "label": "Direct Reference Binding",
+            "note": "Binding const T& or T&& directly extends a temporary to the reference scope."
+          },
+          {
+            "label": "Accessor Dangling Cliff",
+            "note": "Calling .c_str() or returning views stops extension at the semicolon."
+          },
+          {
+            "label": "C++23 Range-For Fix",
+            "note": "P2718R0 extends all temporaries inside the range-for initializer across the loop."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "questions": [
+    {
+      "id": "reference-binding-and-temporaries-q1",
+      "kind": "warmup",
+      "prompt": "Which reference parameter type refuses to bind to `const Widget cw;` while accepting `Widget{}`?",
+      "options": [
+        "const Widget&",
+        "Widget&&",
+        "const Widget&&",
+        "Widget&"
+      ],
+      "answer": 1,
+      "explanation": "Widget&& binds only non-const rvalues (xvalues and prvalues like Widget{}), rejecting lvalues such as cw. const Widget& and const Widget&& accept const rvalues (though const Widget& also accepts cw), while Widget& rejects both.",
+      "refs": ["[dcl.init.ref]"]
+    },
+    {
+      "id": "reference-binding-and-temporaries-q2",
+      "kind": "warmup",
+      "prompt": "What value does `r` observe after `d = 9.5;` runs in this snippet?",
+      "code": "double d = 3.75;\nconst int& r = d;\nd = 9.5;",
+      "options": [
+        "3, because r bound to a temporary int{3} created by converting d rather than aliasing d",
+        "9, because r aliases d and truncates its updated value on read",
+        "Compilation error: const int& cannot bind to a double",
+        "Undefined behavior due to strict aliasing between int and double"
+      ],
+      "answer": 0,
+      "explanation": "Because int and double are not reference-related, binding const int& to double d implicitly converts d into a fresh temporary int{3} whose lifetime is extended to r. Subsequent writes to d never affect that hidden temporary.",
+      "refs": ["[dcl.init.ref]", "[class.temporary]"]
+    },
+    {
+      "id": "reference-binding-and-temporaries-q3",
+      "kind": "tricky",
+      "prompt": "In which snippet does `r` (or `h.ref`) remain valid rather than dangling immediately after the semicolon?",
+      "code": "struct Pair { int first; int second; };\nPair make_pair() { return {1, 2}; }\nconst int& id(const int& x) { return x; }\nstruct Holder {\n    const int& ref;\n    Holder(const int& x) : ref(x) {}\n};",
+      "options": [
+        "const int& r = id(10);",
+        "Holder h(10);",
+        "const int& r = make_pair().first;",
+        "std::string_view sv = std::string(\"abc\");"
+      ],
+      "answer": 2,
+      "explanation": "Binding a reference directly to a non-static data member subobject of a temporary (make_pair().first) extends the entire temporary Pair object's lifetime to r. Passing through id(), storing via a non-aggregate constructor Holder, or constructing std::string_view stops lifetime extension.",
+      "refs": ["[class.temporary]"]
+    },
+    {
+      "id": "reference-binding-and-temporaries-q4",
+      "kind": "tricky",
+      "prompt": "In C++17 and C++20 (before C++23 P2718R0), what happens in `for (int x : make_box().get_vec())` when `get_vec()` returns `const std::vector<int>&`?",
+      "code": "struct Box {\n    std::vector<int> vec{1, 2, 3};\n    const std::vector<int>& get_vec() const { return vec; }\n};\nBox make_box();",
+      "options": [
+        "Well-defined in all C++ versions because range-for extends every temporary in the header",
+        "Well-defined only if int x is changed to const auto& x",
+        "Compile error in C++17/C++20",
+        "Undefined behavior in C++17/C++20 because auto&& __range binds to get_vec()'s return reference, letting the Box temporary destruct before the loop starts"
+      ],
+      "answer": 3,
+      "explanation": "In C++11 through C++20, range-for initializes auto&& __range = make_box().get_vec();. Because get_vec() is a member function call, __range does not extend the Box temporary, which is destroyed at the semicolon before iteration begins. C++23 P2718R0 fixed this in [stmt.ranged].",
+      "refs": ["[stmt.ranged]", "[class.temporary]"]
+    },
+    {
+      "id": "reference-binding-and-temporaries-q5",
+      "kind": "standardese",
+      "prompt": "What do `std::reference_converts_from_temporary_v<const std::string&, std::string>` and `std::reference_converts_from_temporary_v<const std::string&, std::string&>` evaluate to in C++23?",
+      "options": [
+        "false and false, because both have the same underlying type std::string",
+        "true and false, because std::string (unqualified) models a prvalue that materializes a temporary, whereas std::string& is an lvalue that binds directly",
+        "false and true",
+        "true and true"
+      ],
+      "answer": 1,
+      "explanation": "In <type_traits> ([meta.unary.prop]), the second template argument U models an expression of type declval<U>(). When U is std::string (non-reference), declval<std::string>() is an rvalue, so binding const std::string& creates/materializes a temporary (true). When U is std::string&, declval<std::string&>() is an lvalue and binds directly (false).",
+      "refs": ["[meta.unary.prop]", "[dcl.init.ref]"]
+    },
+    {
+      "id": "reference-binding-and-temporaries-q6",
+      "kind": "standardese",
+      "prompt": "When an aggregate struct `struct Agg { const std::string& s; };` is aggregate-initialized via `Agg a{\"hello\"};`, what is the lifetime of the materialized `std::string` temporary?",
+      "code": "struct Agg { const std::string& s; };\nAgg a{\"hello\"};",
+      "options": [
+        "It is destroyed at the semicolon of Agg a{\"hello\"};, leaving a.s dangling",
+        "It is extended to match the lifetime of a (the enclosing aggregate object)",
+        "It lives in static storage until program exit",
+        "Aggregate initialization of a reference member from a string literal is ill-formed"
+      ],
+      "answer": 1,
+      "explanation": "Under [class.temporary]/6.1, a temporary bound to a reference element of an aggregate via aggregate initialization has its lifetime extended to match the lifetime of the aggregate object a itself—unlike a user-declared constructor's mem-initializer, which does not extend lifetime.",
+      "refs": ["[class.temporary]"]
+    }
+  ]
+}

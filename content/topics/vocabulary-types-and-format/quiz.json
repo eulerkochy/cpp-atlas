@@ -1,0 +1,92 @@
+{
+  "questions": [
+    {
+      "id": "vocabulary-types-and-format-q1",
+      "kind": "warmup",
+      "prompt": "Why does std::variant<NonDefault, int> fail to default-construct, and what standard helper fixes it?",
+      "code": "struct NonDefault { explicit NonDefault(int) {} };\nstd::variant<NonDefault, int> v;",
+      "options": [
+        "std::variant default-constructs its first alternative (NonDefault); placing std::monostate first makes the variant default-constructible",
+        "std::variant requires every alternative to be default-constructible",
+        "std::variant always starts empty like std::optional",
+        "std::variant selects int automatically when the first alternative lacks a default constructor"
+      ],
+      "answer": 0,
+      "explanation": "A default-constructed std::variant constructs its zero-indexed alternative. If the first type is not default-constructible, std::variant's default constructor is deleted; putting std::monostate as the first alternative provides a lightweight empty initial state.",
+      "refs": ["[variant.ctor]", "[variant.monostate]"]
+    },
+    {
+      "id": "vocabulary-types-and-format-q2",
+      "kind": "warmup",
+      "prompt": "Why does storing a lambda that captures std::unique_ptr<int> fail with std::function<int()> but succeed with std::move_only_function<int()>?",
+      "code": "auto p = std::make_unique<int>(7);\nstd::move_only_function<int()> f = [p = std::move(p)] { return *p; };",
+      "options": [
+        "std::function cannot store lambdas with captures at all",
+        "std::function requires stored callables to be CopyConstructible, whereas std::move_only_function requires only MoveConstructible",
+        "std::move_only_function stores pointers without calling destructors",
+        "std::function only works with function pointers"
+      ],
+      "answer": 1,
+      "explanation": "std::function mandates CopyConstructible targets because std::function itself is copyable. C++23 std::move_only_function drops copyability, enabling move-only captures such as std::unique_ptr.",
+      "refs": ["[func.wrap.func.con]", "[func.wrap.move]"]
+    },
+    {
+      "id": "vocabulary-types-and-format-q3",
+      "kind": "tricky",
+      "prompt": "What happens when calling f() through const std::function<int()>& vs const std::move_only_function<int()>& wrapping a mutable lambda?",
+      "code": "const std::function<int()> a = [n = 0]() mutable { return ++n; };\nconst std::move_only_function<int()> b = [n = 0]() mutable { return ++n; };",
+      "options": [
+        "Both fail to compile because calling a mutable lambda through const is ill-formed",
+        "Both compile and increment n on every call",
+        "a compiles and mutates n despite being const; b fails to compile because std::move_only_function<int()> does not declare a const operator()",
+        "b compiles while a throws std::bad_function_call"
+      ],
+      "answer": 2,
+      "explanation": "std::function::operator() is always const-qualified regardless of the wrapped callable, silently allowing mutation through a const std::function. std::move_only_function honors qualifiers in its signature: const invocations require std::move_only_function<int() const>.",
+      "refs": ["[func.wrap.func.inv]", "[func.wrap.move.inv]"]
+    },
+    {
+      "id": "vocabulary-types-and-format-q4",
+      "kind": "tricky",
+      "prompt": "Why does std::vformat(fmt, std::make_format_args(42)) fail to compile under C++20/23 after DR P2905R2?",
+      "code": "std::string fmt = \"{}\";\nauto s = std::vformat(fmt, std::make_format_args(42));",
+      "options": [
+        "std::vformat does not accept integers",
+        "std::format_args only accepts std::string arguments",
+        "std::make_format_args returns void",
+        "std::make_format_args takes Args&... (lvalue references) to prevent storing dangling pointers to temporaries inside format_args"
+      ],
+      "answer": 3,
+      "explanation": "Defect report P2905R2 changed std::make_format_args from forwarding references (Args&&...) to lvalue references (Args&...) so callers cannot accidentally bind temporaries like 42 or std::string{} whose lifetime ends before std::vformat runs.",
+      "refs": ["[format.arg.store]"]
+    },
+    {
+      "id": "vocabulary-types-and-format-q5",
+      "kind": "standardese",
+      "prompt": "Under what circumstance can std::variant::valueless_by_exception() become true?",
+      "options": [
+        "Whenever a variant holds std::monostate",
+        "When an exception is thrown during type-changing assignment or emplace() after the previous alternative was destroyed and before the new one finishes constructing",
+        "Whenever a variant is moved from",
+        "Whenever std::get<T> fails with std::bad_variant_access"
+      ],
+      "answer": 1,
+      "explanation": "According to [variant.status], a variant never becomes valueless during normal construction or moves; it becomes valueless_by_exception() only if an exception interrupts a type-changing assignment or emplace() between destroying the old value and constructing the replacement.",
+      "refs": ["[variant.status]", "[variant.assign]"]
+    },
+    {
+      "id": "vocabulary-types-and-format-q6",
+      "kind": "standardese",
+      "prompt": "What distinguishes invoking an empty std::move_only_function from invoking an empty std::function?",
+      "options": [
+        "Calling an empty std::move_only_function is undefined behavior, whereas calling an empty std::function throws std::bad_function_call",
+        "Both throw std::bad_function_call",
+        "Calling an empty std::move_only_function returns a default-constructed R{}",
+        "std::move_only_function cannot be default-constructed or empty"
+      ],
+      "answer": 0,
+      "explanation": "Under [func.wrap.move.inv], invoking an empty std::move_only_function has a precondition that *this is non-empty (undefined behavior if violated), avoiding the branch and exception path mandated by std::function in [func.wrap.func.inv].",
+      "refs": ["[func.wrap.move.inv]", "[func.wrap.func.inv]"]
+    }
+  ]
+}

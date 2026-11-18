@@ -1,0 +1,93 @@
+{
+  "questions": [
+    {
+      "id": "value-categories-q1",
+      "kind": "warmup",
+      "prompt": "Inside `void f(Widget&& w)`, what is the value category of the expression `w` when passed to `g(w)`?",
+      "code": "struct Widget {};\nvoid g(Widget&);\nvoid g(Widget&&);\nvoid f(Widget&& w) {\n    g(w);\n}",
+      "options": [
+        "xvalue, because w was declared as Widget&&",
+        "prvalue, because rvalue parameters hold temporaries",
+        "lvalue, because w is a named variable with an addressable location",
+        "glvalue that refuses to bind to either overload"
+      ],
+      "answer": 2,
+      "explanation": "Value categories belong to expressions, not types. Even though w has declared type Widget&&, the id-expression w names an object with identity, making it an lvalue that calls g(Widget&).",
+      "refs": ["[basic.lval]"]
+    },
+    {
+      "id": "value-categories-q2",
+      "kind": "warmup",
+      "prompt": "Which built-in increment expression is well-formed in C++ for `int i = 0;`?",
+      "code": "int i = 0;",
+      "options": [
+        "++ ++i",
+        "&(i++)",
+        "(i++) = 3",
+        "int& r = i++;"
+      ],
+      "answer": 0,
+      "explanation": "Built-in prefix ++i increments i and returns i as an lvalue, so ++ ++i compiles and increments i twice. Built-in postfix i++ produces a prvalue copy, which cannot have its address taken, be assigned to, or bind to int&.",
+      "refs": ["[expr.pre.incr]", "[expr.post.incr]"]
+    },
+    {
+      "id": "value-categories-q3",
+      "kind": "tricky",
+      "prompt": "What are the value category and exact type of the string literal `\"lucid\"`?",
+      "code": "auto ptr = &\"lucid\";",
+      "options": [
+        "prvalue of type const char*",
+        "lvalue of type const char[6]",
+        "prvalue of type const char[6]",
+        "xvalue of type const char(&)[6]"
+      ],
+      "answer": 1,
+      "explanation": "Unlike integer or floating literals (which are prvalues), string literals have static storage duration and are lvalues of array type const char[N] including the null terminator, which is why &\"lucid\" compiles.",
+      "refs": ["[lex.string]"]
+    },
+    {
+      "id": "value-categories-q4",
+      "kind": "tricky",
+      "prompt": "Given `int x = 5;`, what types do `decltype(x)` and `decltype((x))` deduce?",
+      "code": "int x = 5;\nusing A = decltype(x);\nusing B = decltype((x));",
+      "options": [
+        "A is int, B is int",
+        "A is int&, B is int&",
+        "A is int&&, B is int&",
+        "A is int, B is int&"
+      ],
+      "answer": 3,
+      "explanation": "Under [dcl.type.decltype], decltype applied to an unparenthesized id-expression returns its declared type (int). Parenthesizing it into (x) triggers the general expression rule, yielding int& for an lvalue.",
+      "refs": ["[dcl.type.decltype]"]
+    },
+    {
+      "id": "value-categories-q5",
+      "kind": "standardese",
+      "prompt": "Given `struct S { int m; int& r; };` and `S make();`, what are the value categories of `make().m` and `make().r`?",
+      "code": "struct S { int m; int& r; };\nS make();",
+      "options": [
+        "make().m is an xvalue, and make().r is an lvalue",
+        "make().m is a prvalue, and make().r is an xvalue",
+        "Both make().m and make().r are xvalues",
+        "Both make().m and make().r are lvalues"
+      ],
+      "answer": 0,
+      "explanation": "Under [expr.ref], make() first undergoes temporary materialization ([conv.rval]) to become an xvalue. A non-static data member access on an rvalue yields an xvalue when the member has object type (m), whereas a member of reference type (r) always yields an lvalue.",
+      "refs": ["[expr.ref]", "[conv.rval]"]
+    },
+    {
+      "id": "value-categories-q6",
+      "kind": "standardese",
+      "prompt": "In C++17 and later, which statement best describes a class prvalue such as `Widget{42}` before temporary materialization conversion occurs?",
+      "options": [
+        "It is a temporary object allocated in caller stack memory awaiting copy elision",
+        "It is an unmaterialized initialization recipe with no object identity or storage address yet",
+        "It is an expiring glvalue whose destructor runs at the next comma operator",
+        "It is an lvalue stored in static read-only memory"
+      ],
+      "answer": 1,
+      "explanation": "C++17 redefined prvalues in [basic.lval] as unmaterialized value computations or initializers. A temporary object is only created if temporary materialization conversion ([conv.rval]) is triggered by reference binding, member access, or discarding.",
+      "refs": ["[basic.lval]", "[conv.rval]"]
+    }
+  ]
+}

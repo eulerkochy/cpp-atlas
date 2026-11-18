@@ -1,0 +1,93 @@
+{
+  "questions": [
+    {
+      "id": "ranges-views-and-niebloids-q1",
+      "kind": "warmup",
+      "prompt": "Why does const std::ranges::filter_view fail to satisfy std::ranges::range?",
+      "code": "std::vector<int> v{1, 2, 3, 4};\nconst auto evens = v | std::views::filter([](int x) { return x % 2 == 0; });",
+      "options": [
+        "filter_view deletes its const copy constructor",
+        "filter_view caches the first matching position inside begin() to guarantee O(1) amortized begin(), so begin() must mutate internal state and cannot be const",
+        "All views in C++20 prohibit const qualification",
+        "filter_view stores elements inside a mutable std::vector"
+      ],
+      "answer": 1,
+      "explanation": "To satisfy the O(1) amortized begin() requirement of std::ranges::range, filter_view caches the iterator to the first element matching the predicate on its first begin() call. Because that mutates a member cache, filter_view only provides non-const begin().",
+      "refs": ["[range.filter.view]", "[range.view]"]
+    },
+    {
+      "id": "ranges-views-and-niebloids-q2",
+      "kind": "warmup",
+      "prompt": "What does std::views::all(make_vec()) produce when given a non-view rvalue std::vector<int>?",
+      "code": "std::vector<int> make_vec();\nauto adapted = std::views::all(make_vec());",
+      "options": [
+        "A compilation error because temporary containers cannot become views",
+        "A std::ranges::ref_view holding a dangling pointer to the temporary vector",
+        "A std::ranges::dangling placeholder",
+        "A std::ranges::owning_view<std::vector<int>> that moves and owns the vector inside the view"
+      ],
+      "answer": 3,
+      "explanation": "Since P2415R2 (a C++20 DR), std::views::all wraps non-view rvalue ranges in std::ranges::owning_view, moving the temporary container into the view so pipe chains like make_vec() | views::transform(...) stay valid.",
+      "refs": ["[range.all]", "[range.owning.view]"]
+    },
+    {
+      "id": "ranges-views-and-niebloids-q3",
+      "kind": "tricky",
+      "prompt": "What is the exact return type of std::ranges::find(make_vec() | std::views::transform(fn), 4)?",
+      "code": "std::vector<int> make_vec();\nauto fn = [](int x) { return x * 2; };\nauto res = std::ranges::find(make_vec() | std::views::transform(fn), 4);",
+      "options": [
+        "std::ranges::dangling, because a transform_view over an owning_view is not a borrowed_range",
+        "A valid iterator into the moved temporary vector",
+        "Compilation error inside std::ranges::find because rvalue pipelines are rejected",
+        "std::nullptr_t"
+      ],
+      "answer": 0,
+      "explanation": "Even though owning_view keeps the temporary vector alive for the duration of the view object, the view itself dies at the semicolon of the find() call and owning_view does not opt into enable_borrowed_range. Hence borrowed_iterator_t<R> resolves to std::ranges::dangling.",
+      "refs": ["[range.dangling]", "[range.owning.view]"]
+    },
+    {
+      "id": "ranges-views-and-niebloids-q4",
+      "kind": "tricky",
+      "prompt": "Why does std::ranges::find(std::string_view{\"lucid\"}, 'c') return a real iterator instead of std::ranges::dangling, even though the argument is a prvalue?",
+      "code": "auto it = std::ranges::find(std::string_view{\"lucid\"}, 'c');",
+      "options": [
+        "String literals trigger special compiler exemption inside std::ranges::find",
+        "std::string_view is a trivial type, and all trivial types return real iterators",
+        "std::string_view specializes std::ranges::enable_borrowed_range to true because its iterators refer to external storage independent of the view object",
+        "std::ranges::find takes string_view by const lvalue reference"
+      ],
+      "answer": 2,
+      "explanation": "A range R models std::ranges::borrowed_range when it is an lvalue reference or when enable_borrowed_range<remove_cvref_t<R>> is true. std::string_view and std::span opt into enable_borrowed_range so rvalue views still return valid iterators.",
+      "refs": ["[range.range]", "[string.view.synop]"]
+    },
+    {
+      "id": "ranges-views-and-niebloids-q5",
+      "kind": "standardese",
+      "prompt": "How do niebloids such as std::ranges::sort differ in lookup behavior from unconstrained function templates like std::sort when brought into scope with a using-declaration?",
+      "code": "using std::ranges::sort;\nsort(user_range);",
+      "options": [
+        "Niebloids perform ADL in associated namespaces just like std::sort",
+        "Niebloids are designated function-like entities that inhibit ADL, so unqualified lookup resolves solely to std::ranges::sort without calling ADL overloads in user namespaces",
+        "Niebloids invoke member .sort() on the container if present",
+        "Niebloids require explicit template arguments to suppress ADL"
+      ],
+      "answer": 1,
+      "explanation": "Under [algorithms.requirements], std::ranges algorithms (niebloids) are not found by ADL and inhibit ADL when found by unqualified lookup (typically implemented as inline constexpr function objects). Unlike CPOs, they intentionally block customization via ADL.",
+      "refs": ["[algorithms.requirements]", "[basic.lookup.argdep]"]
+    },
+    {
+      "id": "ranges-views-and-niebloids-q6",
+      "kind": "standardese",
+      "prompt": "After defect report P2325R3 (applied to C++20), which requirement was removed from the std::ranges::view concept?",
+      "options": [
+        "std::movable<T>",
+        "std::ranges::range<T>",
+        "std::default_initializable<T>",
+        "std::ranges::enable_view<T>"
+      ],
+      "answer": 2,
+      "explanation": "Originally C++20 required std::ranges::view<T> to subsume std::semiregular<T>, which included default_initializable<T>. P2325R3 relaxed view to require movable<T> instead of semiregular<T> so views wrapping non-default-constructible lambdas or references (ref_view) remain valid views.",
+      "refs": ["[range.view]"]
+    }
+  ]
+}
