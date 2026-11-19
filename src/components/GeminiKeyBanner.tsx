@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
+  copyTextWithGesture,
   verifyGeminiKey,
   type GeminiKeyPersistence,
 } from "@/lib/ai-client";
@@ -21,6 +22,7 @@ export function GeminiKeyBanner({
   onSaveKey,
   onClearKey,
   fallbackPrompt,
+  onWarmFallback,
   compact = false,
 }: {
   configured: boolean | null;
@@ -28,7 +30,8 @@ export function GeminiKeyBanner({
   persistence: GeminiKeyPersistence | null;
   onSaveKey: (key: string, persistence: GeminiKeyPersistence) => void;
   onClearKey: () => void;
-  fallbackPrompt?: string;
+  fallbackPrompt?: string | (() => string | Promise<string>);
+  onWarmFallback?: () => void;
   compact?: boolean;
 }) {
   const checkboxId = useId();
@@ -94,17 +97,22 @@ export function GeminiKeyBanner({
     onSaveKey(trimmed, persistenceChoice);
   }
 
-  async function handleOpenWebFallback() {
-    if (fallbackPrompt) {
-      try {
-        await navigator.clipboard.writeText(fallbackPrompt);
+  function handleOpenWebFallback() {
+    const copyPromise = fallbackPrompt
+      ? copyTextWithGesture(
+          typeof fallbackPrompt === "function"
+            ? fallbackPrompt()
+            : fallbackPrompt
+        )
+      : null;
+    window.open(GEMINI_WEB_URL, "_blank", "noopener,noreferrer");
+    if (copyPromise) {
+      void copyPromise.then((copied) => {
+        if (!copied) return;
         setCopiedFallback(true);
         window.setTimeout(() => setCopiedFallback(false), 2200);
-      } catch {
-        // Ignore clipboard errors in restricted contexts
-      }
+      });
     }
-    window.open(GEMINI_WEB_URL, "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -199,6 +207,8 @@ export function GeminiKeyBanner({
         {fallbackPrompt && (
           <button
             type="button"
+            onMouseEnter={() => onWarmFallback?.()}
+            onFocus={() => onWarmFallback?.()}
             onClick={handleOpenWebFallback}
             className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline cursor-pointer"
           >

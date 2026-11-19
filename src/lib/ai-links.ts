@@ -1,4 +1,3 @@
-import { absoluteUrl } from "@/lib/site";
 import type { ReferenceLang } from "@/types/cpp";
 
 export type AiSourceRef =
@@ -20,8 +19,14 @@ export interface AiPageContext {
   standards?: string[];
 }
 
+export interface ExternalPromptOptions {
+  maxMarkdownChars?: number;
+  copiedFullToClipboard?: boolean;
+}
+
 export const GEMINI_WEB_URL = "https://gemini.google.com/app";
 export const NOTEBOOKLM_WEB_URL = "https://notebooklm.google.com/";
+export const MAX_EXTERNAL_URL_LENGTH = 5500;
 
 const SAFE_TOPIC_SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -72,13 +77,102 @@ export function contextToSourceRef(ctx: AiPageContext): AiSourceRef {
   };
 }
 
-export function buildExternalPrompt(ctx: AiPageContext): string {
-  const pageUrl = absoluteUrl(ctx.urlPath);
-  const mdUrl = absoluteUrl(ctx.markdownEndpoint);
+/**
+ * Strip external HTTP(S) URLs from exported Markdown so consumer AI chat
+ * interfaces do not attempt live web fetches on pasted context.
+ */
+export function stripUrlsFromMarkdown(markdown: string): string {
+  return markdown
+    .replace(/\s*\|\s*Source:\s*https?:\/\/\S+/gi, "")
+    .replace(
+      /\[([^\]\n]+)\]\(https?:\/\/(?:[^()\s]+|\([^()\s]*\))+\)/g,
+      "$1"
+    )
+    .replace(/[ \t]*\(https?:\/\/(?:[^()\s]+|\([^()\s]*\))+\)/g, "")
+    .replace(/<https?:\/\/[^>\s]+>/g, "")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
+ * Truncate Markdown on paragraph/line boundaries and close any open code fence.
+ */
+export function truncateMarkdownCleanly(
+  markdown: string,
+  maxChars: number
+): { text: string; truncated: boolean } {
+  if (maxChars <= 0) {
+    return { text: "", truncated: markdown.length > 0 };
+  }
+  if (markdown.length <= maxChars) {
+    return { text: markdown, truncated: false };
+  }
+
+  let sliced = markdown.slice(0, maxChars);
+  const lastPara = sliced.lastIndexOf("\n\n");
+  if (lastPara >= Math.floor(maxChars * 0.65)) {
+    sliced = sliced.slice(0, lastPara);
+  } else {
+    const lastLine = sliced.lastIndexOf("\n");
+    if (lastLine >= Math.floor(maxChars * 0.5)) {
+      sliced = sliced.slice(0, lastLine);
+    }
+  }
+
+  sliced = sliced.trimEnd();
+  const fenceCount = sliced
+    .split(/\r?\n/)
+    .filter((line) => line.trimStart().startsWith("```")).length;
+  if (fenceCount % 2 === 1) {
+    sliced += "\n```";
+  }
+
+  return { text: sliced, truncated: true };
+}
+
+function appendEmbeddedMarkdown(
+  lines: string[],
+  markdown?: string,
+  options?: ExternalPromptOptions
+): void {
+  const cleaned = markdown ? stripUrlsFromMarkdown(markdown) : "";
+  if (!cleaned) return;
+
+  const clipped =
+    typeof options?.maxMarkdownChars === "number"
+      ? truncateMarkdownCleanly(cleaned, options.maxMarkdownChars)
+      : { text: cleaned, truncated: false };
+
+  if (!clipped.text) return;
+
+  lines.push(
+    "",
+    "Use the study material pasted below as your source context (do not attempt to fetch external URLs):",
+    "",
+    "---",
+    clipped.text,
+    "---"
+  );
+
+  if (clipped.truncated) {
+    lines.push(
+      options?.copiedFullToClipboard
+        ? "[Excerpt truncated to fit URL length — the complete Markdown has also been copied to the clipboard if you need the rest.]"
+        : "[Excerpt truncated to fit URL length.]"
+    );
+  }
+}
+
+export function buildExternalPrompt(
+  ctx: AiPageContext,
+  markdown?: string,
+  options?: ExternalPromptOptions
+): string {
   const lines: string[] = [
     `I am studying "${ctx.title}" from C++ Atlas.`,
-    `Page: ${pageUrl}`,
-    `Clean Markdown source: ${mdUrl}`,
+    `Source: C++ Atlas (${ctx.urlPath})`,
   ];
 
   const metaParts: string[] = [];
@@ -93,6 +187,8 @@ export function buildExternalPrompt(ctx: AiPageContext): string {
     lines.push(metaParts.join(" · "));
   }
 
+  appendEmbeddedMarkdown(lines, markdown, options);
+
   lines.push(
     "",
     "Please:",
@@ -105,19 +201,28 @@ export function buildExternalPrompt(ctx: AiPageContext): string {
 }
 
 export function buildBundlePrompt(
-  sources: { name: string; urlPath: string }[]
+  sources: { name: string; urlPath: string }[],
+  markdown?: string,
+  options?: ExternalPromptOptions
 ): string {
   const listed = sources
     .slice(0, 12)
-    .map((s) => `- ${s.name}: ${absoluteUrl(s.urlPath)}`)
+    .map((s) => `- ${s.name} (${s.urlPath})`)
     .join("\n");
 
-  return [
+  const lines: string[] = [
     "I am studying this bundle of C++ Atlas sources:",
-    listed || `- C++ Atlas: ${absoluteUrl("/")}`,
+    listed || "- C++ Atlas (/)",
+  ];
+
+  appendEmbeddedMarkdown(lines, markdown, options);
+
+  lines.push(
     "",
-    "Synthesize how these topics connect, highlight subtle ISO C++ / undefined behavior traps across them, and give me a short active-recall quiz when I'm ready.",
-  ].join("\n");
+    "Synthesize how these topics connect, highlight subtle ISO C++ / undefined behavior traps across them, and give me a short active-recall quiz when I'm ready."
+  );
+
+  return lines.join("\n");
 }
 
 export function buildChatGptUrl(prompt: string): string {
@@ -126,6 +231,49 @@ export function buildChatGptUrl(prompt: string): string {
 
 export function buildClaudeUrl(prompt: string): string {
   return `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
+}
+
+export function buildBoundedExternalUrl(
+  target: "chatgpt" | "claude",
+  buildPrompt: (opts?: ExternalPromptOptions) => string,
+  rawMarkdown?: string
+): { url: string; truncated: boolean } {
+  const urlFn = target === "chatgpt" ? buildChatGptUrl : buildClaudeUrl;
+  const fullUrl = urlFn(buildPrompt());
+  if (fullUrl.length <= MAX_EXTERNAL_URL_LENGTH) {
+    return { url: fullUrl, truncated: false };
+  }
+
+  const minChars = 600;
+  const cleanedLen = rawMarkdown ? stripUrlsFromMarkdown(rawMarkdown).length : 4500;
+  let low = minChars;
+  let high = Math.max(minChars, Math.min(cleanedLen, 4500));
+
+  const minCandidate = urlFn(
+    buildPrompt({ maxMarkdownChars: low, copiedFullToClipboard: true })
+  );
+  if (minCandidate.length > MAX_EXTERNAL_URL_LENGTH) {
+    return {
+      url: urlFn(buildPrompt({ maxMarkdownChars: 0, copiedFullToClipboard: true })),
+      truncated: true,
+    };
+  }
+
+  let bestUrl = minCandidate;
+  for (let i = 0; i < 8 && low <= high; i++) {
+    const mid = Math.floor((low + high) / 2);
+    const candidate = urlFn(
+      buildPrompt({ maxMarkdownChars: mid, copiedFullToClipboard: true })
+    );
+    if (candidate.length <= MAX_EXTERNAL_URL_LENGTH) {
+      bestUrl = candidate;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return { url: bestUrl, truncated: true };
 }
 
 export function buildStudioHref(

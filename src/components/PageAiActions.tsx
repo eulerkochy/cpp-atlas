@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy, ExternalLink, Headphones } from "lucide-react";
 import {
   ChatGptIcon,
@@ -14,9 +14,11 @@ import { useGeminiTutor } from "@/components/GeminiTutorDrawer";
 import { useGoogleNotebook } from "@/components/GoogleNotebookProvider";
 import { resolveBestPublicNotebookUrl } from "@/data/notebooks";
 import {
-  buildChatGptUrl,
-  buildClaudeUrl,
-  buildExternalPrompt,
+  getCachedMarkdown,
+  openExternalAiPage,
+  prefetchMarkdown,
+} from "@/lib/ai-client";
+import {
   buildStudioHref,
   contextToSourceRef,
   type AiPageContext,
@@ -27,9 +29,13 @@ function useMarkdownClipboard(endpoint: string) {
 
   const copyMarkdown = async () => {
     try {
-      const res = await fetch(endpoint);
-      if (!res.ok) throw new Error("Failed");
-      const text = await res.text();
+      const cached = getCachedMarkdown(endpoint);
+      let text = cached;
+      if (text === null) {
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error("Failed");
+        text = await res.text();
+      }
       await navigator.clipboard.writeText(text);
       setState("done");
     } catch {
@@ -41,15 +47,63 @@ function useMarkdownClipboard(endpoint: string) {
   return { state, copyMarkdown };
 }
 
+function useExternalAiLaunchers(context: AiPageContext) {
+  const [pendingTarget, setPendingTarget] = useState<
+    "chatgpt" | "claude" | null
+  >(null);
+  const [copiedTarget, setCopiedTarget] = useState<"chatgpt" | "claude" | null>(
+    null
+  );
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
+  const warm = () => {
+    void prefetchMarkdown(context.markdownEndpoint);
+  };
+
+  const launch = async (target: "chatgpt" | "claude") => {
+    if (pendingTarget) return;
+    const needsFetch = getCachedMarkdown(context.markdownEndpoint) === null;
+    if (needsFetch) {
+      setPendingTarget(target);
+    }
+    try {
+      const res = await openExternalAiPage(target, context);
+      if (res.copiedFull && res.truncated) {
+        setCopiedTarget(target);
+        if (timerRef.current !== null) {
+          window.clearTimeout(timerRef.current);
+        }
+        timerRef.current = window.setTimeout(() => {
+          setCopiedTarget(null);
+          timerRef.current = null;
+        }, 2200);
+      }
+    } finally {
+      if (needsFetch) {
+        setPendingTarget(null);
+      }
+    }
+  };
+
+  return { pendingTarget, copiedTarget, warm, launch };
+}
+
 export function PageAiHeaderBar({ context }: { context: AiPageContext }) {
   const { openTutor } = useGeminiTutor();
   const { connected } = useGoogleNotebook();
   const { state: copyState, copyMarkdown } = useMarkdownClipboard(
     context.markdownEndpoint
   );
-  const externalPrompt = buildExternalPrompt(context);
-  const chatGptHref = buildChatGptUrl(externalPrompt);
-  const claudeHref = buildClaudeUrl(externalPrompt);
+  const { pendingTarget, copiedTarget, warm, launch } =
+    useExternalAiLaunchers(context);
   const studioHref = buildStudioHref(context);
 
   return (
@@ -71,25 +125,39 @@ export function PageAiHeaderBar({ context }: { context: AiPageContext }) {
         <span>Ask Gemini</span>
       </button>
 
-      <a
-        href={chatGptHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40"
+      <button
+        type="button"
+        onMouseEnter={warm}
+        onFocus={warm}
+        onClick={() => void launch("chatgpt")}
+        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40 cursor-pointer"
       >
         <ChatGptIcon className="size-3.5" />
-        <span>Ask ChatGPT</span>
-      </a>
+        <span>
+          {pendingTarget === "chatgpt"
+            ? "Opening…"
+            : copiedTarget === "chatgpt"
+              ? "Full .md copied"
+              : "Ask ChatGPT"}
+        </span>
+      </button>
 
-      <a
-        href={claudeHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40"
+      <button
+        type="button"
+        onMouseEnter={warm}
+        onFocus={warm}
+        onClick={() => void launch("claude")}
+        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40 cursor-pointer"
       >
         <ClaudeIcon className="size-3.5" />
-        <span>Ask Claude</span>
-      </a>
+        <span>
+          {pendingTarget === "claude"
+            ? "Opening…"
+            : copiedTarget === "claude"
+              ? "Full .md copied"
+              : "Ask Claude"}
+        </span>
+      </button>
 
       <Link
         href={studioHref}
@@ -107,6 +175,8 @@ export function PageAiHeaderBar({ context }: { context: AiPageContext }) {
 
       <button
         type="button"
+        onMouseEnter={warm}
+        onFocus={warm}
         onClick={copyMarkdown}
         className="inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-ink-faint transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer"
       >
@@ -133,10 +203,9 @@ export function PageAiRailWidget({ context }: { context: AiPageContext }) {
   const { state: copyState, copyMarkdown } = useMarkdownClipboard(
     context.markdownEndpoint
   );
+  const { pendingTarget, copiedTarget, warm, launch } =
+    useExternalAiLaunchers(context);
 
-  const externalPrompt = buildExternalPrompt(context);
-  const chatGptHref = buildChatGptUrl(externalPrompt);
-  const claudeHref = buildClaudeUrl(externalPrompt);
   const studioAudioHref = buildStudioHref(context, "audio");
   const publicNotebookUrl = resolveBestPublicNotebookUrl(context.trackId);
 
@@ -167,27 +236,41 @@ export function PageAiRailWidget({ context }: { context: AiPageContext }) {
       </button>
 
       <div className="grid grid-cols-2 gap-2">
-        <a
-          href={chatGptHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-2.5 text-xs font-medium text-ink transition-colors hover:border-ink/40"
+        <button
+          type="button"
+          onMouseEnter={warm}
+          onFocus={warm}
+          onClick={() => void launch("chatgpt")}
+          className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-2.5 text-xs font-medium text-ink transition-colors hover:border-ink/40 cursor-pointer"
         >
           <ChatGptIcon className="size-3" />
-          <span>ChatGPT</span>
+          <span>
+            {pendingTarget === "chatgpt"
+              ? "Opening…"
+              : copiedTarget === "chatgpt"
+                ? "Full .md copied"
+                : "ChatGPT"}
+          </span>
           <ExternalLink className="size-2.5 text-ink-faint" aria-hidden />
-        </a>
+        </button>
 
-        <a
-          href={claudeHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-2.5 text-xs font-medium text-ink transition-colors hover:border-ink/40"
+        <button
+          type="button"
+          onMouseEnter={warm}
+          onFocus={warm}
+          onClick={() => void launch("claude")}
+          className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-2.5 text-xs font-medium text-ink transition-colors hover:border-ink/40 cursor-pointer"
         >
           <ClaudeIcon className="size-3" />
-          <span>Claude</span>
+          <span>
+            {pendingTarget === "claude"
+              ? "Opening…"
+              : copiedTarget === "claude"
+                ? "Full .md copied"
+                : "Claude"}
+          </span>
           <ExternalLink className="size-2.5 text-ink-faint" aria-hidden />
-        </a>
+        </button>
       </div>
 
       <div className="space-y-1.5">
@@ -235,6 +318,8 @@ export function PageAiRailWidget({ context }: { context: AiPageContext }) {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line pt-2.5 text-[11px] text-ink-faint">
         <button
           type="button"
+          onMouseEnter={warm}
+          onFocus={warm}
           onClick={copyMarkdown}
           className="hover:text-ink cursor-pointer"
         >

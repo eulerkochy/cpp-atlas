@@ -34,6 +34,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   fetchAiStatus,
+  getCachedMarkdown,
+  openExternalAiPage,
+  prefetchMarkdown,
   streamAiSse,
   useSessionGeminiKey,
   type GeminiKeyPersistence,
@@ -42,7 +45,6 @@ import {
   buildExternalPrompt,
   buildStudioHref,
   contextToSourceRef,
-  GEMINI_WEB_URL,
   type AiPageContext,
 } from "@/lib/ai-links";
 import { cn } from "@/lib/utils";
@@ -114,6 +116,11 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [open, configured]);
+
+  useEffect(() => {
+    if (!open || !pageCtx) return;
+    void prefetchMarkdown(pageCtx.markdownEndpoint);
+  }, [open, pageCtx]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -272,16 +279,19 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
     clearSessionKey();
   };
 
-  const handleOpenGeminiWeb = async () => {
+  const warmPageMarkdown = () => {
+    if (pageCtx) {
+      void prefetchMarkdown(pageCtx.markdownEndpoint);
+    }
+  };
+
+  const handleOpenGeminiWeb = () => {
     if (!pageCtx) return;
-    try {
-      await navigator.clipboard.writeText(buildExternalPrompt(pageCtx));
+    void openExternalAiPage("gemini", pageCtx).then(({ copiedFull }) => {
+      if (!copiedFull) return;
       setCopiedWebPrompt(true);
       window.setTimeout(() => setCopiedWebPrompt(false), 2400);
-    } catch {
-      // Ignore clipboard rejection
-    }
-    window.open(GEMINI_WEB_URL, "_blank", "noopener,noreferrer");
+    });
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
@@ -298,7 +308,17 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
     void sendMessage(prompt, pageCtx, messages, interactionId);
   };
 
-  const fallbackPrompt = pageCtx ? buildExternalPrompt(pageCtx) : undefined;
+  const fallbackPrompt = pageCtx
+    ? () => {
+        const cached = getCachedMarkdown(pageCtx.markdownEndpoint);
+        if (cached !== null) {
+          return buildExternalPrompt(pageCtx, cached);
+        }
+        return prefetchMarkdown(pageCtx.markdownEndpoint).then((md) =>
+          buildExternalPrompt(pageCtx, md ?? undefined)
+        );
+      }
+    : undefined;
   const kindLabel =
     pageCtx?.kind === "topic"
       ? "Study topic"
@@ -391,6 +411,8 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
 
                 <button
                   type="button"
+                  onMouseEnter={warmPageMarkdown}
+                  onFocus={warmPageMarkdown}
                   onClick={handleOpenGeminiWeb}
                   className="inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-xs font-medium text-ink-soft transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer"
                 >
@@ -436,6 +458,7 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
               onSaveKey={handleSaveKey}
               onClearKey={handleClearKey}
               fallbackPrompt={fallbackPrompt}
+              onWarmFallback={pageCtx ? warmPageMarkdown : undefined}
               compact
             />
 

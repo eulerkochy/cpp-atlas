@@ -47,14 +47,15 @@ import {
 import {
   buildAiHeaders,
   fetchAiStatus,
+  getCachedMarkdown,
+  openExternalAiBundle,
+  prefetchMarkdown,
   streamAiSse,
   useSessionGeminiKey,
   type GeminiKeyPersistence,
 } from "@/lib/ai-client";
 import {
   buildBundlePrompt,
-  buildChatGptUrl,
-  buildClaudeUrl,
   NOTEBOOKLM_WEB_URL,
   parseAiSourceKey,
   type AiSourceRef,
@@ -563,16 +564,76 @@ export function NotebookStudioClient({
     );
   });
 
-  const bundlePrompt = useMemo(
-    () =>
-      buildBundlePrompt(
-        selectedSources.map((s) => ({
-          name: s.name,
-          urlPath: sourceDisplayPath(s),
-        }))
-      ),
-    [selectedSources]
-  );
+  const bundleSources = useMemo(() => {
+    const ansFlag = includeAnswers ? "1" : "0";
+    return selectedSources.slice(0, 12).map((s) => ({
+      name: s.name,
+      urlPath: sourceDisplayPath(s),
+      endpoint: sourceEndpoint(s, ansFlag),
+    }));
+  }, [includeAnswers, selectedSources]);
+
+  const [bundlePendingTarget, setBundlePendingTarget] = useState<
+    "chatgpt" | "claude" | null
+  >(null);
+  const [bundleCopiedTarget, setBundleCopiedTarget] = useState<
+    "chatgpt" | "claude" | null
+  >(null);
+
+  const warmBundleSources = () => {
+    if (displayedMarkdown) return;
+    bundleSources.forEach((s) => void prefetchMarkdown(s.endpoint));
+  };
+
+  const handleOpenBundleExternal = async (target: "chatgpt" | "claude") => {
+    if (bundleSources.length === 0 || bundlePendingTarget) return;
+    const needsFetch =
+      !displayedMarkdown &&
+      bundleSources.some((s) => getCachedMarkdown(s.endpoint) === null);
+    if (needsFetch) {
+      setBundlePendingTarget(target);
+    }
+    try {
+      const res = await openExternalAiBundle(
+        target,
+        bundleSources,
+        displayedMarkdown || undefined
+      );
+      if (res.copiedFull && res.truncated) {
+        setBundleCopiedTarget(target);
+        window.setTimeout(() => setBundleCopiedTarget(null), 2200);
+      }
+    } finally {
+      if (needsFetch) {
+        setBundlePendingTarget(null);
+      }
+    }
+  };
+
+  const buildBundleFallbackPrompt = () => {
+    if (displayedMarkdown) {
+      return buildBundlePrompt(bundleSources, displayedMarkdown);
+    }
+    const allCached = bundleSources.every(
+      (s) => getCachedMarkdown(s.endpoint) !== null
+    );
+    if (allCached) {
+      const md = bundleSources
+        .map((s) => getCachedMarkdown(s.endpoint))
+        .filter((p): p is string => Boolean(p))
+        .join("\n\n---\n\n");
+      return buildBundlePrompt(bundleSources, md || undefined);
+    }
+    return Promise.all(
+      bundleSources.map((s) => prefetchMarkdown(s.endpoint))
+    ).then((parts) => {
+      const valid = parts.filter((p): p is string => Boolean(p));
+      return buildBundlePrompt(
+        bundleSources,
+        valid.length > 0 ? valid.join("\n\n---\n\n") : undefined
+      );
+    });
+  };
 
   const toggleItem = (item: SelectedSource) => {
     const key = sourceKey(item);
@@ -1510,27 +1571,43 @@ export function NotebookStudioClient({
                 Ask this bundle externally
               </div>
               <div className="flex flex-wrap gap-1.5">
-                <a
-                  href={buildChatGptUrl(bundlePrompt)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-2.5 text-xs font-medium text-ink hover:border-ink/40"
+                <button
+                  type="button"
+                  disabled={bundleSources.length === 0}
+                  onMouseEnter={warmBundleSources}
+                  onFocus={warmBundleSources}
+                  onClick={() => void handleOpenBundleExternal("chatgpt")}
+                  className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-2.5 text-xs font-medium text-ink hover:border-ink/40 cursor-pointer disabled:opacity-40"
                 >
                   <ChatGptIcon className="size-3" />
-                  <span>Ask ChatGPT</span>
+                  <span>
+                    {bundlePendingTarget === "chatgpt"
+                      ? "Opening…"
+                      : bundleCopiedTarget === "chatgpt"
+                        ? "Full .md copied"
+                        : "Ask ChatGPT"}
+                  </span>
                   <ExternalLink className="size-2.5 text-ink-faint" aria-hidden />
-                </a>
+                </button>
 
-                <a
-                  href={buildClaudeUrl(bundlePrompt)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-2.5 text-xs font-medium text-ink hover:border-ink/40"
+                <button
+                  type="button"
+                  disabled={bundleSources.length === 0}
+                  onMouseEnter={warmBundleSources}
+                  onFocus={warmBundleSources}
+                  onClick={() => void handleOpenBundleExternal("claude")}
+                  className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-2.5 text-xs font-medium text-ink hover:border-ink/40 cursor-pointer disabled:opacity-40"
                 >
                   <ClaudeIcon className="size-3" />
-                  <span>Ask Claude</span>
+                  <span>
+                    {bundlePendingTarget === "claude"
+                      ? "Opening…"
+                      : bundleCopiedTarget === "claude"
+                        ? "Full .md copied"
+                        : "Ask Claude"}
+                  </span>
                   <ExternalLink className="size-2.5 text-ink-faint" aria-hidden />
-                </a>
+                </button>
 
                 <button
                   type="button"
@@ -1587,7 +1664,12 @@ export function NotebookStudioClient({
             persistence={persistence}
             onSaveKey={handleSaveKey}
             onClearKey={handleClearKey}
-            fallbackPrompt={bundlePrompt}
+            fallbackPrompt={
+              bundleSources.length > 0 ? buildBundleFallbackPrompt : undefined
+            }
+            onWarmFallback={
+              bundleSources.length > 0 ? warmBundleSources : undefined
+            }
           />
 
           <Tabs

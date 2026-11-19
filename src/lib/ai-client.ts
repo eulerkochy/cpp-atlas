@@ -1,6 +1,14 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import {
+  buildBoundedExternalUrl,
+  buildBundlePrompt,
+  buildExternalPrompt,
+  GEMINI_WEB_URL,
+  type AiPageContext,
+  type ExternalPromptOptions,
+} from "@/lib/ai-links";
 
 export const SESSION_GEMINI_KEY_STORAGE = "cpp-atlas:gemini-api-key";
 const SESSION_GEMINI_KEY_EVENT = "cpp-atlas:gemini-key-change";
@@ -283,4 +291,228 @@ export async function streamAiSse(options: {
   if (buffer.trim()) {
     dispatchBlock(buffer);
   }
+}
+
+const markdownCache = new Map<string, string>();
+const markdownInflight = new Map<string, Promise<string | null>>();
+
+export function getCachedMarkdown(endpoint: string): string | null {
+  if (!endpoint) return null;
+  return markdownCache.get(endpoint) ?? null;
+}
+
+export function prefetchMarkdown(endpoint: string): Promise<string | null> {
+  if (!endpoint) return Promise.resolve(null);
+  const cached = markdownCache.get(endpoint);
+  if (cached !== undefined) {
+    return Promise.resolve(cached);
+  }
+  const inflight = markdownInflight.get(endpoint);
+  if (inflight) {
+    return inflight;
+  }
+
+  const promise = fetch(endpoint)
+    .then(async (res) => {
+      if (!res.ok) return null;
+      const text = await res.text();
+      if (text) {
+        markdownCache.set(endpoint, text);
+      }
+      return text || null;
+    })
+    .catch(() => null)
+    .finally(() => {
+      markdownInflight.delete(endpoint);
+    });
+
+  markdownInflight.set(endpoint, promise);
+  return promise;
+}
+
+export async function copyTextWithGesture(
+  textOrPromise: string | Promise<string>
+): Promise<boolean> {
+  if (typeof navigator === "undefined" || !navigator.clipboard) {
+    return false;
+  }
+
+  if (typeof textOrPromise === "string") {
+    try {
+      await navigator.clipboard.writeText(textOrPromise);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  if (
+    typeof ClipboardItem !== "undefined" &&
+    typeof navigator.clipboard.write === "function"
+  ) {
+    try {
+      const item = new ClipboardItem({
+        "text/plain": textOrPromise.then(
+          (text) => new Blob([text], { type: "text/plain" })
+        ),
+      });
+      await navigator.clipboard.write([item]);
+      return true;
+    } catch {
+      // Fallback below if ClipboardItem with async Promise is unsupported
+    }
+  }
+
+  try {
+    const resolved = await textOrPromise;
+    await navigator.clipboard.writeText(resolved);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function openBoundedChatTarget(options: {
+  target: "chatgpt" | "claude";
+  cachedMarkdown: string | null;
+  loadMarkdown: () => Promise<string | null>;
+  buildPrompt: (
+    markdown?: string,
+    promptOptions?: ExternalPromptOptions
+  ) => string;
+}): Promise<{ copiedFull: boolean; truncated: boolean }> {
+  const { target, cachedMarkdown, loadMarkdown, buildPrompt } = options;
+
+  if (cachedMarkdown !== null) {
+    const { url, truncated } = buildBoundedExternalUrl(
+      target,
+      (promptOpts) => buildPrompt(cachedMarkdown, promptOpts),
+      cachedMarkdown
+    );
+    const copyPromise = truncated
+      ? copyTextWithGesture(buildPrompt(cachedMarkdown))
+      : null;
+    window.open(url, "_blank", "noopener,noreferrer");
+    const copiedFull = copyPromise ? await copyPromise : false;
+    return { copiedFull, truncated };
+  }
+
+  const popup = window.open("", "_blank");
+  if (popup) {
+    try {
+      popup.opener = null;
+    } catch {
+      // Ignore opener restrictions
+    }
+  }
+
+  const fetched = await loadMarkdown();
+  const { url, truncated } = buildBoundedExternalUrl(
+    target,
+    (promptOpts) => buildPrompt(fetched ?? undefined, promptOpts),
+    fetched ?? undefined
+  );
+
+  const copiedFull =
+    truncated && fetched
+      ? await copyTextWithGesture(buildPrompt(fetched))
+      : false;
+
+  if (popup && !popup.closed) {
+    popup.location.replace(url);
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  return { copiedFull, truncated };
+}
+
+export async function openExternalAiPage(
+  target: "chatgpt" | "claude" | "gemini",
+  ctx: AiPageContext
+): Promise<{ copiedFull: boolean; truncated: boolean }> {
+  if (target === "gemini") {
+    const cached = getCachedMarkdown(ctx.markdownEndpoint);
+    const promptOrPromise =
+      cached !== null
+        ? buildExternalPrompt(ctx, cached)
+        : prefetchMarkdown(ctx.markdownEndpoint).then((md) =>
+            buildExternalPrompt(ctx, md ?? undefined)
+          );
+    const copyPromise = copyTextWithGesture(promptOrPromise);
+    window.open(GEMINI_WEB_URL, "_blank", "noopener,noreferrer");
+    const copiedFull = await copyPromise;
+    return { copiedFull, truncated: false };
+  }
+
+  return openBoundedChatTarget({
+    target,
+    cachedMarkdown: getCachedMarkdown(ctx.markdownEndpoint),
+    loadMarkdown: () => prefetchMarkdown(ctx.markdownEndpoint),
+    buildPrompt: (md, promptOpts) => buildExternalPrompt(ctx, md, promptOpts),
+  });
+}
+
+function getCachedBundleMarkdown(
+  sources: { endpoint: string }[],
+  preloadedMarkdown?: string
+): string | null {
+  if (preloadedMarkdown && preloadedMarkdown.trim()) {
+    return preloadedMarkdown;
+  }
+  const capped = sources.slice(0, 12);
+  if (capped.length === 0) return "";
+  const parts: string[] = [];
+  for (const s of capped) {
+    const cached = getCachedMarkdown(s.endpoint);
+    if (cached === null) return null;
+    parts.push(cached);
+  }
+  return parts.join("\n\n---\n\n");
+}
+
+async function loadBundleMarkdown(
+  sources: { endpoint: string }[],
+  preloadedMarkdown?: string
+): Promise<string | null> {
+  const cached = getCachedBundleMarkdown(sources, preloadedMarkdown);
+  if (cached !== null) return cached;
+  const capped = sources.slice(0, 12);
+  const parts = await Promise.all(
+    capped.map((s) => prefetchMarkdown(s.endpoint))
+  );
+  const valid = parts.filter((p): p is string => Boolean(p));
+  return valid.length > 0 ? valid.join("\n\n---\n\n") : null;
+}
+
+export async function openExternalAiBundle(
+  target: "chatgpt" | "claude" | "gemini",
+  sources: { name: string; urlPath: string; endpoint: string }[],
+  preloadedMarkdown?: string
+): Promise<{ copiedFull: boolean; truncated: boolean }> {
+  const buildPrompt = (
+    md?: string,
+    promptOpts?: ExternalPromptOptions
+  ): string => buildBundlePrompt(sources, md, promptOpts);
+
+  if (target === "gemini") {
+    const cached = getCachedBundleMarkdown(sources, preloadedMarkdown);
+    const promptOrPromise =
+      cached !== null
+        ? buildPrompt(cached)
+        : loadBundleMarkdown(sources, preloadedMarkdown).then((md) =>
+            buildPrompt(md ?? undefined)
+          );
+    const copyPromise = copyTextWithGesture(promptOrPromise);
+    window.open(GEMINI_WEB_URL, "_blank", "noopener,noreferrer");
+    const copiedFull = await copyPromise;
+    return { copiedFull, truncated: false };
+  }
+
+  return openBoundedChatTarget({
+    target,
+    cachedMarkdown: getCachedBundleMarkdown(sources, preloadedMarkdown),
+    loadMarkdown: () => loadBundleMarkdown(sources, preloadedMarkdown),
+    buildPrompt,
+  });
 }
