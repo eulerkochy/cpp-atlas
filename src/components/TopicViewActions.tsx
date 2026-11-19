@@ -1,12 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import {
   Bookmark,
-  Check,
   CheckCircle2,
-  Copy,
-  FileText,
   ListChecks,
   Network,
 } from "lucide-react";
@@ -56,62 +52,6 @@ export function TopicViewSwitcher({
           </span>
         </Button>
       ) : null}
-    </div>
-  );
-}
-
-export function TopicNotebookActions({ slug }: { slug: string }) {
-  const [copyState, setCopyState] = useState<"idle" | "done" | "error">("idle");
-  const endpoint = `/api/notebook/topic/${slug}`;
-
-  const handleCopyMarkdown = async () => {
-    try {
-      const res = await fetch(endpoint);
-      if (!res.ok) throw new Error("Failed to fetch markdown");
-      const text = await res.text();
-      await navigator.clipboard.writeText(text);
-      setCopyState("done");
-    } catch {
-      setCopyState("error");
-    }
-    window.setTimeout(() => setCopyState("idle"), 1800);
-  };
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 pt-1">
-      <a
-        href={`${endpoint}?download=1`}
-        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-3 text-xs font-medium text-ink hover:border-ink/40"
-      >
-        <FileText className="size-3.5" aria-hidden />
-        <span>Download .md</span>
-      </a>
-
-      <button
-        type="button"
-        onClick={handleCopyMarkdown}
-        className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-paper px-3 text-xs font-medium text-ink-soft transition-colors hover:border-line-strong hover:text-ink cursor-pointer"
-      >
-        {copyState === "done" ? (
-          <Check className="size-3.5 text-[color:var(--right)]" aria-hidden />
-        ) : (
-          <Copy className="size-3.5" aria-hidden />
-        )}
-        <span>
-          {copyState === "done"
-            ? "Copied"
-            : copyState === "error"
-              ? "Copy failed"
-              : "Copy markdown"}
-        </span>
-      </button>
-
-      <a
-        href={endpoint}
-        className="inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium text-ink-soft hover:bg-ink/5 hover:text-ink"
-      >
-        Open plain text
-      </a>
     </div>
   );
 }

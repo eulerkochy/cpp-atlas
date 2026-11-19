@@ -332,12 +332,12 @@ export function CommandPalette({ referencePages }: { referencePages: number }) {
                   <span>Open Standardese quiz arena</span>
                 </CommandItem>
                 <CommandItem
-                  value="notebook-studio"
+                  value="notebook-studio audio gemini markdown"
                   onSelect={() => navigateTo("/notebook")}
                   className="py-2 cursor-pointer"
                 >
                   <FileText className="size-4 text-ink-soft" />
-                  <span>Open NotebookLM markdown builder</span>
+                  <span>Open NotebookLM &amp; Gemini Studio</span>
                 </CommandItem>
               </CommandGroup>
               <CommandSeparator />

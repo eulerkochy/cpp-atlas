@@ -11,6 +11,7 @@ import {
 } from "@/components/atlas-map-geometry";
 import { MemoryMapStage } from "@/components/memory-maps/MemoryMapStage";
 import { MapOutline, MindMap } from "@/components/MindMap";
+import { PageAiHeaderBar, PageAiRailWidget } from "@/components/PageAiActions";
 import { ReferenceViews } from "@/components/ReferenceViews";
 import { SectionRail } from "@/components/SectionRail";
 import {
@@ -20,12 +21,12 @@ import {
 import { TopicMarkdown } from "@/components/TopicMarkdown";
 import { AllQuestions, TopicQuizRunner } from "@/components/TopicQuizRunner";
 import {
-  TopicNotebookActions,
   TopicStudyActions,
   TopicViewSwitcher,
 } from "@/components/TopicViewActions";
 import { JsonLd } from "@/components/JsonLd";
 import { TrackProgressCount } from "@/components/TrackProgressCount";
+import type { AiPageContext } from "@/lib/ai-links";
 import { getAtlasPayload, type AtlasPayload } from "@/lib/atlas-data";
 import { absoluteUrl, buildOgImageUrl, SITE } from "@/lib/site";
 import {
@@ -336,6 +337,18 @@ async function TopicLoader({
     topic.trackId
   );
 
+  const aiContext: AiPageContext = {
+    kind: "topic",
+    title: topic.title,
+    subtitle: topic.summary || undefined,
+    urlPath: `/topics/${topic.slug}`,
+    markdownEndpoint: `/api/notebook/topic/${topic.slug}`,
+    slug: topic.slug,
+    trackId: topic.trackId,
+    trackTitle: topic.trackTitle,
+    clauses: topic.standard,
+  };
+
   const readPanel = (
     <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[12rem_minmax(0,1fr)] xl:grid-cols-[12rem_minmax(0,1fr)_16rem] xl:gap-12">
       <aside className="hidden lg:block">
@@ -488,14 +501,7 @@ async function TopicLoader({
             </div>
           ) : null}
 
-          <div className="space-y-2.5 border-t border-line pt-6">
-            <p className="font-medium text-ink">NotebookLM</p>
-            <p className="leading-relaxed text-ink-soft">
-              Export this topic with its map outline and standardese quiz as a
-              clean Markdown source.
-            </p>
-            <TopicNotebookActions slug={topic.slug} />
-          </div>
+          <PageAiRailWidget context={aiContext} />
         </div>
       </aside>
     </div>
@@ -700,6 +706,10 @@ async function TopicLoader({
           />
 
           <TopicStudyActions slug={topic.slug} />
+        </div>
+
+        <div className="mt-4">
+          <PageAiHeaderBar context={aiContext} />
         </div>
       </header>
 

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Fragment } from "react";
-import { ChevronDown, ExternalLink, FileText } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import { CppCodeBlock } from "@/components/CppCodeBlock";
 import { CppRefArticleInteractive } from "@/components/CppRefArticleInteractive";
 import { MemoryMapStage } from "@/components/memory-maps/MemoryMapStage";
+import { PageAiHeaderBar, PageAiRailWidget } from "@/components/PageAiActions";
 import { QuizModule } from "@/components/QuizModule";
 import { ReferenceViews } from "@/components/ReferenceViews";
 import { SectionRail } from "@/components/SectionRail";
@@ -11,6 +12,7 @@ import { TrackProgressCount } from "@/components/TrackProgressCount";
 import { UniversalPageAtlas } from "@/components/UniversalPageAtlas";
 import { getCompanionForPath } from "@/data/companions";
 import { JsonLd } from "@/components/JsonLd";
+import type { AiPageContext } from "@/lib/ai-links";
 import { REFERENCE_LICENSE, REFERENCE_SNAPSHOT } from "@/lib/cppref-engine";
 import { getSiblingPages } from "@/lib/cppref-index";
 import { referenceHref } from "@/lib/reference";
@@ -80,6 +82,20 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
   const notebookEndpoint = `/api/notebook/${page.lang}${
     isRoot ? "" : pageUrl.slice(basePrefix.length)
   }`;
+
+  const aiContext: AiPageContext = {
+    kind: "reference",
+    title: page.title,
+    subtitle: companion?.subtitle ?? (page.summary || undefined),
+    urlPath: pageUrl,
+    markdownEndpoint: notebookEndpoint,
+    lang: page.lang,
+    refPath: page.pagePath,
+    trackId: studyTopics[0]?.trackId,
+    trackTitle: studyTopics[0]?.trackTitle,
+    clauses: companion?.primaryClauses,
+    standards: page.cppStandards,
+  };
 
   const jsonLd = [
     {
@@ -359,28 +375,7 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
             </nav>
           )}
 
-          <div className="space-y-2 border-t border-line pt-6">
-            <p className="font-medium text-ink">Use in NotebookLM</p>
-            <p className="leading-relaxed text-ink-soft">
-              Paste this page&apos;s URL or download plain Markdown into
-              NotebookLM as a source.
-            </p>
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <a
-                href={`${notebookEndpoint}?download=1`}
-                className="inline-flex h-7 items-center gap-1.5 rounded-full bg-paper-raised border border-line-strong px-3 text-xs font-medium text-ink hover:border-ink/40"
-              >
-                <FileText className="size-3.5" aria-hidden />
-                Download .md
-              </a>
-              <a
-                href={notebookEndpoint}
-                className="inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium text-ink-soft hover:bg-ink/5 hover:text-ink"
-              >
-                Open plain text
-              </a>
-            </div>
-          </div>
+          <PageAiRailWidget context={aiContext} />
         </div>
       </aside>
     </div>
@@ -561,6 +556,10 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
             View on cppreference
             <ExternalLink className="size-3.5" aria-hidden />
           </a>
+        </div>
+
+        <div className="mt-4">
+          <PageAiHeaderBar context={aiContext} />
         </div>
       </header>
 

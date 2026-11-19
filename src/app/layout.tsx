@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Footer } from "@/components/Footer";
+import { GeminiTutorProvider } from "@/components/GeminiTutorDrawer";
+import { GoogleNotebookProvider } from "@/components/GoogleNotebookProvider";
 import { Navbar } from "@/components/Navbar";
 import { ProgressProvider } from "@/components/ProgressProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -119,12 +121,16 @@ export default function RootLayout({
         </a>
         <TooltipProvider delay={0}>
           <ProgressProvider>
-            <Navbar />
-            <CommandPalette referencePages={getSiteStats().referencePages} />
-            <main id="main" className="flex-1">
-              {children}
-            </main>
-            <Footer />
+            <GoogleNotebookProvider>
+              <GeminiTutorProvider>
+                <Navbar />
+                <CommandPalette referencePages={getSiteStats().referencePages} />
+                <main id="main" className="flex-1">
+                  {children}
+                </main>
+                <Footer />
+              </GeminiTutorProvider>
+            </GoogleNotebookProvider>
           </ProgressProvider>
         </TooltipProvider>
       </body>

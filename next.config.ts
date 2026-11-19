@@ -59,6 +59,14 @@ const REFERENCE_INDEXES = [
   "./data/reference-c/index.json",
 ];
 
+const AI_TRACE_FILES = [
+  "./content/**/*",
+  "./data/reference/pages/**/*",
+  "./data/reference/md/**/*",
+  "./data/reference-c/pages/**/*",
+  "./data/reference-c/md/**/*",
+];
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
@@ -75,6 +83,10 @@ const nextConfig: NextConfig = {
       "./data/reference-c/pages/**/*",
       "./data/reference-c/md/**/*",
     ],
+    "/api/ai/chat": AI_TRACE_FILES,
+    "/api/ai/studio": AI_TRACE_FILES,
+    "/api/ai/audio-overview": AI_TRACE_FILES,
+    "/api/notebooklm/push": AI_TRACE_FILES,
     "/api/search": REFERENCE_INDEXES,
     "/explore": REFERENCE_INDEXES,
     "/api/og": ["./src/assets/fonts/*"],

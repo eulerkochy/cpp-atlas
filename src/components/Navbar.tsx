@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import { Menu, Search } from "lucide-react";
+import { GoogleIcon, NotebookLmIcon } from "@/components/AiBrandIcons";
+import { useGoogleNotebook } from "@/components/GoogleNotebookProvider";
 import { LogoMark } from "@/components/LogoMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useProgress } from "@/components/ProgressProvider";
@@ -63,13 +65,16 @@ function NavLinksStatic({
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "inline-flex h-9 shrink-0 items-center rounded-full px-2.5 text-[0.9rem] whitespace-nowrap transition-colors md:px-3.5",
+              "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.9rem] whitespace-nowrap transition-colors md:px-3.5",
               isActive
                 ? "bg-sun text-ink font-medium"
                 : "text-ink-soft hover:bg-ink/5 hover:text-ink"
             )}
           >
-            {item.label}
+            {item.href === "/notebook" ? (
+              <NotebookLmIcon className="size-3.5" />
+            ) : null}
+            <span>{item.label}</span>
           </Link>
         );
       })}
@@ -122,6 +127,94 @@ const MOBILE_NAV_LINKS = [
   STANDARDS_LINK,
 ];
 
+function NavGoogleAuth() {
+  const { loading, configured, connected, user, signIn } = useGoogleNotebook();
+  if (loading || !configured) return null;
+
+  if (connected && user) {
+    const firstName = user.name.split(/\s+/)[0] || user.email.split("@")[0];
+    return (
+      <Link
+        href="/notebook"
+        title={`NotebookLM connected as ${user.email}`}
+        className="hidden h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-paper-raised px-2.5 text-xs font-medium text-ink transition-colors hover:border-line-strong lg:inline-flex"
+      >
+        <span className="inline-flex size-5 items-center justify-center rounded-full bg-sun-wash text-[11px] font-semibold text-ink">
+          {(user.name[0] || user.email[0] || "G").toUpperCase()}
+        </span>
+        <span className="max-w-[5.5rem] truncate">{firstName}</span>
+        <span
+          aria-hidden
+          className="size-1.5 rounded-full bg-[color:var(--right)]"
+        />
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => signIn()}
+      title="Sign in with Google to connect NotebookLM"
+      className="hidden h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-ink-soft transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer lg:inline-flex"
+    >
+      <GoogleIcon className="size-3.5" />
+      <span>Sign in</span>
+    </button>
+  );
+}
+
+function MobileGoogleAuth() {
+  const { loading, configured, connected, user, signIn, signOut } =
+    useGoogleNotebook();
+  if (loading || !configured) return null;
+
+  if (connected && user) {
+    return (
+      <div className="mt-2 space-y-2 border-t border-line pt-3 text-xs">
+        <div className="px-2">
+          <div className="font-medium text-ink truncate">{user.name}</div>
+          <div className="text-[11px] text-ink-faint truncate">{user.email}</div>
+        </div>
+        <SheetClose
+          render={
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "w-full justify-start rounded-full text-ink-soft cursor-pointer"
+              )}
+            />
+          }
+        >
+          Disconnect Google NotebookLM
+        </SheetClose>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 border-t border-line pt-3">
+      <SheetClose
+        render={
+          <button
+            type="button"
+            onClick={() => signIn()}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "w-full justify-start gap-2 rounded-full cursor-pointer"
+            )}
+          />
+        }
+      >
+        <GoogleIcon className="size-3.5" />
+        <span>Sign in with Google</span>
+      </SheetClose>
+    </div>
+  );
+}
+
 function MobileSheetLinksStatic({ active }: { active?: string }) {
   return (
     <>
@@ -136,13 +229,16 @@ function MobileSheetLinksStatic({ active }: { active?: string }) {
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   buttonVariants({ variant: "ghost" }),
-                  "justify-start rounded-full",
+                  "justify-start gap-2 rounded-full",
                   isActive && "bg-sun text-ink font-medium hover:bg-sun"
                 )}
               />
             }
           >
-            {item.label}
+            {item.href === "/notebook" ? (
+              <NotebookLmIcon className="size-4" />
+            ) : null}
+            <span>{item.label}</span>
           </SheetClose>
         );
       })}
@@ -191,6 +287,7 @@ export function Navbar() {
               ⌘K
             </kbd>
           </button>
+          <NavGoogleAuth />
           <ThemeToggle />
         </div>
 
@@ -227,6 +324,7 @@ export function Navbar() {
                 <Suspense fallback={<MobileSheetLinksStatic />}>
                   <MobileSheetLinks />
                 </Suspense>
+                <MobileGoogleAuth />
               </div>
             </SheetContent>
           </Sheet>

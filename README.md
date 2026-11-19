@@ -18,7 +18,8 @@ A calm, high-signal study layer over an **offline 1:1 copy of `en.cppreference.c
 - **Study Desk (`/study`):** personal charted territory map, continent-grouped track mastery, completed topics, reviewed reference pages, missed traps, bookmarks, and `cpp-atlas-progress.json` export/import.
 - **C++11–C++26 Evolution Timeline (`/standards`).**
 - **Offline C++ and C reference (`/w/cpp/...`, `/w/c/...`, `/w`, `/explore`):** 5,971 C++ pages and 616 C pages from the cppreference snapshot of 9 February 2025, with breadcrumbs, "In this section", an on-this-page rail, standards chips, Compiler Explorer buttons on examples, `Study topics` links back to topics and `/maps?topic=<slug>`, and **Focus Mode** to dim pre-C++11/14 rows and defect reports. Links between C and C++ pages stay inside the site. Unknown paths are real 404s and cppreference redirect pages are real 308 redirects; the legacy `/cpp/...` and `/c/...` addresses redirect to `/w/...`.
-- **NotebookLM Markdown Studio (`/notebook` & `/api/notebook/...`):** Audio-Overview-ready markdown for reference pages (`/api/notebook/cpp/<path>`, `/api/notebook/c/<path>`), single topics (`/api/notebook/topic/[slug]`), or all topics (`/api/notebook/topics-all`).
+- **NotebookLM & Gemini Studio (`/notebook`, `/api/ai/...`, `/api/notebook/...`):** Direct in-app **Gemini Studio** (`gemini-4-hydrogen` multi-source grounded chat, Briefing Docs, Study Guides, FAQs, Traps, and two-host **Audio Overviews** via `gemini-3.8-flash-tts`), **Public NotebookLM Workspaces** (Full Atlas + 4 continents via `NEXT_PUBLIC_NOTEBOOKLM_URL_*`), and secondary `.md` export (`/api/notebook/cpp/<path>`, `/api/notebook/c/<path>`, `/api/notebook/topic/[slug]`, `/api/notebook/topics-all`).
+- **Ask AI on Every Page:** Compact header action strip and right-rail widget across all topic and reference pages for **Ask Gemini** (in-app streaming tutor drawer grounded on the current page), **Ask ChatGPT**, **Ask Claude**, and **NotebookLM**.
 - **Search & Crawlability:** `⌘K` / `Ctrl+K` / `/` command palette backed by `/api/search`, plus `/sitemap.xml`, `/robots.txt`, `/llms.txt`, canonical URLs, OpenGraph cards and JSON-LD.
 
 Counts shown in the UI are derived from the data at build time.
@@ -75,6 +76,12 @@ npx vercel --prod
 ```
 
 Set `NEXT_PUBLIC_SITE_URL` in your deployment environment (e.g. `https://your-domain.vercel.app`) so canonical URLs, `sitemap.xml`, `robots.txt`, and `llms.txt` emit your production origin.
+
+Optional AI & NotebookLM environment variables:
+
+- `GEMINI_API_KEY`: Enables the in-app **Ask Gemini** tutor drawer, **Notebook Chat**, **Studio Guides** (`gemini-4-hydrogen`), and two-host **Audio Overviews** (`gemini-3.8-flash-tts`). Visitors can also supply a temporary session key in the UI if unset on the server.
+- `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` (plus optional `GOOGLE_OAUTH_SESSION_SECRET` and `GOOGLE_CLOUD_PROJECT`): Enables **Sign in with Google** (`https://www.googleapis.com/auth/notebook` via `notebook.googleapis.com`) so users can list their personal NotebookLM notebooks and push topics/reference pages directly into them. Add `<your-origin>/api/auth/google/callback` as an Authorized Redirect URI in Google Cloud Console. *(Google's Gemini Notebook API preview supports personal `@gmail.com` accounts.)*
+- `NEXT_PUBLIC_NOTEBOOKLM_URL_ATLAS`, `NEXT_PUBLIC_NOTEBOOKLM_URL_LANGUAGE_BASICS`, `NEXT_PUBLIC_NOTEBOOKLM_URL_BUILDING_ABSTRACTIONS`, `NEXT_PUBLIC_NOTEBOOKLM_URL_THE_MACHINE`, `NEXT_PUBLIC_NOTEBOOKLM_URL_LIBRARY_AND_CPP26`: Optional public shared NotebookLM workspace URLs surfaced in `/notebook` and on matching pages.
 
 ## Attribution
 
