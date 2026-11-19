@@ -1,3 +1,4 @@
+import { SITE } from "@/lib/site";
 import type { ReferenceLang } from "@/types/cpp";
 
 export type AiSourceRef =
@@ -165,6 +166,11 @@ function appendEmbeddedMarkdown(
   }
 }
 
+function formatSitePath(urlPath: string): string {
+  const normalized = urlPath.startsWith("/") ? urlPath : `/${urlPath}`;
+  return `${SITE.host}${normalized}`;
+}
+
 export function buildExternalPrompt(
   ctx: AiPageContext,
   markdown?: string,
@@ -172,7 +178,7 @@ export function buildExternalPrompt(
 ): string {
   const lines: string[] = [
     `I am studying "${ctx.title}" from C++ Atlas.`,
-    `Source: C++ Atlas (${ctx.urlPath})`,
+    `Source: C++ Atlas (${formatSitePath(ctx.urlPath)})`,
   ];
 
   const metaParts: string[] = [];
@@ -207,12 +213,12 @@ export function buildBundlePrompt(
 ): string {
   const listed = sources
     .slice(0, 12)
-    .map((s) => `- ${s.name} (${s.urlPath})`)
+    .map((s) => `- ${s.name} (${formatSitePath(s.urlPath)})`)
     .join("\n");
 
   const lines: string[] = [
     "I am studying this bundle of C++ Atlas sources:",
-    listed || "- C++ Atlas (/)",
+    listed || `- C++ Atlas (${SITE.host}/)`,
   ];
 
   appendEmbeddedMarkdown(lines, markdown, options);

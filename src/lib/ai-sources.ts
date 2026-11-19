@@ -1,6 +1,7 @@
 import { encodeAiSourceKey, type AiSourceRef } from "@/lib/ai-links";
 import { referenceToMarkdown, resolveReferencePage } from "@/lib/cppref-engine";
 import { referenceHref } from "@/lib/reference";
+import { SITE } from "@/lib/site";
 import { getTopic, topicToMarkdown } from "@/lib/topics";
 
 export interface ResolvedAiDocument {
@@ -131,7 +132,7 @@ export function resolveAiSources(
   const contextText = fittedDocs
     .map(
       (doc, idx) =>
-        `[${idx + 1}] ${doc.title} (${doc.urlPath})\n\n${doc.markdown}`
+        `[${idx + 1}] ${doc.title} (${SITE.host}${doc.urlPath})\n\n${doc.markdown}`
     )
     .join("\n\n---\n\n");
 

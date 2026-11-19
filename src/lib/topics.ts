@@ -25,6 +25,7 @@ import {
   referenceHref,
   referenceLiveUrl,
 } from "@/lib/reference";
+import { absoluteUrl, SITE } from "@/lib/site";
 
 export {
   createHeadingSlugger,
@@ -870,6 +871,7 @@ export function topicToMarkdown(
     lines.push(`> ${topic.summary}`);
     lines.push("");
   }
+  lines.push(`- **Source:** C++ Atlas (${absoluteUrl(`/topics/${topic.slug}`)})`);
   lines.push(`- **Track:** ${topic.trackTitle}`);
   lines.push(`- **Estimated reading time:** ${topic.minutes} minutes`);
   if (topic.standard.length > 0) {
@@ -944,6 +946,8 @@ export function allTopicsToMarkdown(options?: {
     "# C++ Atlas — Complete Study Guide",
     "",
     `> ${all.length} C++ deep-dive topics across ${tracks.length} tracks with concept maps and standard-lawyer quizzes.`,
+    "",
+    `Source: C++ Atlas (${SITE.url})`,
     "",
     "## Contents",
     "",

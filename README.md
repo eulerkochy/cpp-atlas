@@ -1,6 +1,6 @@
 # C++ Atlas — The C++ reference that explains itself
 
-Live at **[cpp-atlas.vercel.app](https://cpp-atlas.vercel.app)**.
+Live at **[cppatlas.com](https://cppatlas.com)**.
 
 A calm, high-signal study layer over an **offline 1:1 copy of `en.cppreference.com`**, built with Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS v4, and `shadcn/ui`. Every reference page is imported from the cppreference offline archive and prerendered at build time: nothing is fetched from cppreference.com at request or build time.
 
@@ -75,7 +75,7 @@ pnpm build
 npx vercel --prod
 ```
 
-Set `NEXT_PUBLIC_SITE_URL` in your deployment environment (e.g. `https://your-domain.vercel.app`) so canonical URLs, `sitemap.xml`, `robots.txt`, and `llms.txt` emit your production origin.
+Set `NEXT_PUBLIC_SITE_URL` in your deployment environment (e.g. `https://cppatlas.com`) so canonical URLs, `sitemap.xml`, `robots.txt`, and `llms.txt` emit your production origin.
 
 Optional AI & NotebookLM environment variables:
 

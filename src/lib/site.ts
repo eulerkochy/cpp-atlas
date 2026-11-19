@@ -1,13 +1,13 @@
 /** Site identity and absolute URL, used for canonical links, sitemaps, OG cards and JSON-LD. */
 const RAW_SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://cpp-atlas.vercel.app"
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://cppatlas.com"
 ).replace(/\/+$/, "");
 
 function parseSiteHost(url: string): string {
   try {
     return new URL(url).host;
   } catch {
-    return "cpp-atlas.vercel.app";
+    return "cppatlas.com";
   }
 }
 

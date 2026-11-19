@@ -8,6 +8,7 @@ import {
   referenceHref,
   type ReferenceIndexEntry,
 } from "@/lib/reference";
+import { SITE } from "@/lib/site";
 import {
   CompanionOverlay,
   CppRefHeading,
@@ -466,7 +467,7 @@ export function referenceToMarkdown(
   lines.push(`# ${page.title}`);
   lines.push("");
   lines.push(
-    `> Path: \`${referenceHref(page.lang, page.pagePath)}\` | Source: ${page.originalUrl}${page.domain ? ` | Domain: ${page.domain}` : ""}${page.cppStandards.length ? ` | Standards: ${page.cppStandards.join(", ")}` : ""}`
+    `> C++ Atlas: \`${SITE.host}${referenceHref(page.lang, page.pagePath)}\` | Source: ${page.originalUrl}${page.domain ? ` | Domain: ${page.domain}` : ""}${page.cppStandards.length ? ` | Standards: ${page.cppStandards.join(", ")}` : ""}`
   );
   lines.push("");
   if (page.summary) {
