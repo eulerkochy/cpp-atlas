@@ -107,22 +107,22 @@ const nextConfig: NextConfig = {
       {
         source: "/cpp",
         destination: "/w/cpp",
-        permanent: false,
+        permanent: true,
       },
       {
         source: "/cpp/:path*",
         destination: "/w/cpp/:path*",
-        permanent: false,
+        permanent: true,
       },
       {
         source: "/c",
         destination: "/w/c",
-        permanent: false,
+        permanent: true,
       },
       {
         source: "/c/:path*",
         destination: "/w/c/:path*",
-        permanent: false,
+        permanent: true,
       },
     ];
   },

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AtlasExplorerClient } from "@/components/AtlasExplorerClient";
-import { MapPreview } from "@/components/MapPreview";
+import { FolioMapPreview } from "@/components/FolioMapPreview";
 import { PageHeader } from "@/components/PageHeader";
 import { getAtlasPayload } from "@/lib/atlas-data";
 import { countMapStats } from "@/lib/map-layout";
@@ -9,7 +9,6 @@ import { buildOgImageUrl, SITE } from "@/lib/site";
 import { getSiteStats } from "@/lib/site-stats";
 import { getTracks } from "@/lib/topics";
 import { groupTracks } from "@/lib/track-groups";
-import type { TopicMapNode, TopicSummary } from "@/types/topics";
 
 export function generateMetadata(): Metadata {
   const stats = getSiteStats();
@@ -53,18 +52,12 @@ export default function MapsPage() {
   const rawTracks = getTracks();
   const siteStats = getSiteStats();
 
-  const allTopicSummaries: TopicSummary[] = rawTracks.flatMap((track) =>
-    track.topics.map((topic) => ({ ...topic, map: null }))
+  const totalTopics = regions.reduce(
+    (sum, region) =>
+      sum +
+      region.tracks.reduce((trackSum, track) => trackSum + track.topics.length, 0),
+    0
   );
-
-  const mapRootsBySlug: Record<string, TopicMapNode> = {};
-  for (const track of rawTracks) {
-    for (const topic of track.topics) {
-      if (topic.map?.root) {
-        mapRootsBySlug[topic.slug] = topic.map.root;
-      }
-    }
-  }
 
   const tracksWithMaps = rawTracks
     .map((track) => ({
@@ -84,19 +77,14 @@ export default function MapsPage() {
       <PageHeader title="World Atlas">
         <p>
           {regions.length > 0
-            ? `Explore ${allTopicSummaries.length} study topics across ${regions.length} continents and ${map.islands.length} tracks. Search by title, ISO clause, or /w/cpp path, trace prerequisite routes, switch to dependency columns, or browse ${totalMaps} concept maps and ${siteStats.simulators} machine-model simulators below.`
+            ? `Explore ${totalTopics} study topics across ${regions.length} continents and ${map.islands.length} tracks. Search by title, ISO clause, or /w/cpp path, trace prerequisite routes, switch to dependency columns, or browse ${totalMaps} concept maps and ${siteStats.simulators} machine-model simulators below.`
             : "Interactive world atlas, concept maps, and machine-model simulators for every study topic."}
         </p>
       </PageHeader>
 
       <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
         {regions.length > 0 ? (
-          <AtlasExplorerClient
-            regions={regions}
-            map={map}
-            allTopicSummaries={allTopicSummaries}
-            mapRootsBySlug={mapRootsBySlug}
-          />
+          <AtlasExplorerClient regions={regions} map={map} />
         ) : null}
 
         {continentGroups.length === 0 ? (
@@ -188,8 +176,8 @@ export default function MapsPage() {
                                 <div className="flex h-full flex-col justify-between overflow-hidden rounded-[2px] border border-line bg-paper-raised">
                                   <div className="bg-paper/65 p-4">
                                     {topic.map ? (
-                                      <MapPreview
-                                        root={topic.map.root}
+                                      <FolioMapPreview
+                                        slug={topic.slug}
                                         className="h-32 w-full"
                                       />
                                     ) : null}

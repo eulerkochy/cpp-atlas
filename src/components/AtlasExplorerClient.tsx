@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -28,8 +29,58 @@ import type { TopicMapNode, TopicSummary } from "@/types/topics";
 export interface AtlasExplorerClientProps {
   regions: AtlasRegionData[];
   map: AtlasMap;
-  allTopicSummaries: TopicSummary[];
-  mapRootsBySlug: Record<string, TopicMapNode>;
+}
+
+const topicMapCache = new Map<string, TopicMapNode | null>();
+const topicMapInflight = new Map<string, Promise<TopicMapNode | null>>();
+
+function loadTopicMapRoot(slug: string): Promise<TopicMapNode | null> {
+  if (topicMapCache.has(slug)) {
+    return Promise.resolve(topicMapCache.get(slug) ?? null);
+  }
+  const existing = topicMapInflight.get(slug);
+  if (existing) return existing;
+
+  const pending = fetch(`/api/topics/map/${encodeURIComponent(slug)}`)
+    .then(async (res) => {
+      if (!res.ok) {
+        topicMapCache.set(slug, null);
+        return null;
+      }
+      const data = (await res.json()) as { root?: TopicMapNode };
+      const root = data.root ?? null;
+      topicMapCache.set(slug, root);
+      return root;
+    })
+    .catch(() => null)
+    .finally(() => {
+      topicMapInflight.delete(slug);
+    });
+
+  topicMapInflight.set(slug, pending);
+  return pending;
+}
+
+function LazyTopicMapPreview({ slug }: { slug: string }) {
+  const [root, setRoot] = useState<TopicMapNode | null>(
+    () => topicMapCache.get(slug) ?? null
+  );
+
+  useEffect(() => {
+    if (topicMapCache.has(slug)) return;
+    let cancelled = false;
+    void loadTopicMapRoot(slug).then((loaded) => {
+      if (!cancelled) {
+        setRoot(loaded);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  if (!root) return null;
+  return <MapPreview root={root} className="h-32 w-full" />;
 }
 
 const ATLAS_URL_EVENT = "cppatlas:atlas-url";
@@ -173,8 +224,6 @@ function matchesAtlasQuery(topic: AtlasTopicData, q: string): boolean {
 export function AtlasExplorerClient({
   regions,
   map,
-  allTopicSummaries,
-  mapRootsBySlug,
 }: AtlasExplorerClientProps) {
   const [view, setView] = useState<"world" | "columns">("world");
   const [query, setQuery] = useState("");
@@ -185,31 +234,52 @@ export function AtlasExplorerClient({
     () => SERVER_URL_SNAPSHOT
   );
 
-  const { allTopics, topicSlugs, trackIds, regionLookup } = useMemo(() => {
-    const flatTopics: AtlasTopicData[] = [];
-    const slugs = new Set<string>();
-    const tracks = new Set<string>();
-    const regLookup = new Map<string, string>();
+  const { allTopics, allTopicSummaries, topicSlugs, trackIds, regionLookup } =
+    useMemo(() => {
+      const flatTopics: AtlasTopicData[] = [];
+      const summaries: TopicSummary[] = [];
+      const slugs = new Set<string>();
+      const tracks = new Set<string>();
+      const regLookup = new Map<string, string>();
 
-    for (const region of regions) {
-      regLookup.set(region.id.toLowerCase(), region.id);
-      regLookup.set(region.label.toLowerCase(), region.id);
-      for (const track of region.tracks) {
-        tracks.add(track.id);
-        for (const topic of track.topics) {
-          flatTopics.push(topic);
-          slugs.add(topic.slug);
+      for (const region of regions) {
+        regLookup.set(region.id.toLowerCase(), region.id);
+        regLookup.set(region.label.toLowerCase(), region.id);
+        for (const track of region.tracks) {
+          tracks.add(track.id);
+          for (const topic of track.topics) {
+            flatTopics.push(topic);
+            slugs.add(topic.slug);
+            summaries.push({
+              slug: topic.slug,
+              title: topic.title,
+              summary: topic.summary,
+              trackId: topic.trackId,
+              trackTitle: topic.trackTitle,
+              minutes: topic.minutes,
+              standard: topic.standard,
+              cppreference: topic.cppreference.map((ref) => ({
+                ...ref,
+                externalUrl: `https://en.cppreference.com/w/cpp/${ref.path}`,
+              })),
+              prerequisites: topic.prerequisites,
+              ...(topic.simulator ? { simulator: topic.simulator } : {}),
+              questionCount: topic.questionCount,
+              questionIds: topic.questionIds,
+              map: null,
+            });
+          }
         }
       }
-    }
 
-    return {
-      allTopics: flatTopics,
-      topicSlugs: slugs,
-      trackIds: tracks,
-      regionLookup: regLookup,
-    };
-  }, [regions]);
+      return {
+        allTopics: flatTopics,
+        allTopicSummaries: summaries,
+        topicSlugs: slugs,
+        trackIds: tracks,
+        regionLookup: regLookup,
+      };
+    }, [regions]);
 
   const { validTopicSlug, validTrackId, validRegionId } = useMemo(() => {
     const params = new URLSearchParams(urlSnapshot.search);
@@ -375,11 +445,8 @@ export function AtlasExplorerClient({
   };
 
   const renderTopicExtra = useCallback(
-    (topic: AtlasTopicData) => {
-      const root = mapRootsBySlug[topic.slug];
-      return root ? <MapPreview root={root} className="h-32 w-full" /> : null;
-    },
-    [mapRootsBySlug]
+    (topic: AtlasTopicData) => <LazyTopicMapPreview key={topic.slug} slug={topic.slug} />,
+    []
   );
 
   return (

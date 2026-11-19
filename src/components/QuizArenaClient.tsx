@@ -1,19 +1,46 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { RotateCcw, Shuffle, Target } from "lucide-react";
 import { useProgress } from "@/components/ProgressProvider";
 import { QuizModule } from "@/components/QuizModule";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ALL_QUIZZES } from "@/data/companions";
 import { cn } from "@/lib/utils";
 import type { QuizQuestion } from "@/types/cpp";
 
 const TABS = ["all", "unanswered", "missed", "saved", "cppcon-stage"] as const;
 type FilterTab = (typeof TABS)[number];
 const QUIZ_TAB_EVENT = "cppatlas:quiztab";
+const PAGE_SIZE = 20;
+
+let cachedQuizBank: QuizQuestion[] | null = null;
+let inflightQuizBank: Promise<QuizQuestion[]> | null = null;
+
+function loadFullQuizBank(): Promise<QuizQuestion[]> {
+  if (cachedQuizBank) {
+    return Promise.resolve(cachedQuizBank);
+  }
+  if (inflightQuizBank) {
+    return inflightQuizBank;
+  }
+
+  inflightQuizBank = fetch("/api/quiz/questions")
+    .then(async (res) => {
+      if (!res.ok) {
+        throw new Error(`Failed to load quiz bank (${res.status})`);
+      }
+      const data = (await res.json()) as QuizQuestion[];
+      cachedQuizBank = data;
+      return data;
+    })
+    .finally(() => {
+      inflightQuizBank = null;
+    });
+
+  return inflightQuizBank;
+}
 
 function isFilterTab(value: string | null): value is FilterTab {
   return Boolean(value) && (TABS as readonly string[]).includes(value as string);
@@ -49,10 +76,12 @@ export interface QuizTrackFilter {
 }
 
 export function QuizArenaClient({
-  topicQuestions = [],
+  initialQuestions = [],
+  totalCount,
   tracks = [],
 }: {
-  topicQuestions?: QuizQuestion[];
+  initialQuestions?: QuizQuestion[];
+  totalCount?: number;
   tracks?: QuizTrackFilter[];
 }) {
   const {
@@ -62,23 +91,32 @@ export function QuizArenaClient({
     resetProgress,
   } = useProgress();
 
-  const allQuestions = useMemo(() => {
-    const seen = new Set<string>();
-    const combined: QuizQuestion[] = [];
-    for (const q of topicQuestions) {
-      if (!seen.has(q.id)) {
-        seen.add(q.id);
-        combined.push(q);
-      }
-    }
-    for (const q of ALL_QUIZZES) {
-      if (!seen.has(q.id)) {
-        seen.add(q.id);
-        combined.push(q);
-      }
-    }
-    return combined;
-  }, [topicQuestions]);
+  const [fullQuestions, setFullQuestions] = useState<QuizQuestion[] | null>(
+    () => cachedQuizBank
+  );
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  useEffect(() => {
+    if (fullQuestions) return;
+    let cancelled = false;
+    void loadFullQuizBank()
+      .then((bank) => {
+        if (!cancelled) {
+          setFullQuestions(bank);
+        }
+      })
+      .catch(() => {
+        // Keep initialQuestions fallback if network fails
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fullQuestions]);
+
+  const allQuestions = fullQuestions ?? initialQuestions;
+  const displayTotal = fullQuestions
+    ? fullQuestions.length
+    : (totalCount ?? initialQuestions.length);
 
   const tab = useSyncExternalStore(
     subscribeQuizTab,
@@ -94,22 +132,22 @@ export function QuizArenaClient({
   );
 
   const answeredCount = hydrated
-    ? Object.keys(answeredQuizzes).filter((id) => allQuestionIds.has(id)).length
+    ? Object.keys(answeredQuizzes).filter(
+        (id) => !fullQuestions || allQuestionIds.has(id)
+      ).length
     : 0;
   const correctCount = hydrated
     ? Object.entries(answeredQuizzes).filter(
-        ([id, r]) => allQuestionIds.has(id) && r.correct
+        ([id, r]) => (!fullQuestions || allQuestionIds.has(id)) && r.correct
       ).length
     : 0;
   const missedCount = hydrated
     ? Object.entries(answeredQuizzes).filter(
-        ([id, r]) => allQuestionIds.has(id) && !r.correct
+        ([id, r]) => (!fullQuestions || allQuestionIds.has(id)) && !r.correct
       ).length
     : 0;
   const pct =
-    allQuestions.length > 0
-      ? Math.round((correctCount / allQuestions.length) * 100)
-      : 0;
+    displayTotal > 0 ? Math.round((correctCount / displayTotal) * 100) : 0;
 
   const filteredQuestions = useMemo(() => {
     if (lightningIds) {
@@ -151,13 +189,37 @@ export function QuizArenaClient({
     bookmarkedQuizzes,
   ]);
 
-  const startLightningRound = () => {
-    const pool = [...allQuestions];
+  const visibleQuestions = lightningIds
+    ? filteredQuestions
+    : filteredQuestions.slice(0, visibleCount);
+
+  const selectTab = (next: FilterTab) => {
+    setVisibleCount(PAGE_SIZE);
+    switchQuizTab(next);
+  };
+
+  const selectTopicFilter = (next: string) => {
+    setTopicFilter(next);
+    setVisibleCount(PAGE_SIZE);
+  };
+
+  const startLightningRound = async () => {
+    let sourcePool = fullQuestions;
+    if (!sourcePool) {
+      try {
+        sourcePool = await loadFullQuizBank();
+        setFullQuestions(sourcePool);
+      } catch {
+        sourcePool = initialQuestions;
+      }
+    }
+    const pool = [...sourcePool];
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
     setLightningIds(pool.slice(0, 5).map((q) => q.id));
+    setVisibleCount(PAGE_SIZE);
   };
 
   return (
@@ -166,7 +228,7 @@ export function QuizArenaClient({
         <div className="flex-1 space-y-2">
           <div className="flex items-center justify-between text-xs">
             <span className="font-medium text-ink">
-              Cleared {correctCount} of {allQuestions.length} standard traps
+              Cleared {correctCount} of {displayTotal} standard traps
             </span>
             <span className="font-mono text-ink-soft tabular-nums">
               {answeredCount} attempted ({pct}% score)
@@ -180,11 +242,14 @@ export function QuizArenaClient({
             type="button"
             size="sm"
             variant={lightningIds ? "default" : "secondary"}
-            onClick={
-              lightningIds
-                ? () => setLightningIds(null)
-                : startLightningRound
-            }
+            onClick={() => {
+              if (lightningIds) {
+                setLightningIds(null);
+                setVisibleCount(PAGE_SIZE);
+              } else {
+                void startLightningRound();
+              }
+            }}
             className="cursor-pointer"
           >
             <Shuffle className="size-3.5" aria-hidden />
@@ -202,7 +267,7 @@ export function QuizArenaClient({
               variant={!lightningIds && tab === "missed" ? "default" : "outline"}
               onClick={() => {
                 setLightningIds(null);
-                switchQuizTab("missed");
+                selectTab("missed");
               }}
               className={cn(
                 "cursor-pointer",
@@ -237,7 +302,7 @@ export function QuizArenaClient({
             value={tab}
             onValueChange={(v) => {
               if (typeof v === "string" && isFilterTab(v)) {
-                switchQuizTab(v);
+                selectTab(v);
               }
             }}
             className="w-full"
@@ -247,7 +312,7 @@ export function QuizArenaClient({
                 value="all"
                 className="h-8 px-3.5 text-xs cursor-pointer"
               >
-                All traps ({allQuestions.length})
+                All traps ({displayTotal})
               </TabsTrigger>
               <TabsTrigger
                 value="unanswered"
@@ -282,7 +347,7 @@ export function QuizArenaClient({
               size="xs"
               variant={topicFilter === "all" ? "default" : "outline"}
               aria-pressed={topicFilter === "all"}
-              onClick={() => setTopicFilter("all")}
+              onClick={() => selectTopicFilter("all")}
               className={cn(
                 "cursor-pointer",
                 topicFilter === "all" &&
@@ -298,7 +363,7 @@ export function QuizArenaClient({
                 size="xs"
                 variant={topicFilter === tr.id ? "default" : "outline"}
                 aria-pressed={topicFilter === tr.id}
-                onClick={() => setTopicFilter(tr.id)}
+                onClick={() => selectTopicFilter(tr.id)}
                 className={cn(
                   "cursor-pointer",
                   topicFilter === tr.id &&
@@ -315,7 +380,7 @@ export function QuizArenaClient({
                 topicFilter === "reference-companions" ? "default" : "outline"
               }
               aria-pressed={topicFilter === "reference-companions"}
-              onClick={() => setTopicFilter("reference-companions")}
+              onClick={() => selectTopicFilter("reference-companions")}
               className={cn(
                 "cursor-pointer",
                 topicFilter === "reference-companions" &&
@@ -328,11 +393,45 @@ export function QuizArenaClient({
         </div>
       ) : null}
 
+      {!fullQuestions && (tab !== "all" || topicFilter !== "all") ? (
+        <p className="text-xs text-ink-soft">Loading full question bank…</p>
+      ) : null}
+
       <QuizModule
-        questions={filteredQuestions}
+        questions={visibleQuestions}
         showTopicLink
         headingLevel={2}
       />
+
+      {!lightningIds && filteredQuestions.length > visibleQuestions.length ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
+          <p className="text-xs text-ink-soft tabular-nums">
+            Showing {visibleQuestions.length} of {filteredQuestions.length} traps
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+              className="rounded-full cursor-pointer"
+            >
+              Show {Math.min(PAGE_SIZE, filteredQuestions.length - visibleQuestions.length)} more
+            </Button>
+            {filteredQuestions.length <= 100 ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setVisibleCount(filteredQuestions.length)}
+                className="rounded-full cursor-pointer"
+              >
+                Show all ({filteredQuestions.length})
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

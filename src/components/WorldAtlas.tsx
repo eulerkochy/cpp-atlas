@@ -885,6 +885,13 @@ export function WorldAtlas({
             )}
           >
             <defs>
+              {map.islands.map((island) => (
+                <path
+                  key={island.id}
+                  id={`${svgPrefix}-isl-${island.id}`}
+                  d={island.path}
+                />
+              ))}
               <marker
                 id={`${svgPrefix}-arrow-ink`}
                 markerUnits="userSpaceOnUse"
@@ -920,7 +927,7 @@ export function WorldAtlas({
                     id={`${svgPrefix}-border-${island.id}`}
                   >
                     {earlier.map((o) => (
-                      <path key={o.id} d={o.path} />
+                      <use key={o.id} href={`#${svgPrefix}-isl-${o.id}`} />
                     ))}
                   </clipPath>
                 ) : null;
@@ -933,12 +940,19 @@ export function WorldAtlas({
                     if (!lifted) return null;
                     return (
                       <mask id={`${svgPrefix}-lifted`}>
-                        <path d={lifted.path} fill="white" />
+                        <use
+                          href={`#${svgPrefix}-isl-${lifted.id}`}
+                          fill="white"
+                        />
                         {map.islands
                           .slice(map.islands.indexOf(lifted) + 1)
                           .filter((o) => o.region === lifted.region)
                           .map((o) => (
-                            <path key={o.id} d={o.path} fill="black" />
+                            <use
+                              key={o.id}
+                              href={`#${svgPrefix}-isl-${o.id}`}
+                              fill="black"
+                            />
                           ))}
                       </mask>
                     );
@@ -968,17 +982,17 @@ export function WorldAtlas({
             {/* Two-step coastal shallows */}
             <g aria-hidden strokeLinejoin="round">
               {map.islands.map((island) => (
-                <path
+                <use
                   key={island.id}
-                  d={island.path}
+                  href={`#${svgPrefix}-isl-${island.id}`}
                   strokeWidth={30}
                   className="fill-[var(--atlas-shallow)] stroke-[var(--atlas-shallow)] opacity-45"
                 />
               ))}
               {map.islands.map((island) => (
-                <path
+                <use
                   key={island.id}
-                  d={island.path}
+                  href={`#${svgPrefix}-isl-${island.id}`}
                   strokeWidth={13}
                   className="fill-[var(--atlas-shallow)] stroke-[var(--atlas-shallow)]"
                 />
@@ -1020,17 +1034,17 @@ export function WorldAtlas({
             {/* Landmasses & shared dashed borders */}
             <g aria-hidden strokeLinejoin="round">
               {map.islands.map((island) => (
-                <path
+                <use
                   key={island.id}
-                  d={island.path}
+                  href={`#${svgPrefix}-isl-${island.id}`}
                   strokeWidth={island.id === liftedTrack ? 3.8 : 2.5}
                   className="fill-none stroke-ink"
                 />
               ))}
               {map.islands.map((island) => (
-                <path
+                <use
                   key={island.id}
-                  d={island.path}
+                  href={`#${svgPrefix}-isl-${island.id}`}
                   className="fill-paper-raised"
                 />
               ))}
@@ -1041,8 +1055,8 @@ export function WorldAtlas({
                     );
                     if (!lifted) return null;
                     return (
-                      <path
-                        d={lifted.path}
+                      <use
+                        href={`#${svgPrefix}-isl-${lifted.id}`}
                         mask={`url(#${svgPrefix}-lifted)`}
                         className="fill-sun-wash motion-safe:animate-in motion-safe:fade-in-0"
                       />
@@ -1053,9 +1067,9 @@ export function WorldAtlas({
                 map.islands
                   .slice(0, index)
                   .some((o) => o.region === island.region) ? (
-                  <path
+                  <use
                     key={island.id}
-                    d={island.path}
+                    href={`#${svgPrefix}-isl-${island.id}`}
                     clipPath={`url(#${svgPrefix}-border-${island.id})`}
                     strokeWidth={1}
                     strokeDasharray="5 3"
