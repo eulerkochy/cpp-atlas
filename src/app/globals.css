@@ -476,3 +476,20 @@ body {
   color: var(--code-green);
   font-style: italic;
 }
+
+/* Slim internal scrollbars for tiled RAD debugger panes */
+.rad-pane-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.rad-pane-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.rad-pane-scroll::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 3px;
+}
+.rad-pane-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}

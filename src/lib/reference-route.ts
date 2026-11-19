@@ -58,7 +58,7 @@ export function referenceMetadata(
     title,
     kicker,
     meta: url,
-    sub: hasCompanion ? "Read / Simulator / Quiz" : `Offline ${name} reference`,
+    sub: hasCompanion ? "Read / Map / Debugger / Quiz" : `Offline ${name} reference`,
   });
   const markdown = `/api/notebook/${lang}${url.slice(`/w/${lang}`.length)}`;
 

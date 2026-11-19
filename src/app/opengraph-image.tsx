@@ -22,7 +22,7 @@ export default function OpenGraphImage() {
   const stats = getSiteStats();
   const counts = [
     { value: String(stats.topics), label: "topics" },
-    { value: String(stats.simulators), label: "simulators" },
+    { value: String(stats.simulators), label: "debuggers" },
     {
       value: stats.referencePages.toLocaleString("en-US"),
       label: "reference pages",
@@ -67,7 +67,7 @@ export default function OpenGraphImage() {
                 color: "rgba(0, 0, 0, 0.74)",
               }}
             >
-              All of cppreference, plus deep-dive topics, simulators and quizzes that cite the standard.
+              All of cppreference, plus deep-dive topics, debuggers and quizzes that cite the standard.
             </div>
           </div>
 

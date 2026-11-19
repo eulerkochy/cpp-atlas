@@ -17,6 +17,7 @@ import {
 import {
   Bookmark,
   BookOpen,
+  BugPlay,
   Check,
   ExternalLink,
   ListChecks,
@@ -78,7 +79,7 @@ const SCALE_BAR = { x: 896, y: 576 };
 const LAYER_OPTIONS: { key: AtlasLayer; label: string }[] = [
   { key: "routes", label: "Routes" },
   { key: "next-up", label: "Next up" },
-  { key: "simulators", label: "Simulators" },
+  { key: "simulators", label: "Debuggers" },
   { key: "saved", label: "Saved" },
 ];
 
@@ -1478,7 +1479,7 @@ export function WorldAtlas({
               >
                 <span className="size-1.5 rounded-full bg-ink" />
               </span>
-              Simulator
+              Debugger
             </li>
             <li className="flex items-center gap-2">
               <span
@@ -1696,7 +1697,7 @@ function WaypointCard({
             </span>
             {topic.simulator ? (
               <span className="rounded-[var(--radius-chip)] bg-sun-wash px-2 py-0.5 text-[11px] font-medium text-ink">
-                Simulator
+                Debugger
               </span>
             ) : null}
             {isCompleted ? (
@@ -1953,8 +1954,18 @@ function WaypointCard({
           className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-3.5 text-xs font-medium text-ink transition-colors hover:border-ink/40 hover:bg-paper"
         >
           <Network className="size-3.5" aria-hidden />
-          <span>{topic.simulator ? "Simulator" : "Concept map"}</span>
+          <span>Concept map</span>
         </Link>
+
+        {topic.simulator ? (
+          <Link
+            href={`/topics/${topic.slug}?view=debugger`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-3.5 text-xs font-medium text-ink transition-colors hover:border-ink/40 hover:bg-paper"
+          >
+            <BugPlay className="size-3.5" aria-hidden />
+            <span>Debugger</span>
+          </Link>
+        ) : null}
 
         {topic.questionCount > 0 ? (
           <Link

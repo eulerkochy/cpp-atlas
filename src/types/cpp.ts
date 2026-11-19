@@ -14,6 +14,7 @@ export const MEMORY_MAP_KINDS = [
   "smart-pointers",
   "overload-lookup",
   "cpp26-preview",
+  "lambda-closures",
 ] as const;
 
 export type MemoryMapKind = (typeof MEMORY_MAP_KINDS)[number];

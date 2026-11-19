@@ -1,286 +1,207 @@
 "use client";
 
-import { useState } from "react";
-import { CppCodeBlock } from "@/components/CppCodeBlock";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Window } from "@/components/Window";
+import { useMemo, useState } from "react";
+import { RadDebuggerShell } from "@/components/rad-debugger/RadDebuggerShell";
+import { StatusPill } from "@/components/rad-debugger/PanePrimitives";
 import { cn } from "@/lib/utils";
+import {
+  buildMemoryModelScenarios,
+  type OrderMode,
+} from "./scenarios/memory-model";
 
-type OrderMode = "nonatomic" | "relaxed" | "acq_rel" | "seq_cst";
-
-interface ScenarioResult {
-  verdict: "safe" | "warn" | "race";
-  statusLabel: string;
-  storeBufferNote: string;
-  edgeDescription: string;
-  t1Steps: string[];
-  t2Steps: string[];
-}
-
-const MP_RESULTS: Record<OrderMode, ScenarioResult> = {
-  nonatomic: {
-    verdict: "race",
-    statusLabel: "Data Race (Undefined Behavior)",
-    storeBufferNote:
-      "Compiler may hoist flag=true before data=42 or eliminate the polling loop completely.",
-    edgeDescription:
-      "No atomic operations exist. Reading flag while Thread 1 writes flag violates [intro.races].",
-    t1Steps: ["data = 42;", "flag = true; // non-atomic write"],
-    t2Steps: [
-      "while (!flag) {} // compiler may load once!",
-      "assert(data == 42); // UB",
-    ],
-  },
-  relaxed: {
-    verdict: "race",
-    statusLabel: "Assert Can Fail + Data Race on data",
-    storeBufferNote:
-      "Store buffer on Core 1 may flush flag=true to L3 cache while data=42 is still buffered locally.",
-    edgeDescription:
-      "flag itself has no data race, yet relaxed forms zero happens-before edge for data.",
-    t1Steps: [
-      "data = 42;",
-      "flag.store(true, std::memory_order_relaxed);",
-    ],
-    t2Steps: [
-      "while (!flag.load(std::memory_order_relaxed)) {}",
-      "assert(data == 42); // May observe 0 or UB!",
-    ],
-  },
-  acq_rel: {
-    verdict: "safe",
-    statusLabel: "Guaranteed Safe (synchronizes-with)",
-    storeBufferNote:
-      "Core 1 commits data=42 before flag=true becomes visible; Core 2 inhibits speculative reads of data before flag.",
-    edgeDescription:
-      "Release store synchronizes-with acquire load → data=42 happens-before assert(data == 42).",
-    t1Steps: [
-      "data = 42; // sequenced-before store",
-      "flag.store(true, std::memory_order_release);",
-    ],
-    t2Steps: [
-      "while (!flag.load(std::memory_order_acquire)) {}",
-      "assert(data == 42); // Always 42",
-    ],
-  },
-  seq_cst: {
-    verdict: "safe",
-    statusLabel: "Guaranteed Safe + Total Global Order",
-    storeBufferNote:
-      "Enforces acquire/release guarantees plus places all seq_cst operations in one single total modification order.",
-    edgeDescription:
-      "Full synchronizes-with bridge plus global sequential consistency (typically MFENCE/LOCK on x86).",
-    t1Steps: [
-      "data = 42;",
-      "flag.store(true, std::memory_order_seq_cst);",
-    ],
-    t2Steps: [
-      "while (!flag.load(std::memory_order_seq_cst)) {}",
-      "assert(data == 42); // Always 42",
-    ],
-  },
-};
-
-const SB_RESULTS: Record<OrderMode, ScenarioResult> = {
-  nonatomic: {
-    verdict: "race",
-    statusLabel: "Data Race (Undefined Behavior)",
-    storeBufferNote:
-      "Concurrent non-atomic writes and reads on x and y trigger immediate UB.",
-    edgeDescription:
-      "No happens-before relationship exists between Thread 1 and Thread 2.",
-    t1Steps: ["x = 1;", "int r1 = y;"],
-    t2Steps: ["y = 1;", "int r2 = x;"],
-  },
-  relaxed: {
-    verdict: "warn",
-    statusLabel: "r1 == 0 && r2 == 0 Possible",
-    storeBufferNote:
-      "Each core buffers its own store locally while reading stale 0 from shared L3 cache.",
-    edgeDescription:
-      "Compiler and CPU can freely reorder load y ahead of store x on both threads.",
-    t1Steps: ["x.store(1, relaxed);", "r1 = y.load(relaxed); // can see 0"],
-    t2Steps: ["y.store(1, relaxed);", "r2 = x.load(relaxed); // can see 0"],
-  },
-  acq_rel: {
-    verdict: "warn",
-    statusLabel: "r1 == 0 && r2 == 0 STILL Possible",
-    storeBufferNote:
-      "Even on x86-64: release prevents prior ops moving down; acquire prevents later ops moving up—neither stops store-then-load reordering.",
-    edgeDescription:
-      "No single atomic is both written with release and read with acquire before the opposite read, so no total order exists.",
-    t1Steps: [
-      "x.store(1, release);",
-      "r1 = y.load(acquire); // can bypass buffer!",
-    ],
-    t2Steps: [
-      "y.store(1, release);",
-      "r2 = x.load(acquire); // can bypass buffer!",
-    ],
-  },
-  seq_cst: {
-    verdict: "safe",
-    statusLabel: "r1 == 0 && r2 == 0 Forbidden",
-    storeBufferNote:
-      "Hardware drains Core 1 and Core 2 store buffers (MFENCE/DMB ISH) before issuing the subsequent loads.",
-    edgeDescription:
-      "Single total modification order S across all seq_cst atomics guarantees at least one store precedes the other thread's load.",
-    t1Steps: ["x.store(1, seq_cst);", "r1 = y.load(seq_cst);"],
-    t2Steps: ["y.store(1, seq_cst);", "r2 = x.load(seq_cst);"],
-  },
-};
-
-const MODE_LABELS: { id: OrderMode; label: string }[] = [
-  { id: "nonatomic", label: "Non-atomic (UB)" },
+const ORDER_MODES: { id: OrderMode; label: string }[] = [
+  { id: "nonatomic", label: "Non-atomic" },
   { id: "relaxed", label: "relaxed" },
   { id: "acq_rel", label: "acquire / release" },
   { id: "seq_cst", label: "seq_cst" },
 ];
 
-export function MemoryModelMap() {
-  const [scenario, setScenario] = useState<"mp" | "sb">("mp");
-  const [mode, setMode] = useState<OrderMode>("acq_rel");
+export function MemoryModelMap({ topicSlug }: { topicSlug?: string }) {
+  const [orderMode, setOrderMode] = useState<OrderMode>("relaxed");
+  const scenarios = useMemo(
+    () => buildMemoryModelScenarios(orderMode),
+    [orderMode]
+  );
 
-  const active = scenario === "mp" ? MP_RESULTS[mode] : SB_RESULTS[mode];
+  const [scenarioId, setScenarioId] = useState<string>(() =>
+    topicSlug === "lock-free-programming-and-aba" ||
+    topicSlug === "hazard-pointers-and-rcu"
+      ? "aba-hazard"
+      : "message-passing"
+  );
+  const [stepIndex, setStepIndex] = useState<number>(0);
+
+  const supportsOrderToggle =
+    scenarioId === "message-passing" || scenarioId === "store-buffering";
 
   return (
-    <Window
-      as="section"
-      aria-label="Multi-core litmus simulator"
-      title="memory_model.map"
-      actions={
-        <span
-          className={cn(
-            "rounded-[var(--radius-chip)] px-2 py-0.5 font-mono text-xs font-medium",
-            active.verdict === "safe" &&
-              "bg-right-wash text-[color:var(--right)]",
-            active.verdict === "warn" && "bg-sun-wash text-ink",
-            active.verdict === "race" && "bg-wrong-wash text-wrong"
-          )}
-        >
-          {active.statusLabel}
-        </span>
-      }
-      bodyClassName="p-5 sm:p-7"
-    >
-      <div className="mb-4">
-        <h3 className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink">
-          Multi-Core Litmus Simulator
-        </h3>
-        <p className="mt-1 text-sm text-ink-soft">
-          Compare compiler and store-buffer behavior across C++ memory orders.
-        </p>
-      </div>
-
-      <Tabs
-        value={scenario}
-        onValueChange={(val) => setScenario(val as "mp" | "sb")}
-        className="w-full"
-      >
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <TabsList className="max-w-full flex-wrap">
-            <TabsTrigger value="mp" className="text-xs h-8 px-3.5 cursor-pointer">
-              Message Passing (MP)
-            </TabsTrigger>
-            <TabsTrigger value="sb" className="text-xs h-8 px-3.5 cursor-pointer">
-              Store Buffering (SB)
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="flex flex-wrap gap-1.5">
-            {MODE_LABELS.map((m) => (
-              <Button
+    <RadDebuggerShell
+      ariaLabel="C++ memory model, store buffers, and lock-free ABA debugger"
+      title="raddbg · memory_model"
+      scenarios={scenarios}
+      topicSlug={topicSlug}
+      scenarioId={scenarioId}
+      onScenarioChange={(id) => {
+        setScenarioId(id);
+        setStepIndex(0);
+      }}
+      stepIndex={stepIndex}
+      onStepChange={setStepIndex}
+      visualizerTitle="Cores & Happens-Before"
+      toolbarExtra={
+        supportsOrderToggle ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-[11px] text-ink-soft">
+              std::memory_order:
+            </span>
+            {ORDER_MODES.map((m) => (
+              <button
                 key={m.id}
                 type="button"
-                size="xs"
-                variant={mode === m.id ? "default" : "outline"}
-                aria-pressed={mode === m.id}
-                onClick={() => setMode(m.id)}
+                onClick={() => setOrderMode(m.id)}
                 className={cn(
-                  "font-mono text-xs cursor-pointer",
-                  mode === m.id &&
-                    "bg-sun text-ink border-ink/30 hover:bg-sun/90"
+                  "rounded-[5px] border px-2 py-0.5 font-mono text-[11px] transition-colors cursor-pointer",
+                  orderMode === m.id
+                    ? "border-ink bg-sun text-ink font-semibold"
+                    : "border-line bg-paper-raised text-ink-soft hover:border-line-strong hover:text-ink"
                 )}
               >
                 {m.label}
-              </Button>
+              </button>
             ))}
           </div>
-        </div>
+        ) : (
+          <span className="font-mono text-[11px] text-ink-soft">
+            C++26 Safe Reclamation: compare_exchange_weak ABA vs std::hazard_pointer
+          </span>
+        )
+      }
+      renderVisualizer={({ step, scenario }) => {
+        const isAba = scenario.id === "aba-hazard";
+        const isSafe = step.verdict.tone === "safe";
 
-        {(["mp", "sb"] as const).map((tabKey) => {
-          const panel = tabKey === "mp" ? MP_RESULTS[mode] : SB_RESULTS[mode];
+        if (isAba) {
           return (
-            <TabsContent
-              key={tabKey}
-              value={tabKey}
-              keepMounted
-              className="mt-0 space-y-5"
-            >
-              <div className="grid gap-4 md:grid-cols-2">
-                <CppCodeBlock
-                  className="min-w-0"
-                  caption="Thread 1 (Core 0)"
-                  code={panel.t1Steps.join("\n")}
-                />
-                <CppCodeBlock
-                  className="min-w-0"
-                  caption="Thread 2 (Core 1)"
-                  code={panel.t2Steps.join("\n")}
-                />
-              </div>
-
-              <div
-                aria-live={scenario === tabKey ? "polite" : "off"}
-                className={cn(
-                  "rounded-2xl border p-4 transition-colors",
-                  panel.verdict === "safe" &&
-                    "border-[color:var(--right)]/35 bg-right-wash/60",
-                  panel.verdict === "warn" &&
-                    "border-ink/20 bg-sun-wash/60",
-                  panel.verdict === "race" && "border-wrong/35 bg-wrong-wash/60"
-                )}
-              >
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <div
-                      className={cn(
-                        "text-xs font-semibold",
-                        panel.verdict === "safe" &&
-                          "text-[color:var(--right)]",
-                        panel.verdict === "warn" && "text-ink",
-                        panel.verdict === "race" && "text-wrong"
-                      )}
-                    >
-                      Happens-before &amp; ordering relation
+            <div className="space-y-3">
+              <div className="border border-line bg-paper p-2.5">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-mono text-[11px] font-semibold text-ink">
+                    Treiber Stack &amp; Hazard Registry
+                  </span>
+                  <StatusPill tone={step.verdict.tone}>
+                    {step.verdict.label}
+                  </StatusPill>
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 font-mono text-[11px]">
+                  <div className="border border-line bg-paper-raised p-2">
+                    <div className="text-[10px] text-ink-faint">Thread 1 (Consumer)</div>
+                    <div className="mt-1 font-semibold text-ink">
+                      {step.id === "aba-hp-fix"
+                        ? "hp.protect(head) = 0x600001000000"
+                        : "snapshot old=A, nxt=B"}
                     </div>
-                    <p className="mt-1 text-xs leading-relaxed text-ink-body">
-                      {panel.edgeDescription}
-                    </p>
                   </div>
-                  <div>
-                    <div
-                      className={cn(
-                        "text-xs font-semibold",
-                        panel.verdict === "safe" &&
-                          "text-[color:var(--right)]",
-                        panel.verdict === "warn" && "text-ink",
-                        panel.verdict === "race" && "text-wrong"
-                      )}
-                    >
-                      Store buffer &amp; optimizer trace
+                  <div className="border border-line bg-paper-raised p-2">
+                    <div className="text-[10px] text-ink-faint">Thread 2 (Allocator)</div>
+                    <div className="mt-1 font-semibold text-ink">
+                      {step.id === "aba-hp-fix"
+                        ? "Sees A in hp[] -> defers free(A)"
+                        : step.id === "aba-bug"
+                          ? "Freed B & recycled A @ same addr!"
+                          : "Idle (ready to preempt)"}
                     </div>
-                    <p className="mt-1 text-xs leading-relaxed text-ink-body">
-                      {panel.storeBufferNote}
-                    </p>
                   </div>
                 </div>
               </div>
-            </TabsContent>
+            </div>
           );
-        })}
-      </Tabs>
-    </Window>
+        }
+
+        return (
+          <div className="space-y-3">
+            {/* Hardware Topology: Core 0 + SB <-> L3 <-> Core 1 + SB */}
+            <div className="border border-line bg-paper p-2.5">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="font-mono text-[11px] font-semibold text-ink">
+                  Hardware Store Buffers &amp; Coherent L3
+                </span>
+                <StatusPill tone={step.verdict.tone}>
+                  {orderMode}
+                </StatusPill>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 font-mono text-[11px]">
+                <div className="border border-line bg-paper-raised p-2">
+                  <div className="text-[10px] font-semibold text-ink-soft">
+                    CORE 0 (Thread 1)
+                  </div>
+                  <div className="mt-1 text-ink">
+                    {scenario.id === "message-passing"
+                      ? "data=42; flag.store(1)"
+                      : "x.store(1); r1=y.load()"}
+                  </div>
+                  <div className="mt-1.5 border-t border-line/70 pt-1 text-[10.5px] text-ink-soft">
+                    SB: {isSafe ? "Flushed in order" : "May defer flush"}
+                  </div>
+                </div>
+
+                <div
+                  className={cn(
+                    "border p-2",
+                    isSafe
+                      ? "border-[color:var(--right)]/50 bg-right-wash/40"
+                      : "border-wrong/40 bg-wrong-wash/35"
+                  )}
+                >
+                  <div className="text-[10px] font-semibold text-ink-soft">
+                    SHARED L3 CACHE
+                  </div>
+                  <div className="mt-1 space-y-0.5 text-[11px]">
+                    {step.memory
+                      .find((m) => m.segment === "STATIC")
+                      ?.cells.map((c) => (
+                        <div key={c.label} className="flex justify-between gap-2">
+                          <span className="font-semibold text-ink">{c.label}</span>
+                          <span className="text-ink-body">{c.value}</span>
+                        </div>
+                      )) ?? <span className="text-ink-faint">Awaiting commit</span>}
+                  </div>
+                </div>
+
+                <div className="border border-line bg-paper-raised p-2">
+                  <div className="text-[10px] font-semibold text-ink-soft">
+                    CORE 1 (Thread 2)
+                  </div>
+                  <div className="mt-1 text-ink">
+                    {scenario.id === "message-passing"
+                      ? "while(!flag); assert(data)"
+                      : "y.store(1); r2=x.load()"}
+                  </div>
+                  <div className="mt-1.5 border-t border-line/70 pt-1 text-[10.5px] text-ink-soft">
+                    Edge: {isSafe ? "synchronizes-with" : "No HB edge"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Abstract Machine Relations */}
+            <div className="border border-line bg-paper p-2.5">
+              <div className="mb-1.5 font-mono text-[11px] font-semibold text-ink">
+                ISO Abstract Machine Relations
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <StatusPill tone="info">sequenced-before (intra-thread)</StatusPill>
+                <StatusPill tone={isSafe ? "safe" : "danger"}>
+                  synchronizes-with: {isSafe ? "YES" : "NONE"}
+                </StatusPill>
+                <StatusPill tone={step.verdict.tone}>
+                  {step.verdict.label}
+                </StatusPill>
+              </div>
+            </div>
+          </div>
+        );
+      }}
+    />
   );
 }

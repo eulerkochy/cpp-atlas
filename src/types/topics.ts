@@ -162,6 +162,9 @@ export const SIMULATOR_BY_TOPIC: Record<string, SimulatorKind> = {
   "contracts": "cpp26-preview",
   "reflection": "cpp26-preview",
   "senders-and-receivers": "cpp26-preview",
+  // Lambdas, closure types & callable wrappers
+  "lambdas": "lambda-closures",
+  "callable-wrappers": "lambda-closures",
 };
 
 export function getSimulatorForTopic(slug: string): SimulatorKind | undefined {

@@ -265,7 +265,7 @@ export async function generateMetadata({
   const description =
     topic.summary ||
     `${topic.title} — ${topic.trackTitle} study topic on C++ Atlas.`;
-  const metaBadge = `${topic.minutes} min read / ${topic.questions.length} questions${topic.simulator ? " / Simulator" : ""}`;
+  const metaBadge = `${topic.minutes} min read / ${topic.questions.length} questions${topic.simulator ? " / Debugger" : ""}`;
   const ogImage = buildOgImageUrl({
     title: topic.title,
     kicker: topic.trackTitle,
@@ -363,7 +363,8 @@ async function TopicLoader({
         <TopicMarkdown content={topic.body} />
 
         <TopicViewSwitcher
-          hasMap={Boolean(topic.map || topic.simulator)}
+          hasMap={Boolean(topic.map)}
+          hasDebugger={Boolean(topic.simulator)}
           hasQuiz={topic.questions.length > 0}
           questionCount={topic.questions.length}
         />
@@ -524,17 +525,22 @@ async function TopicLoader({
           A concept map for this topic is not available yet.
         </div>
       )}
-
-      {topic.simulator ? (
-        <section className="space-y-4 pt-4">
-          <h3 className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink">
-            Interactive simulator
-          </h3>
-          <MemoryMapStage kind={topic.simulator} />
-        </section>
-      ) : null}
     </div>
   );
+
+  const debuggerPanel = topic.simulator ? (
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 space-y-4">
+      <div className="space-y-1">
+        <h2 className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink">
+          Interactive debugger
+        </h2>
+        <p className="text-sm text-ink-soft">
+          Step through execution, set breakpoints, and inspect live watch, memory, and compiler state.
+        </p>
+      </div>
+      <MemoryMapStage kind={topic.simulator} topicSlug={topic.slug} />
+    </div>
+  ) : undefined;
 
   const quizPanel =
     topic.questions.length > 0 ? (
@@ -716,6 +722,7 @@ async function TopicLoader({
       <ReferenceViews
         read={readPanel}
         map={mapPanel}
+        debug={debuggerPanel}
         quiz={quizPanel}
         questionCount={topic.questions.length}
       />

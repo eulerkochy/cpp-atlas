@@ -71,7 +71,7 @@ export default function WPortalPage() {
           <p className="leading-relaxed text-ink-soft">
             {cpp.pages.toLocaleString("en-US")} pages across{" "}
             {cpp.domainCount} domains, layered with study cross-links,
-            interactive simulators, and clause-cited quizzes.
+            interactive debuggers, and clause-cited quizzes.
           </p>
 
           <ul className="flex flex-wrap gap-1.5">

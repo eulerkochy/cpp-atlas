@@ -13,7 +13,7 @@ export function generateMetadata(): Metadata {
   const ogImage = buildOgImageUrl({
     title: `${stats.topics} C++ Study Topics`,
     kicker: `${stats.tracks} Structured Tracks`,
-    meta: `${stats.traps.toLocaleString("en-US")} clause-cited questions / ${stats.simulators} simulators`,
+    meta: `${stats.traps.toLocaleString("en-US")} clause-cited questions / ${stats.simulators} debuggers`,
   });
   return {
     title,

@@ -18,7 +18,7 @@ const ValueCategoryMap = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex items-center justify-center rounded-[var(--radius-window)] border border-line bg-paper-raised text-sm text-ink-faint">
-        Loading simulator…
+        Loading debugger…
       </div>
     ),
   }
@@ -37,9 +37,9 @@ const VIEWS = [
     id: "see",
     label: "See",
     description:
-      "The simulator draws what the compiler decides. Pick an expression to see its category and where its storage comes from.",
-    linkLabel: "Open the simulator",
-    query: "?view=map",
+      "Step through C++ execution like a native debugger—inspect value categories, watch expressions, memory layout, and assembly live.",
+    linkLabel: "Open the debugger",
+    query: "?view=debugger",
   },
   {
     id: "trace",
@@ -179,7 +179,7 @@ export function HomeTopicShowcase({
         ) : null}
         {view.id === "see" ? (
           <div key="see" className="grid animate-in duration-200 fade-in">
-            <ValueCategoryMap />
+            <ValueCategoryMap compact />
           </div>
         ) : null}
         {view.id === "trace" ? (

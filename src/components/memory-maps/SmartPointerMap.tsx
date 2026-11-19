@@ -1,508 +1,339 @@
 "use client";
 
-import { useState } from "react";
-import { CppCodeBlock } from "@/components/CppCodeBlock";
+import { useMemo, useState } from "react";
+import { RadDebuggerShell } from "@/components/rad-debugger/RadDebuggerShell";
+import {
+  AddressChip,
+  StatusPill,
+} from "@/components/rad-debugger/PanePrimitives";
 import { Button } from "@/components/ui/button";
-import { Window } from "@/components/Window";
 import { cn } from "@/lib/utils";
-import { standardRefToUrl } from "@/types/topics";
+import {
+  buildSmartPointerScenarios,
+  type AllocStrategy,
+  type SharedHistoryEntry,
+} from "./scenarios/smart-pointers";
 
-type AllocStrategy = "make_shared" | "new_widget";
+const INITIAL_SP_HISTORY: SharedHistoryEntry[] = [
+  {
+    id: "sp-init",
+    label: "Init sp1 (strong=1) + wp1 (weak=1)",
+    line: 2,
+    strong: 1,
+    weak: 1,
+    dtorRan: false,
+    controlFreed: false,
+    lockResult: "none",
+    eventNote:
+      "Constructed sp1 (strong = 1) and observing wp1 (weak = 1). Notice internal weak refcount is 2 (1 user weak + 1 implicit lock held by live strong owners).",
+    clause: "[util.smartptr.shared]",
+  },
+  {
+    id: "sp-copy",
+    label: "sp2 = sp1 (strong -> 2)",
+    line: 3,
+    strong: 2,
+    weak: 1,
+    dtorRan: false,
+    controlFreed: false,
+    lockResult: "none",
+    eventNote:
+      "Copying shared_ptr atomically increments strong to 2 (relaxed fetch_add). Widget remains alive.",
+    clause: "[util.smartptr.shared.const]",
+  },
+];
 
-export function SmartPointerMap() {
+export function SmartPointerMap({ topicSlug }: { topicSlug?: string }) {
   const [strategy, setStrategy] = useState<AllocStrategy>("make_shared");
-  const [strong, setStrong] = useState<number>(1);
-  const [weak, setWeak] = useState<number>(1);
-  const [dtorRan, setDtorRan] = useState<boolean>(false);
-  const [controlFreed, setControlFreed] = useState<boolean>(false);
-  const [lastLockResult, setLastLockResult] = useState<
-    "none" | "ok" | "expired"
-  >("none");
-  const [lastEvent, setLastEvent] = useState<string>(
-    "Constructed sp1 (strong = 1) and observing wp1 (weak = 1). Try resetting all shared_ptrs to observe when ~Widget() runs vs when the control block is freed."
+  const [spHistory, setSpHistory] =
+    useState<SharedHistoryEntry[]>(INITIAL_SP_HISTORY);
+  const [scenarioId, setScenarioId] = useState<string>(() => {
+    if (topicSlug === "raii-and-resource-management") return "raii-unique-unwind";
+    if (topicSlug === "allocators-and-pmr") return "pmr-monotonic";
+    return "shared-control-block";
+  });
+  const [stepIndex, setStepIndex] = useState<number>(0);
+
+  const scenarios = useMemo(
+    () => buildSmartPointerScenarios({ strategy, spHistory }),
+    [strategy, spHistory]
   );
 
-  const internalWeakCount = weak + (strong > 0 ? 1 : 0);
-  const widgetMemoryFreed =
-    strategy === "new_widget" ? dtorRan : controlFreed;
+  const activeSpIdx = Math.max(0, Math.min(stepIndex, spHistory.length - 1));
+  const cur = spHistory[activeSpIdx];
 
-  function handleCopyShared() {
-    if (strong === 0 || controlFreed) return;
-    const next = strong + 1;
-    setStrong(next);
-    setLastLockResult("none");
-    setLastEvent(
-      `Copied shared_ptr: strong incremented to ${next} (atomic fetch_add). Widget remains alive.`
-    );
-  }
-
-  function handleCreateWeak() {
-    if (controlFreed) return;
-    const next = weak + 1;
-    setWeak(next);
-    setLastLockResult("none");
-    setLastEvent(
-      `Created weak_ptr: user weak count is now ${next} (internal control block weak refcount = ${
-        next + (strong > 0 ? 1 : 0)
-      }). Does not extend Widget lifetime.`
-    );
-  }
-
-  function handleResetAllShared() {
-    if (strong === 0) return;
-    setStrong(0);
-    setDtorRan(true);
-    setLastLockResult("none");
-
-    if (weak === 0) {
-      setControlFreed(true);
-      setLastEvent(
-        strategy === "make_shared"
-          ? "strong reached 0 and weak == 0: ~Widget() ran AND the single contiguous control-block + Widget allocation was freed immediately."
-          : "strong reached 0 and weak == 0: ~Widget() + delete ptr freed Widget, AND the separate control block was freed immediately."
-      );
-    } else {
-      setControlFreed(false);
-      setLastEvent(
-        strategy === "make_shared"
-          ? `strong reached 0: ~Widget() ran immediately! HOWEVER, ${weak} live weak_ptr(s) keep internal weak == ${weak} > 0, pinning the entire contiguous [control | inline Widget] allocation on the heap.`
-          : `strong reached 0: ~Widget() ran and the separate Widget heap block (0x600001c02000) was freed immediately! Only the small control block remains until weak == 0.`
-      );
+  function appendSpAction(
+    action: "copy" | "add_weak" | "reset_strong" | "lock" | "reset_weak"
+  ) {
+    const prefix = spHistory.slice(0, activeSpIdx + 1);
+    if (action === "copy") {
+      if (cur.strong === 0 || cur.controlFreed) return;
+      const nextStrong = cur.strong + 1;
+      setSpHistory([
+        ...prefix,
+        {
+          ...cur,
+          id: `sp-copy-${prefix.length}`,
+          label: `Copy sp (strong -> ${nextStrong})`,
+          line: 3,
+          strong: nextStrong,
+          lockResult: "none",
+          eventNote: `Copied shared_ptr: strong incremented to ${nextStrong}.`,
+          clause: "[util.smartptr.shared.const]",
+        },
+      ]);
+      setStepIndex(prefix.length);
+    } else if (action === "add_weak") {
+      if (cur.controlFreed) return;
+      const nextWeak = cur.weak + 1;
+      setSpHistory([
+        ...prefix,
+        {
+          ...cur,
+          id: `sp-wp-${prefix.length}`,
+          label: `Add wp (weak -> ${nextWeak})`,
+          line: 2,
+          weak: nextWeak,
+          lockResult: "none",
+          eventNote: `Created weak_ptr: user weak count is now ${nextWeak}. Does not extend Widget lifetime.`,
+          clause: "[util.smartptr.weak]",
+        },
+      ]);
+      setStepIndex(prefix.length);
+    } else if (action === "reset_strong") {
+      if (cur.strong === 0) return;
+      const freedNow = cur.weak === 0;
+      setSpHistory([
+        ...prefix,
+        {
+          ...cur,
+          id: `sp-reset-s-${prefix.length}`,
+          label: "Reset all sp (strong -> 0)",
+          line: 4,
+          strong: 0,
+          dtorRan: true,
+          controlFreed: freedNow,
+          lockResult: "none",
+          eventNote: freedNow
+            ? "strong == 0 and weak == 0: ~Widget() ran and all heap memory freed."
+            : strategy === "make_shared"
+              ? `strong == 0: ~Widget() ran, yet ${cur.weak} weak_ptr(s) pin the entire contiguous [control | inline Widget] allocation!`
+              : `strong == 0: ~Widget() + delete freed Widget immediately! Only the 24B control block stays alive for ${cur.weak} weak_ptr(s).`,
+          clause: "[util.smartptr.shared.dest]",
+        },
+      ]);
+      setStepIndex(prefix.length);
+    } else if (action === "lock") {
+      if (cur.weak === 0 || cur.controlFreed) return;
+      if (cur.strong > 0) {
+        const nextStrong = cur.strong + 1;
+        setSpHistory([
+          ...prefix,
+          {
+            ...cur,
+            id: `sp-lock-${prefix.length}`,
+            label: `wp.lock() -> OK (strong=${nextStrong})`,
+            line: 5,
+            strong: nextStrong,
+            lockResult: "ok",
+            eventNote: `wp1.lock() succeeded atomically: strong incremented to ${nextStrong}.`,
+            clause: "[util.smartptr.weak.obs]",
+          },
+        ]);
+      } else {
+        setSpHistory([
+          ...prefix,
+          {
+            ...cur,
+            id: `sp-lock-${prefix.length}`,
+            label: "wp.lock() -> expired (nullptr)",
+            line: 5,
+            lockResult: "expired",
+            eventNote:
+              "wp1.lock() observed strong == 0 on the surviving control block and safely returned empty shared_ptr<Widget>{}.",
+            clause: "[util.smartptr.weak.obs]",
+          },
+        ]);
+      }
+      setStepIndex(prefix.length);
+    } else if (action === "reset_weak") {
+      if (cur.weak === 0) return;
+      const freedNow = cur.strong === 0;
+      setSpHistory([
+        ...prefix,
+        {
+          ...cur,
+          id: `sp-reset-w-${prefix.length}`,
+          label: "Reset all wp (weak -> 0)",
+          line: 6,
+          weak: 0,
+          controlFreed: freedNow,
+          lockResult: "none",
+          eventNote: freedNow
+            ? "Last weak_ptr released: control block (and any pinned make_shared block) freed."
+            : "All weak_ptrs cleared; strong owners still keep Widget alive.",
+          clause: "[util.smartptr.weak.mod]",
+        },
+      ]);
+      setStepIndex(prefix.length);
     }
   }
-
-  function handleWeakLock() {
-    if (weak === 0 || controlFreed) return;
-    if (strong > 0) {
-      const next = strong + 1;
-      setStrong(next);
-      setLastLockResult("ok");
-      setLastEvent(
-        `weak.lock() succeeded atomically (strong was ${strong} -> now ${next}): returned a non-null shared_ptr<Widget>.`
-      );
-    } else {
-      setLastLockResult("expired");
-      setLastEvent(
-        `weak.lock() observed strong == 0 on the surviving control block and safely returned an empty shared_ptr<Widget>{} (nullptr) without touching destroyed Widget.`
-      );
-    }
-  }
-
-  function handleResetAllWeak() {
-    if (weak === 0) return;
-    setWeak(0);
-    setLastLockResult("none");
-
-    if (strong === 0) {
-      setControlFreed(true);
-      setLastEvent(
-        "All weak_ptrs reset while strong == 0: internal weak refcount dropped to 0, so the control block allocation is now FREED!"
-      );
-    } else {
-      setLastEvent(
-        `All weak_ptrs reset (weak = 0). Control block stays allocated because strong = ${strong} still owns Widget.`
-      );
-    }
-  }
-
-  function handleRestart() {
-    setStrong(1);
-    setWeak(1);
-    setDtorRan(false);
-    setControlFreed(false);
-    setLastLockResult("none");
-    setLastEvent(
-      "Restarted with sp1 (strong = 1) and observing wp1 (weak = 1). Widget and control block are newly allocated."
-    );
-  }
-
-  const codeSnippet =
-    strategy === "make_shared"
-      ? `auto sp1 = std::make_shared<Widget>(); // 1 heap alloc: [strong | weak | Widget]
-std::weak_ptr<Widget> wp1 = sp1;        // keeps whole contiguous block until weak == 0
-sp1.reset();                            // ~Widget() runs now (strong == 0), block stays!
-auto maybe = wp1.lock();                // sees strong == 0 -> returns nullptr
-wp1.reset();                            // weak == 0 -> contiguous allocation freed`
-      : `std::shared_ptr<Widget> sp1(new Widget); // 2 allocs: Widget + control block
-std::weak_ptr<Widget> wp1 = sp1;          // keeps only small control block alive
-sp1.reset();                              // ~Widget() + delete Widget runs NOW (strong == 0)
-auto maybe = wp1.lock();                  // sees strong == 0 -> returns nullptr
-wp1.reset();                              // weak == 0 -> control block freed`;
 
   return (
-    <Window
-      as="section"
-      aria-label="Smart pointer control block simulator"
-      title="smart-ptr-control-block.sim"
-      actions={
-        <a
-          href={standardRefToUrl("[util.smartptr.shared]")}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-mono text-xs text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-ink hover:decoration-ink"
-        >
-          [util.smartptr.shared]
-        </a>
+    <RadDebuggerShell
+      ariaLabel="Smart pointers control block, RAII stack unwinding, and PMR arena debugger"
+      title="raddbg · smart_pointers"
+      scenarios={scenarios}
+      topicSlug={topicSlug}
+      scenarioId={scenarioId}
+      onScenarioChange={(id) => {
+        setScenarioId(id);
+        setStepIndex(0);
+      }}
+      stepIndex={stepIndex}
+      onStepChange={setStepIndex}
+      visualizerTitle="Control Block & Ownership"
+      toolbarExtra={
+        scenarioId === "shared-control-block" ? (
+          <div className="flex flex-wrap items-center gap-1.5 w-full">
+            <button
+              type="button"
+              onClick={() => setStrategy("make_shared")}
+              className={cn(
+                "rounded-[5px] border px-2 py-0.5 font-mono text-[10.5px] cursor-pointer",
+                strategy === "make_shared"
+                  ? "border-ink bg-sun text-ink font-semibold"
+                  : "border-line bg-paper-raised text-ink-soft hover:text-ink"
+              )}
+            >
+              std::make_shared
+            </button>
+            <button
+              type="button"
+              onClick={() => setStrategy("new_widget")}
+              className={cn(
+                "rounded-[5px] border px-2 py-0.5 font-mono text-[10.5px] cursor-pointer",
+                strategy === "new_widget"
+                  ? "border-ink bg-sun text-ink font-semibold"
+                  : "border-line bg-paper-raised text-ink-soft hover:text-ink"
+              )}
+            >
+              new Widget
+            </button>
+            <span className="mx-1 h-4 w-px bg-line-strong" aria-hidden />
+            <Button
+              type="button"
+              size="xs"
+              variant="default"
+              disabled={cur.strong === 0 || cur.controlFreed}
+              onClick={() => appendSpAction("copy")}
+              className="h-6 rounded-[5px] px-2 font-mono text-[10.5px] cursor-pointer"
+            >
+              +Copy sp
+            </Button>
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              disabled={cur.controlFreed}
+              onClick={() => appendSpAction("add_weak")}
+              className="h-6 rounded-[5px] px-2 font-mono text-[10.5px] cursor-pointer"
+            >
+              +Add wp
+            </Button>
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              disabled={cur.strong === 0}
+              onClick={() => appendSpAction("reset_strong")}
+              className="h-6 rounded-[5px] px-2 font-mono text-[10.5px] cursor-pointer"
+            >
+              Reset all sp
+            </Button>
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              disabled={cur.weak === 0 || cur.controlFreed}
+              onClick={() => appendSpAction("lock")}
+              className="h-6 rounded-[5px] px-2 font-mono text-[10.5px] cursor-pointer"
+            >
+              wp.lock()
+            </Button>
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              disabled={cur.weak === 0}
+              onClick={() => appendSpAction("reset_weak")}
+              className="h-6 rounded-[5px] px-2 font-mono text-[10.5px] cursor-pointer"
+            >
+              Reset all wp
+            </Button>
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              onClick={() => {
+                setSpHistory(INITIAL_SP_HISTORY);
+                setStepIndex(0);
+              }}
+              className="ml-auto h-6 rounded-[5px] px-2 font-mono text-[10.5px] cursor-pointer"
+            >
+              Reset trace
+            </Button>
+          </div>
+        ) : undefined
       }
-      bodyClassName="p-5 sm:p-7"
-    >
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h3 className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink">
-            Control Block &amp; Destruction vs. Deallocation
-          </h3>
-          <p className="mt-1 text-sm text-ink-soft">
-            Compare{" "}
-            <code className="font-mono text-xs text-ink">
-              std::make_shared&lt;Widget&gt;()
-            </code>{" "}
-            against{" "}
-            <code className="font-mono text-xs text-ink">
-              std::shared_ptr&lt;Widget&gt;(new Widget)
-            </code>{" "}
-            to separate <code className="font-mono text-xs text-ink">~Widget()</code>{" "}
-            (<code className="font-mono text-xs text-ink">strong == 0</code>) from
-            control-block deallocation (
-            <code className="font-mono text-xs text-ink">weak == 0</code>).
-          </p>
-        </div>
-
-        <div
-          role="group"
-          aria-label="Shared pointer allocation layout"
-          className="flex flex-wrap gap-1.5 rounded-full border border-line bg-paper-sunk p-1"
-        >
-          <Button
-            type="button"
-            size="xs"
-            variant={strategy === "make_shared" ? "default" : "ghost"}
-            aria-pressed={strategy === "make_shared"}
-            onClick={() => setStrategy("make_shared")}
-            className={cn(
-              "font-mono text-xs cursor-pointer",
-              strategy === "make_shared" &&
-                "bg-sun text-ink border-ink/30 hover:bg-sun/90"
-            )}
-          >
-            std::make_shared&lt;Widget&gt;() (1 block)
-          </Button>
-          <Button
-            type="button"
-            size="xs"
-            variant={strategy === "new_widget" ? "default" : "ghost"}
-            aria-pressed={strategy === "new_widget"}
-            onClick={() => setStrategy("new_widget")}
-            className={cn(
-              "font-mono text-xs cursor-pointer",
-              strategy === "new_widget" &&
-                "bg-sun text-ink border-ink/30 hover:bg-sun/90"
-            )}
-          >
-            shared_ptr&lt;Widget&gt;(new Widget) (2 blocks)
-          </Button>
-        </div>
-      </div>
-
-      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-paper px-4 py-3">
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          disabled={strong === 0 || controlFreed}
-          onClick={handleCopyShared}
-          className="font-mono text-xs cursor-pointer"
-        >
-          Copy shared_ptr
-        </Button>
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          disabled={controlFreed}
-          onClick={handleCreateWeak}
-          className="font-mono text-xs cursor-pointer"
-        >
-          Create weak_ptr
-        </Button>
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          disabled={strong === 0}
-          onClick={handleResetAllShared}
-          className="font-mono text-xs cursor-pointer"
-        >
-          Reset all shared_ptrs
-        </Button>
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          disabled={weak === 0 || controlFreed}
-          onClick={handleWeakLock}
-          className="font-mono text-xs cursor-pointer"
-        >
-          Call weak.lock()
-        </Button>
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          disabled={weak === 0}
-          onClick={handleResetAllWeak}
-          className="font-mono text-xs cursor-pointer"
-        >
-          Reset all weak_ptrs
-        </Button>
-        <Button
-          type="button"
-          size="xs"
-          variant="ghost"
-          onClick={handleRestart}
-          className="ml-auto font-mono text-xs cursor-pointer"
-        >
-          Restart
-        </Button>
-      </div>
-
-      <div className="mb-5 grid gap-3 sm:grid-cols-4">
-        <div className="rounded-2xl border border-line bg-paper px-3.5 py-2.5">
-          <div className="text-[11px] text-ink-faint">strong (use_count)</div>
-          <div
-            className={cn(
-              "mt-1 font-mono text-base font-semibold",
-              strong > 0 ? "text-[color:var(--right)]" : "text-wrong"
-            )}
-          >
-            {strong}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-line bg-paper px-3.5 py-2.5">
-          <div className="text-[11px] text-ink-faint">
-            weak_ptrs (internal weak)
-          </div>
-          <div className="mt-1 font-mono text-base font-semibold text-ink">
-            {weak}{" "}
-            <span className="text-xs font-normal text-ink-soft">
-              ({internalWeakCount})
-            </span>
-          </div>
-        </div>
-        <div className="rounded-2xl border border-line bg-paper px-3.5 py-2.5">
-          <div className="text-[11px] text-ink-faint">~Widget() destructor</div>
-          <div
-            className={cn(
-              "mt-1 font-mono text-xs font-semibold",
-              dtorRan ? "text-wrong" : "text-[color:var(--right)]"
-            )}
-          >
-            {dtorRan ? "Ran (strong == 0)" : "Alive (constructed)"}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-line bg-paper px-3.5 py-2.5">
-          <div className="text-[11px] text-ink-faint">Control block memory</div>
-          <div
-            className={cn(
-              "mt-1 font-mono text-xs font-semibold",
-              controlFreed ? "text-ink-soft" : "text-ink"
-            )}
-          >
-            {controlFreed
-              ? "Freed (weak == 0)"
-              : "Allocated on heap"}
-          </div>
-        </div>
-      </div>
-
-      {strategy === "make_shared" ? (
-        <div className="mb-5 rounded-[var(--radius-panel)] border border-line bg-paper p-4 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-medium text-ink">
-              1 Contiguous Heap Allocation (0x600001c01000)
-            </span>
-            <span
-              className={cn(
-                "rounded-[var(--radius-chip)] px-2 py-0.5 font-mono text-[11px] font-medium",
-                controlFreed
-                  ? "bg-paper-sunk text-ink-soft"
-                  : dtorRan
-                    ? "bg-sun-wash text-ink"
-                    : "bg-right-wash text-[color:var(--right)]"
-              )}
-            >
-              {controlFreed
-                ? "Freed via operator delete"
-                : dtorRan
-                  ? "Widget destroyed, yet whole block pinned by weak > 0!"
-                  : "Single cache-friendly allocation"}
-            </span>
-          </div>
-
-          <div
-            className={cn(
-              "grid gap-2 rounded-2xl border p-3 sm:grid-cols-3 transition-colors",
-              controlFreed
-                ? "border-dashed border-line-strong bg-paper-sunk/60 opacity-65"
-                : "border-line-strong bg-paper-raised"
-            )}
-          >
-            <div className="rounded-xl border border-line bg-paper p-3">
-              <div className="font-mono text-[11px] text-ink-faint">
-                +0x00 (8B)
-              </div>
-              <div className="mt-0.5 font-mono text-xs font-semibold text-ink">
-                strong = {strong}
-              </div>
-              <div className="mt-1 font-mono text-[11px] text-ink-soft">
-                Controls ~Widget()
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-line bg-paper p-3">
-              <div className="font-mono text-[11px] text-ink-faint">
-                +0x08 (8B)
-              </div>
-              <div className="mt-0.5 font-mono text-xs font-semibold text-ink">
-                weak = {internalWeakCount}
-              </div>
-              <div className="mt-1 font-mono text-[11px] text-ink-soft">
-                Controls block free()
-              </div>
-            </div>
-
-            <div
-              className={cn(
-                "rounded-xl border p-3 transition-colors",
-                controlFreed
-                  ? "border-line bg-paper-sunk text-ink-soft"
-                  : dtorRan
-                    ? "border-wrong/35 bg-wrong-wash/60"
-                    : "border-[color:var(--right)]/35 bg-right-wash/70"
-              )}
-            >
-              <div className="font-mono text-[11px] text-ink-faint">
-                +0x10 (inline Widget)
-              </div>
-              <div
-                className={cn(
-                  "mt-0.5 font-mono text-xs font-semibold",
-                  dtorRan ? "text-wrong" : "text-[color:var(--right)]"
-                )}
-              >
-                {dtorRan
-                  ? "Destroyed (~Widget() ran)"
-                  : "Widget alive inline"}
-              </div>
-              <div className="mt-1 font-mono text-[11px] text-ink-soft">
-                {controlFreed
-                  ? "Bytes returned to allocator"
-                  : dtorRan
-                    ? "Bytes stay reserved inside block!"
-                    : "Zero second malloc"}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="mb-5 grid gap-4 md:grid-cols-2">
-          <div className="rounded-[var(--radius-panel)] border border-line bg-paper p-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-medium text-ink">
-                Allocation #1: Control Block (0x600001c01000)
+      renderVisualizer={({ step, focusedAddress, onFocusAddress }) => (
+        <div className="space-y-3">
+          <div className="border border-line bg-paper p-2.5">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-mono text-[11px] font-semibold text-ink">
+                Ownership Topology
               </span>
-              <span
-                className={cn(
-                  "rounded-[var(--radius-chip)] px-2 py-0.5 font-mono text-[11px] font-medium",
-                  controlFreed
-                    ? "bg-paper-sunk text-ink-soft"
-                    : "bg-sun-wash text-ink"
-                )}
-              >
-                {controlFreed ? "Freed (weak == 0)" : "Alive"}
-              </span>
+              <StatusPill tone={step.verdict.tone}>
+                {step.verdict.label}
+              </StatusPill>
             </div>
-
-            <div
-              className={cn(
-                "grid gap-2 rounded-2xl border p-3 sm:grid-cols-3 transition-colors",
-                controlFreed
-                  ? "border-dashed border-line-strong bg-paper-sunk/60 opacity-65"
-                  : "border-line-strong bg-paper-raised"
-              )}
-            >
-              <div className="rounded-xl border border-line bg-paper p-2.5">
-                <div className="font-mono text-[11px] text-ink-faint">strong</div>
-                <div className="mt-0.5 font-mono text-xs font-semibold text-ink">
-                  {strong}
+            <div className="space-y-2 font-mono text-[11px]">
+              {step.memory.map((region) => (
+                <div
+                  key={region.id}
+                  className={cn(
+                    "border p-2",
+                    region.status === "freed"
+                      ? "border-line bg-paper-sunk text-ink-faint"
+                      : region.status === "dangling"
+                        ? "border-sun-deep bg-sun-wash/50 text-ink"
+                        : "border-[color:var(--right)]/40 bg-right-wash/30 text-ink"
+                  )}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold">{region.name}</span>
+                    <AddressChip
+                      address={region.baseAddress}
+                      focusedAddress={focusedAddress}
+                      onFocusAddress={onFocusAddress}
+                    />
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {region.cells.map((c) => (
+                      <span
+                        key={c.label}
+                        className="rounded-[4px] border border-line bg-paper-raised px-1.5 py-0.5 text-[10.5px]"
+                      >
+                        {c.label}: {c.value}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="rounded-xl border border-line bg-paper p-2.5">
-                <div className="font-mono text-[11px] text-ink-faint">weak</div>
-                <div className="mt-0.5 font-mono text-xs font-semibold text-ink">
-                  {internalWeakCount}
-                </div>
-              </div>
-              <div className="rounded-xl border border-line bg-paper p-2.5">
-                <div className="font-mono text-[11px] text-ink-faint">ptr</div>
-                <div className="mt-0.5 font-mono text-[11px] font-semibold text-ink truncate">
-                  {widgetMemoryFreed ? "freed" : "0x600001c02000"}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[var(--radius-panel)] border border-line bg-paper p-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-medium text-ink">
-                Allocation #2: Separate Widget (0x600001c02000)
-              </span>
-              <span
-                className={cn(
-                  "rounded-[var(--radius-chip)] px-2 py-0.5 font-mono text-[11px] font-medium",
-                  widgetMemoryFreed
-                    ? "bg-wrong-wash text-wrong"
-                    : "bg-right-wash text-[color:var(--right)]"
-                )}
-              >
-                {widgetMemoryFreed
-                  ? "~Widget() + freed (strong == 0)"
-                  : "Alive"}
-              </span>
-            </div>
-
-            <div
-              className={cn(
-                "rounded-2xl border p-3.5 font-mono text-xs transition-colors",
-                widgetMemoryFreed
-                  ? "border-dashed border-wrong/35 bg-wrong-wash/50 text-wrong"
-                  : "border-[color:var(--right)]/35 bg-right-wash/70 text-[color:var(--right)]"
-              )}
-            >
-              {widgetMemoryFreed
-                ? "delete ptr ran immediately when strong reached 0. Widget RAM reclaimed even while weak_ptrs remain!"
-                : "Constructed via `new Widget` at 0x600001c02000. Destroyed and freed as soon as strong == 0."}
+              ))}
             </div>
           </div>
         </div>
       )}
-
-      <div
-        aria-live="polite"
-        className={cn(
-          "mb-5 rounded-2xl border px-4 py-3 text-xs leading-relaxed text-ink-body",
-          lastLockResult === "ok" &&
-            "border-[color:var(--right)]/35 bg-right-wash/60",
-          lastLockResult === "expired" && "border-wrong/35 bg-wrong-wash/60",
-          lastLockResult === "none" &&
-            (dtorRan && !controlFreed
-              ? "border-ink/25 bg-sun-wash/70"
-              : "border-line bg-paper")
-        )}
-      >
-        {lastEvent}
-      </div>
-
-      <CppCodeBlock caption={`${strategy}_lifecycle.cpp`} code={codeSnippet} />
-    </Window>
+    />
   );
 }

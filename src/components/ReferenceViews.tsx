@@ -1,10 +1,10 @@
 "use client";
 
 import { useSyncExternalStore, type ReactNode } from "react";
-import { BookOpen, ListChecks, Network } from "lucide-react";
+import { BookOpen, BugPlay, ListChecks, Network } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export const VIEWS = ["read", "map", "quiz"] as const;
+export const VIEWS = ["read", "map", "debugger", "quiz"] as const;
 export type ReferenceView = (typeof VIEWS)[number];
 const EVENT = "cppatlas:view";
 
@@ -14,15 +14,19 @@ function isView(v: string | null): v is ReferenceView {
 
 function readView(): ReferenceView {
   const param = new URLSearchParams(window.location.search).get("view");
+  if (param === "simulator") return "debugger";
   if (isView(param)) return param;
   const hash = window.location.hash.slice(1);
-  if (hash === "map" || hash === "quiz") return hash;
+  if (hash === "simulator") return "debugger";
+  if (hash === "map" || hash === "debugger" || hash === "quiz") return hash;
   return "read";
 }
 
-function availableView(hasQuiz: boolean): ReferenceView {
+function availableView(hasDebugger: boolean, hasQuiz: boolean): ReferenceView {
   const v = readView();
-  return v === "quiz" && !hasQuiz ? "read" : v;
+  if (v === "debugger" && !hasDebugger) return "read";
+  if (v === "quiz" && !hasQuiz) return "read";
+  return v;
 }
 
 function subscribe(cb: () => void) {
@@ -40,7 +44,14 @@ export function switchReferenceView(v: ReferenceView, scrollToViews = false) {
   const url = new URL(window.location.href);
   if (v === "read") url.searchParams.delete("view");
   else url.searchParams.set("view", v);
-  if (url.hash === "#map" || url.hash === "#quiz") url.hash = "";
+  if (
+    url.hash === "#map" ||
+    url.hash === "#debugger" ||
+    url.hash === "#simulator" ||
+    url.hash === "#quiz"
+  ) {
+    url.hash = "";
+  }
   window.history.replaceState(null, "", url);
   window.dispatchEvent(new Event(EVENT));
   if (scrollToViews) {
@@ -49,25 +60,28 @@ export function switchReferenceView(v: ReferenceView, scrollToViews = false) {
 }
 
 /**
- * Read / Map / Quiz segmented pill bar. All panels remain mounted in SSR HTML
+ * Read / Map / Debugger / Quiz segmented pill bar. All panels remain mounted in SSR HTML
  * (inactive panels hidden via Base UI hidden state) so crawlers and NotebookLM
  * always see the full specification and traps.
  */
 export function ReferenceViews({
   read,
   map,
+  debug,
   quiz,
   questionCount,
 }: {
   read: ReactNode;
   map: ReactNode;
+  debug?: ReactNode;
   quiz?: ReactNode;
   questionCount: number;
 }) {
+  const hasDebugger = debug !== undefined && debug !== null;
   const hasQuiz = quiz !== undefined && quiz !== null;
   const view = useSyncExternalStore(
     subscribe,
-    () => availableView(hasQuiz),
+    () => availableView(hasDebugger, hasQuiz),
     () => "read" as ReferenceView
   );
 
@@ -90,6 +104,12 @@ export function ReferenceViews({
             <Network aria-hidden />
             Map
           </TabsTrigger>
+          {hasDebugger ? (
+            <TabsTrigger value="debugger" className="cursor-pointer">
+              <BugPlay aria-hidden />
+              Debugger
+            </TabsTrigger>
+          ) : null}
           {hasQuiz ? (
             <TabsTrigger value="quiz" className="cursor-pointer">
               <ListChecks aria-hidden />
@@ -110,6 +130,11 @@ export function ReferenceViews({
       <TabsContent value="map" keepMounted className="mt-10">
         {map}
       </TabsContent>
+      {hasDebugger ? (
+        <TabsContent value="debugger" keepMounted className="mt-10">
+          {debug}
+        </TabsContent>
+      ) : null}
       {hasQuiz ? (
         <TabsContent value="quiz" keepMounted className="mt-10">
           {quiz}

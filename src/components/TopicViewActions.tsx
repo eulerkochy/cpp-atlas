@@ -2,6 +2,7 @@
 
 import {
   Bookmark,
+  BugPlay,
   CheckCircle2,
   ListChecks,
   Network,
@@ -13,14 +14,16 @@ import { cn } from "@/lib/utils";
 
 export function TopicViewSwitcher({
   hasMap,
+  hasDebugger = false,
   hasQuiz,
   questionCount,
 }: {
   hasMap: boolean;
+  hasDebugger?: boolean;
   hasQuiz: boolean;
   questionCount: number;
 }) {
-  if (!hasMap && !hasQuiz) return null;
+  if (!hasMap && !hasDebugger && !hasQuiz) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-3 border-t border-line pt-6 max-w-[var(--measure)]">
@@ -34,6 +37,19 @@ export function TopicViewSwitcher({
         >
           <Network className="size-4" aria-hidden />
           <span>Open concept map</span>
+        </Button>
+      ) : null}
+
+      {hasDebugger ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => switchReferenceView("debugger", true)}
+          className="cursor-pointer"
+        >
+          <BugPlay className="size-4" aria-hidden />
+          <span>Open debugger</span>
         </Button>
       ) : null}
 
@@ -128,7 +144,7 @@ export function TopicStatusBadges({
     <span className={cn("inline-flex flex-wrap items-center gap-1.5", className)}>
       {hasSimulator ? (
         <span className="rounded-[var(--radius-chip)] bg-sun-wash px-2 py-0.5 text-[11px] font-medium text-ink">
-          Simulator
+          Debugger
         </span>
       ) : null}
       {isSaved ? (

@@ -86,7 +86,7 @@ export default function HomePage() {
           <p className="settle-line mx-auto mt-4 max-w-[52ch] text-[1.0625rem] leading-relaxed text-ink/75 text-balance">
             All {stats.referencePages.toLocaleString("en-US")} pages of
             cppreference, with {stats.topics} deep-dive topics,{" "}
-            {stats.simulators} memory simulators and{" "}
+            {stats.simulators} interactive debuggers and{" "}
             {stats.traps.toLocaleString("en-US")} quiz questions that cite the
             standard.
           </p>
@@ -144,7 +144,7 @@ export default function HomePage() {
           </h2>
           <p className={LEAD}>
             Every topic is an article and a concept map, and some add a live
-            simulator.
+            debugger.
           </p>
         </div>
         {showcase ? (

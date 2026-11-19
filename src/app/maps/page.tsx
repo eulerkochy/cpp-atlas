@@ -13,11 +13,11 @@ import { groupTracks } from "@/lib/track-groups";
 export function generateMetadata(): Metadata {
   const stats = getSiteStats();
   const title = "World Atlas";
-  const description = `Explore ${stats.topics} C++ study topics across 4 continents and ${stats.tracks} tracks on the interactive World Atlas, trace prerequisite routes, and open ${stats.simulators} live machine-model simulators.`;
+  const description = `Explore ${stats.topics} C++ study topics across 4 continents and ${stats.tracks} tracks on the interactive World Atlas, trace prerequisite routes, and open ${stats.simulators} live interactive debuggers.`;
   const ogImage = buildOgImageUrl({
     title: "The C++ World Atlas",
     kicker: `${stats.topics} Topics across 4 Continents`,
-    meta: `${stats.tracks} tracks / ${stats.simulators} machine simulators`,
+    meta: `${stats.tracks} tracks / ${stats.simulators} debuggers`,
     sub: "World map / Prerequisite routes / Concept folios",
   });
   return {
@@ -77,8 +77,8 @@ export default function MapsPage() {
       <PageHeader title="World Atlas">
         <p>
           {regions.length > 0
-            ? `Explore ${totalTopics} study topics across ${regions.length} continents and ${map.islands.length} tracks. Search by title, ISO clause, or /w/cpp path, trace prerequisite routes, switch to dependency columns, or browse ${totalMaps} concept maps and ${siteStats.simulators} machine-model simulators below.`
-            : "Interactive world atlas, concept maps, and machine-model simulators for every study topic."}
+            ? `Explore ${totalTopics} study topics across ${regions.length} continents and ${map.islands.length} tracks. Search by title, ISO clause, or /w/cpp path, trace prerequisite routes, switch to dependency columns, or browse ${totalMaps} concept maps and ${siteStats.simulators} interactive debuggers below.`
+            : "Interactive world atlas, concept maps, and interactive debuggers for every study topic."}
         </p>
       </PageHeader>
 
@@ -192,7 +192,7 @@ export default function MapsPage() {
                                       <span>{stats.nodes} nodes</span>
                                       {topic.simulator ? (
                                         <span className="rounded-[var(--radius-chip)] bg-sun-wash px-1.5 py-0.5 font-sans text-[11px] font-medium text-ink">
-                                          Simulator
+                                          Debugger
                                         </span>
                                       ) : null}
                                     </div>

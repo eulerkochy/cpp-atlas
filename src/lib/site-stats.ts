@@ -30,9 +30,9 @@ export function getSiteStats(): SiteStats {
 }
 
 export function siteTitle(stats: SiteStats = getSiteStats()): string {
-  return `C++ Atlas — ${stats.topics} Visual C++ Study Topics, Simulators & Offline Reference`;
+  return `C++ Atlas — ${stats.topics} Visual C++ Study Topics, Debuggers & Offline Reference`;
 }
 
 export function siteDescription(stats: SiteStats = getSiteStats()): string {
-  return `${stats.topics} C++ study topics across ${stats.tracks} tracks, ${stats.simulators} interactive memory and layout simulators, ${stats.traps.toLocaleString("en-US")} clause-cited quiz questions, and all ${stats.referencePages.toLocaleString("en-US")} C++ and C pages of cppreference.com, served offline and mapped 1:1.`;
+  return `${stats.topics} C++ study topics across ${stats.tracks} tracks, ${stats.simulators} interactive RAD-style debuggers, ${stats.traps.toLocaleString("en-US")} clause-cited quiz questions, and all ${stats.referencePages.toLocaleString("en-US")} C++ and C pages of cppreference.com, served offline and mapped 1:1.`;
 }

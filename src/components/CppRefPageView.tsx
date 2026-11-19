@@ -396,21 +396,20 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
 
   const mapPanel = (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 space-y-4">
-      <h2 className="sr-only">Interactive map</h2>
-      {primarySimulator ? (
-        companion && primarySimulator === companion.id ? (
-          <MemoryMapStage kind={primarySimulator} />
-        ) : (
-          <div className="space-y-8">
-            <MemoryMapStage kind={primarySimulator} />
-            {pageAtlas}
-          </div>
-        )
-      ) : (
-        pageAtlas
-      )}
+      <h2 className="sr-only">Page atlas</h2>
+      {pageAtlas}
     </div>
   );
+
+  const debuggerPanel = primarySimulator ? (
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 space-y-4">
+      <h2 className="sr-only">Interactive debugger</h2>
+      <MemoryMapStage
+        kind={primarySimulator}
+        topicSlug={studyTopics[0]?.slug}
+      />
+    </div>
+  ) : undefined;
 
   const quizPanel = companion ? (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 space-y-6">
@@ -566,6 +565,7 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
       <ReferenceViews
         read={readPanel}
         map={mapPanel}
+        debug={debuggerPanel}
         quiz={quizPanel}
         questionCount={companion?.quizzes.length ?? 0}
       />

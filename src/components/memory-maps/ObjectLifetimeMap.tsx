@@ -1,339 +1,162 @@
 "use client";
 
-import { useState } from "react";
-import { CppCodeBlock } from "@/components/CppCodeBlock";
-import { Button } from "@/components/ui/button";
-import { Window } from "@/components/Window";
+import { RadDebuggerShell } from "@/components/rad-debugger/RadDebuggerShell";
+import { StatusPill } from "@/components/rad-debugger/PanePrimitives";
 import { cn } from "@/lib/utils";
+import { OBJECT_LIFETIME_SCENARIOS } from "./scenarios/object-lifetime";
 
-interface LifetimeStep {
-  step: number;
-  line: string;
-  caption: string;
-  stackCells: {
-    addr: string;
-    name: string;
-    state: string;
-    tone: "active" | "highlight" | "safe" | "danger" | "muted";
-  }[];
-  heapState: {
-    addr: string;
-    label: string;
-    status: "unallocated" | "alive" | "freed";
-  };
-  clause: string;
+function getPhaseIndex(verdictLabel: string): number {
+  const lower = verdictLabel.toLowerCase();
+  if (lower.includes("uninit") || lower.includes("raw storage")) return 1;
+  if (lower.includes("alive") || lower.includes("valid")) return 2;
+  if (lower.includes("lifetime ended")) return 3;
+  if (lower.includes("freed") || lower.includes("dangling") || lower.includes("ub"))
+    return 4;
+  return 2;
 }
 
-const STEPS: LifetimeStep[] = [
+const PHASES = [
+  { id: 0, name: "Unallocated", detail: "No memory acquired" },
+  { id: 1, name: "Storage Only", detail: "Bytes exist, no object" },
+  { id: 2, name: "Lifetime Active", detail: "Valid to read/write" },
+  { id: 3, name: "Lifetime Ended", detail: "~T() ran, bytes remain" },
+  { id: 4, name: "Freed / UB", detail: "Returned or invalid access" },
+];
+
+const TBAA_RULES = [
+  { type: "Same / cv-qualified T", legal: true, note: "Always valid" },
   {
-    step: 1,
-    line: "{ // enter block scope",
-    caption:
-      "Automatic storage duration reserves stack slots, yet object lifetimes have not begun.",
-    stackCells: [
-      {
-        addr: "0x7ffee4b2a8c0",
-        name: "ptr (unique_ptr<Buffer>)",
-        state: "uninitialized storage",
-        tone: "muted",
-      },
-      {
-        addr: "0x7ffee4b2a8b8",
-        name: "ref (const string&)",
-        state: "unbound",
-        tone: "muted",
-      },
-      {
-        addr: "0x7ffee4b2a898",
-        name: "temp string slot",
-        state: "unmaterialized",
-        tone: "muted",
-      },
-    ],
-    heapState: {
-      addr: "0x600001408000",
-      label: "Buffer (64 bytes)",
-      status: "unallocated",
-    },
-    clause: "[basic.stc.auto]",
+    type: "char / unsigned char / std::byte",
+    legal: true,
+    note: "Permitted byte inspection",
   },
   {
-    step: 2,
-    line: "auto ptr = std::make_unique<Buffer>(64);",
-    caption:
-      "Dynamic allocation acquires heap bytes, constructs Buffer, and starts RAII ownership on stack.",
-    stackCells: [
-      {
-        addr: "0x7ffee4b2a8c0",
-        name: "ptr (unique_ptr<Buffer>)",
-        state: "alive → owns 0x600001408000",
-        tone: "safe",
-      },
-      {
-        addr: "0x7ffee4b2a8b8",
-        name: "ref (const string&)",
-        state: "unbound",
-        tone: "muted",
-      },
-      {
-        addr: "0x7ffee4b2a898",
-        name: "temp string slot",
-        state: "unmaterialized",
-        tone: "muted",
-      },
-    ],
-    heapState: {
-      addr: "0x600001408000",
-      label: "Buffer (64 bytes)",
-      status: "alive",
-    },
-    clause: "[basic.life] & [unique.ptr]",
+    type: "Unrelated type* (int* ↔ float*)",
+    legal: false,
+    note: "TBAA UB (-O2 miscompiles)",
   },
   {
-    step: 3,
-    line: "const std::string& ref = make_tag();",
-    caption:
-      "Temporary materialization constructs make_tag() on the stack and extends its lifetime to ref's scope.",
-    stackCells: [
-      {
-        addr: "0x7ffee4b2a8c0",
-        name: "ptr (unique_ptr<Buffer>)",
-        state: "alive → owns 0x600001408000",
-        tone: "safe",
-      },
-      {
-        addr: "0x7ffee4b2a8b8",
-        name: "ref (const string&)",
-        state: "bound to 0x7ffee4b2a898",
-        tone: "safe",
-      },
-      {
-        addr: "0x7ffee4b2a898",
-        name: "materialized string",
-        state: "alive (extended to block exit)",
-        tone: "highlight",
-      },
-    ],
-    heapState: {
-      addr: "0x600001408000",
-      label: "Buffer (64 bytes)",
-      status: "alive",
-    },
-    clause: "[class.temporary] §6.7.7/6",
-  },
-  {
-    step: 4,
-    line: "const char* bad = make_tag().c_str(); // TRAP!",
-    caption:
-      "Chaining .c_str() does NOT extend the temporary string returned by make_tag(). It dies at the semicolon.",
-    stackCells: [
-      {
-        addr: "0x7ffee4b2a8c0",
-        name: "ptr (unique_ptr<Buffer>)",
-        state: "alive → owns 0x600001408000",
-        tone: "safe",
-      },
-      {
-        addr: "0x7ffee4b2a8b8",
-        name: "ref (const string&)",
-        state: "bound & safe",
-        tone: "safe",
-      },
-      {
-        addr: "0x7ffee4b2a870",
-        name: "bad (const char*)",
-        state: "DANGLING POINTER (UB on read)",
-        tone: "danger",
-      },
-    ],
-    heapState: {
-      addr: "0x600001408000",
-      label: "Buffer (64 bytes)",
-      status: "alive",
-    },
-    clause: "[class.temporary] (no transitive extension)",
-  },
-  {
-    step: 5,
-    line: "} // scope exit: reverse-order RAII unwind",
-    caption:
-      "Destructors run strictly LIFO: extended temporary dies first, then ptr frees the heap Buffer.",
-    stackCells: [
-      {
-        addr: "0x7ffee4b2a8c0",
-        name: "ptr (~unique_ptr)",
-        state: "destroyed second → deleted heap",
-        tone: "muted",
-      },
-      {
-        addr: "0x7ffee4b2a898",
-        name: "materialized string",
-        state: "destroyed first (~string)",
-        tone: "muted",
-      },
-      {
-        addr: "0x7ffee4b2a870",
-        name: "bad",
-        state: "out of scope",
-        tone: "muted",
-      },
-    ],
-    heapState: {
-      addr: "0x600001408000",
-      label: "Buffer (64 bytes)",
-      status: "freed",
-    },
-    clause: "[stmt.jump] & [class.dtor]",
+    type: "std::bit_cast / memcpy",
+    legal: true,
+    note: "Creates new value cleanly",
   },
 ];
 
-export function ObjectLifetimeMap() {
-  const [stepIdx, setStepIdx] = useState(2);
-  const current = STEPS[stepIdx];
-
+export function ObjectLifetimeMap({ topicSlug }: { topicSlug?: string }) {
   return (
-    <Window
-      as="section"
-      aria-label="Stack, heap and lifetime timeline"
-      title="lifetime.map"
-      actions={
-        <span className="font-mono text-xs text-ink-soft">
-          {current.clause}
-        </span>
-      }
-      bodyClassName="p-5 sm:p-7"
-    >
-      <div className="mb-4">
-        <h3 className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink">
-          Stack, Heap &amp; Lifetime Timeline
-        </h3>
-        <p className="mt-1 text-sm text-ink-soft">
-          Step through execution to separate raw storage duration from typed
-          object lifetime.
-        </p>
-      </div>
+    <RadDebuggerShell
+      ariaLabel="Object lifetime, dynamic storage, and strict aliasing debugger"
+      title="raddbg · object_lifetime"
+      scenarios={OBJECT_LIFETIME_SCENARIOS}
+      topicSlug={topicSlug}
+      visualizerTitle="Lifetime & TBAA"
+      renderVisualizer={({ step, scenario }) => {
+        const activePhase = getPhaseIndex(step.verdict.label);
+        const isTbaa = scenario.id === "strict-aliasing-bitcast";
 
-      <div className="mb-5 flex flex-wrap gap-1.5">
-        {STEPS.map((s, idx) => {
-          const isCurrent = idx === stepIdx;
-          return (
-            <Button
-              key={s.step}
-              type="button"
-              size="xs"
-              variant={isCurrent ? "default" : "outline"}
-              aria-pressed={isCurrent}
-              aria-current={isCurrent ? "step" : undefined}
-              onClick={() => setStepIdx(idx)}
-              className={cn(
-                "font-mono text-xs cursor-pointer",
-                isCurrent && "bg-sun text-ink border-ink/30 hover:bg-sun/90"
-              )}
-            >
-              Step {s.step}
-            </Button>
-          );
-        })}
-      </div>
-
-      <div className="mb-6 space-y-2">
-        <CppCodeBlock caption={`step_${current.step}.cpp`} code={current.line} />
-        <p
-          aria-live="polite"
-          className="px-1 text-xs leading-relaxed text-ink-soft"
-        >
-          {current.caption}
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="min-w-0 rounded-[var(--radius-panel)] border border-line bg-paper p-4">
-          <div className="mb-3 text-xs font-medium text-ink">
-            Automatic Stack Frame (LIFO)
-          </div>
-          <div className="space-y-2.5">
-            {current.stackCells.map((cell) => (
-              <div
-                key={cell.addr + cell.name}
-                className={cn(
-                  "rounded-xl border p-3 transition-colors",
-                  cell.tone === "highlight" && "border-ink/30 bg-sun-wash",
-                  cell.tone === "safe" &&
-                    "border-[color:var(--right)]/35 bg-right-wash/70",
-                  cell.tone === "danger" &&
-                    "border-wrong/35 bg-wrong-wash/70",
-                  (cell.tone === "muted" || cell.tone === "active") &&
-                    "border-line bg-paper-raised"
-                )}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="min-w-0 font-mono text-xs font-semibold text-ink">
-                    {cell.name}
-                  </span>
-                  <span className="font-mono text-[11px] text-ink-faint">
-                    {cell.addr}
-                  </span>
-                </div>
-                <div
-                  className={cn(
-                    "mt-1 font-mono text-[11px] font-medium",
-                    cell.tone === "safe" && "text-[color:var(--right)]",
-                    cell.tone === "danger" && "text-wrong",
-                    cell.tone === "highlight" && "text-ink",
-                    (cell.tone === "muted" || cell.tone === "active") &&
-                      "text-ink-soft"
-                  )}
-                >
-                  {cell.state}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex min-w-0 flex-col justify-between rounded-[var(--radius-panel)] border border-line bg-paper p-4">
-          <div>
-            <div className="mb-3 text-xs font-medium text-ink">
-              Dynamic Heap Storage
-            </div>
-            <div
-              className={cn(
-                "rounded-xl border p-3.5 transition-colors",
-                current.heapState.status === "alive"
-                  ? "border-[color:var(--right)]/35 bg-right-wash/70"
-                  : "border-line bg-paper-raised"
-              )}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="min-w-0 font-mono text-xs font-semibold text-ink">
-                  {current.heapState.label}
+        return (
+          <div className="space-y-3">
+            {/* Storage vs Object Lifetime State Machine */}
+            <div className="border border-line bg-paper p-2.5">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="font-mono text-[11px] font-semibold text-ink">
+                  Storage Duration vs Object Lifetime
                 </span>
-                <span className="font-mono text-[11px] text-ink-faint">
-                  {current.heapState.addr}
+                <span className="font-mono text-[10.5px] text-ink-soft">
+                  [basic.life]
                 </span>
               </div>
-              <div
-                className={cn(
-                  "mt-1.5 font-mono text-xs font-medium",
-                  current.heapState.status === "alive"
-                    ? "text-[color:var(--right)]"
-                    : "text-ink-soft"
-                )}
-              >
-                Status: {current.heapState.status}
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+                {PHASES.map((phase) => {
+                  const active = phase.id === activePhase;
+                  return (
+                    <div
+                      key={phase.id}
+                      className={cn(
+                        "border p-1.5 font-mono transition-colors",
+                        active
+                          ? phase.id === 4
+                            ? "border-wrong bg-wrong-wash text-wrong font-semibold"
+                            : phase.id === 2
+                              ? "border-[color:var(--right)] bg-right-wash text-[color:var(--right)] font-semibold"
+                              : "border-ink bg-sun text-ink font-semibold"
+                          : "border-line bg-paper-raised text-ink-faint"
+                      )}
+                    >
+                      <div className="text-[10.5px]">{phase.name}</div>
+                      <div className="mt-0.5 font-sans text-[10px] leading-tight opacity-85">
+                        {phase.detail}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
 
-          <div className="mt-4 rounded-xl border border-line bg-paper-raised p-3 text-xs leading-relaxed text-ink-soft">
-            Storage in <span className="font-mono text-ink">.rodata</span> and{" "}
-            <span className="font-mono text-ink">.bss</span> lives for the
-            entire program; dynamic heap objects live strictly between{" "}
-            <span className="font-mono text-ink">new</span> and{" "}
-            <span className="font-mono text-ink">delete</span>.
+            {/* TBAA / Effective Type Matrix */}
+            <div className="border border-line bg-paper p-2.5">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <span className="font-mono text-[11px] font-semibold text-ink">
+                  {isTbaa
+                    ? "Effective Type & TBAA Aliasing Rules"
+                    : "Active Storage Regions"}
+                </span>
+                <StatusPill tone={step.verdict.tone}>
+                  {step.verdict.label}
+                </StatusPill>
+              </div>
+              {isTbaa ? (
+                <div className="space-y-1 font-mono text-[11px]">
+                  {TBAA_RULES.map((rule) => (
+                    <div
+                      key={rule.type}
+                      className="flex flex-wrap items-center justify-between gap-2 border border-line bg-paper-raised px-2 py-1"
+                    >
+                      <span className="font-semibold text-ink">{rule.type}</span>
+                      <span className="font-sans text-[11px] text-ink-soft">
+                        {rule.note}
+                      </span>
+                      <StatusPill
+                        tone={rule.legal ? "safe" : "danger"}
+                        className="text-[10px]"
+                      >
+                        {rule.legal ? "LEGAL" : "UB"}
+                      </StatusPill>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-1 font-mono text-[11px]">
+                  {step.memory.map((region) => (
+                    <div
+                      key={region.id}
+                      className="flex flex-wrap items-center justify-between gap-2 border border-line bg-paper-raised px-2 py-1"
+                    >
+                      <span className="font-semibold text-ink">
+                        [{region.segment}] {region.name}
+                      </span>
+                      <span className="text-ink-soft">{region.baseAddress}</span>
+                      <StatusPill
+                        tone={
+                          region.status === "dangling" ||
+                          region.status === "freed"
+                            ? "danger"
+                            : region.status === "alive"
+                              ? "safe"
+                              : "info"
+                        }
+                        className="text-[10px]"
+                      >
+                        {region.statusLabel ?? region.status ?? "ACTIVE"}
+                      </StatusPill>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-    </Window>
+        );
+      }}
+    />
   );
 }
