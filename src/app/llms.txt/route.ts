@@ -66,7 +66,7 @@ export function GET() {
     `- Full Directory: ${BASE_URL}/explore`,
     `- Standardese Quiz: ${BASE_URL}/quiz`,
     `- Markdown & NotebookLM Studio: ${BASE_URL}/notebook`,
-    `- Full XML Sitemap (${stats.pages + topics.length + 11} URLs): ${BASE_URL}/sitemap.xml`,
+    `- Sitemap index (topics plus all ${stats.pages.toLocaleString("en-US")} reference pages): ${BASE_URL}/sitemap.xml`,
     "",
   ];
 

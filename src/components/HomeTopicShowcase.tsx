@@ -92,24 +92,18 @@ export function HomeTopicShowcase({
 
   return (
     <div className="grid gap-8 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-14">
-      <div
-        role="tablist"
-        aria-label={`Three views of ${title}`}
-        aria-orientation="vertical"
-        className="lg:sticky lg:top-28 lg:self-start lg:pt-10"
-      >
-        {VIEWS.map((v, i) => {
-          const selected = i === active;
-          return (
-            <div
-              key={v.id}
-              role="presentation"
-              className={cn(
-                "border-l-2 pl-5 transition-colors duration-200",
-                selected ? "border-sun" : "border-line"
-              )}
-            >
+      <div className="grid lg:sticky lg:top-28 lg:self-start lg:pt-10">
+        <div
+          role="tablist"
+          aria-label={`Three views of ${title}`}
+          aria-orientation="vertical"
+          className="contents"
+        >
+          {VIEWS.map((v, i) => {
+            const selected = i === active;
+            return (
               <button
+                key={v.id}
                 type="button"
                 role="tab"
                 ref={(el) => {
@@ -121,13 +115,30 @@ export function HomeTopicShowcase({
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActive(i)}
                 onKeyDown={onKeyDown}
+                style={{ gridRow: i * 2 + 1 }}
                 className={cn(
-                  "block w-full cursor-pointer rounded-md py-2 text-left font-display text-[1.75rem] leading-tight font-[450] tracking-[-0.02em] transition-colors duration-200",
-                  selected ? "text-ink" : "text-ink-faint hover:text-ink-soft"
+                  "block w-full cursor-pointer border-l-2 py-2 pl-5 text-left font-display text-[1.75rem] leading-tight font-[450] tracking-[-0.02em] transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                  selected
+                    ? "border-sun text-ink"
+                    : "border-line text-ink-faint hover:text-ink-soft"
                 )}
               >
                 {v.label}
               </button>
+            );
+          })}
+        </div>
+        {VIEWS.map((v, i) => {
+          const selected = i === active;
+          return (
+            <div
+              key={`${v.id}-detail`}
+              style={{ gridRow: i * 2 + 2 }}
+              className={cn(
+                "border-l-2 pl-5 transition-colors duration-200",
+                selected ? "border-sun" : "border-transparent"
+              )}
+            >
               <div
                 inert={!selected}
                 className={cn(

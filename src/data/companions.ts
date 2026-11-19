@@ -142,7 +142,7 @@ Locked x = make_locked(); // Zero moves, zero copies required`,
         trapLevel: "subtle",
         standardClause: "[dcl.type.decltype] §9.2.9.6",
         prompt:
-          "Given int x = 10;, what are the deduced types of a and b below?",
+          "Given int x = 10; what are the deduced types of a and b below?",
         code: `int x = 10;
 decltype(x)   a = x;
 decltype((x)) b = x;`,

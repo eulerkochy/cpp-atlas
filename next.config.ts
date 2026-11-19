@@ -100,6 +100,15 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // generateSitemaps publishes /sitemap/[id].xml only. This index is
+        // what robots.txt and /sitemap.xml have always advertised.
+        { source: "/sitemap.xml", destination: "/sitemap-index.xml" },
+      ],
+    };
+  },
   async redirects() {
     return [
       // Reference redirect pages first, so /cpp/<old name> goes straight to the target.

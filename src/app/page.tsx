@@ -90,6 +90,20 @@ export default function HomePage() {
             {stats.traps.toLocaleString("en-US")} quiz questions that cite the
             standard.
           </p>
+          <div className="settle-line mt-7 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/topics/object-layout-and-alignment?view=debugger"
+              className={buttonVariants({ size: "lg" })}
+            >
+              Try a debugger
+            </Link>
+            <Link
+              href="/topics"
+              className={buttonVariants({ variant: "outline", size: "lg" })}
+            >
+              Browse topics
+            </Link>
+          </div>
         </div>
 
         <div
@@ -100,7 +114,7 @@ export default function HomePage() {
           C++
         </div>
 
-        <div className="settle-window relative z-10 mx-auto -mt-[clamp(1.75rem,11vw,10rem)] max-w-5xl px-4 pb-20 sm:px-6 sm:pb-28">
+        <div className="settle-window relative z-10 mx-auto -mt-[clamp(3.5rem,12vw,13rem)] max-w-5xl px-4 pb-16 sm:px-6 sm:pb-24">
           <HeroExpressionInspector />
         </div>
         <div aria-hidden className="hero-arc z-[1]" />
