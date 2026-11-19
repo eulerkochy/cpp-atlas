@@ -36,6 +36,7 @@ import {
   fetchAiStatus,
   streamAiSse,
   useSessionGeminiKey,
+  type GeminiKeyPersistence,
 } from "@/lib/ai-client";
 import {
   buildExternalPrompt,
@@ -82,9 +83,15 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
   const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connectNotice, setConnectNotice] = useState<string | null>(null);
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [chatModel, setChatModel] = useState("gemini-4-hydrogen");
-  const [sessionKey, setSessionKey] = useSessionGeminiKey();
+  const {
+    key: sessionKey,
+    persistence,
+    setKey: saveSessionKey,
+    clearKey: clearSessionKey,
+  } = useSessionGeminiKey();
   const [copiedWebPrompt, setCopiedWebPrompt] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -222,6 +229,7 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
         setMessages([]);
         setInteractionId(null);
         setError(null);
+        setConnectNotice(null);
         setStreaming(false);
       } else {
         setPageCtx(ctx);
@@ -233,9 +241,11 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
         const currentPrevId = switchedPage ? null : interactionId;
         const hasKey = configured === true || Boolean(sessionKey.trim());
         if (hasKey) {
+          setConnectNotice(null);
           void sendMessage(initialPrompt, ctx, currentMsgs, currentPrevId);
         } else {
           setDraft(initialPrompt);
+          setConnectNotice("Connect Gemini above to send this prompt.");
         }
       }
     },
@@ -249,13 +259,17 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
     setOpen(nextOpen);
   };
 
-  const handleSaveKey = (newKey: string) => {
-    setSessionKey(newKey);
+  const handleSaveKey = (
+    newKey: string,
+    nextPersistence: GeminiKeyPersistence
+  ) => {
+    saveSessionKey(newKey, nextPersistence);
     setError(null);
+    setConnectNotice(null);
   };
 
   const handleClearKey = () => {
-    setSessionKey("");
+    clearSessionKey();
   };
 
   const handleOpenGeminiWeb = async () => {
@@ -273,8 +287,14 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!pageCtx || streaming || !draft.trim()) return;
+    const hasKey = configured === true || Boolean(sessionKey.trim());
+    if (!hasKey) {
+      setConnectNotice("Connect Gemini above to send this prompt.");
+      return;
+    }
     const prompt = draft;
     setDraft("");
+    setConnectNotice(null);
     void sendMessage(prompt, pageCtx, messages, interactionId);
   };
 
@@ -412,6 +432,7 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
             <GeminiKeyBanner
               configured={configured}
               sessionKey={sessionKey}
+              persistence={persistence}
               onSaveKey={handleSaveKey}
               onClearKey={handleClearKey}
               fallbackPrompt={fallbackPrompt}
@@ -445,14 +466,24 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
                         key={prompt}
                         type="button"
                         disabled={streaming}
-                        onClick={() =>
+                        onClick={() => {
+                          const hasKey =
+                            configured === true || Boolean(sessionKey.trim());
+                          if (!hasKey) {
+                            setDraft(prompt);
+                            setConnectNotice(
+                              "Connect Gemini above to send this prompt."
+                            );
+                            return;
+                          }
+                          setConnectNotice(null);
                           void sendMessage(
                             prompt,
                             pageCtx,
                             messages,
                             interactionId
-                          )
-                        }
+                          );
+                        }}
                         className="rounded-full border border-line-strong bg-paper-raised px-3 py-1.5 text-left text-xs text-ink transition-colors hover:border-ink/40 hover:bg-sun-wash/50 cursor-pointer disabled:opacity-50"
                       >
                         {prompt}
@@ -510,10 +541,18 @@ export function GeminiTutorProvider({ children }: { children: ReactNode }) {
             onSubmit={handleSubmit}
             className="border-t border-line bg-paper-raised px-5 py-3.5 space-y-2"
           >
+            {connectNotice ? (
+              <p className="rounded-xl border border-line-strong bg-sun-wash/45 px-3 py-1.5 text-xs text-ink-soft">
+                {connectNotice}
+              </p>
+            ) : null}
             <div className="flex items-end gap-2">
               <Textarea
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  if (connectNotice) setConnectNotice(null);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();

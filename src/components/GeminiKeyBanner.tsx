@@ -1,15 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Copy, ExternalLink, KeyRound, X } from "lucide-react";
+import { useId, useState } from "react";
+import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { GeminiIcon } from "@/components/AiBrandIcons";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  verifyGeminiKey,
+  type GeminiKeyPersistence,
+} from "@/lib/ai-client";
 import { GEMINI_WEB_URL } from "@/lib/ai-links";
+
+const AI_STUDIO_KEY_URL = "https://aistudio.google.com/app/apikey";
 
 export function GeminiKeyBanner({
   configured,
   sessionKey,
+  persistence,
   onSaveKey,
   onClearKey,
   fallbackPrompt,
@@ -17,128 +25,202 @@ export function GeminiKeyBanner({
 }: {
   configured: boolean | null;
   sessionKey: string;
-  onSaveKey: (key: string) => void;
+  persistence: GeminiKeyPersistence | null;
+  onSaveKey: (key: string, persistence: GeminiKeyPersistence) => void;
   onClearKey: () => void;
   fallbackPrompt?: string;
   compact?: boolean;
 }) {
+  const checkboxId = useId();
   const [draftKey, setDraftKey] = useState("");
-  const [copiedWeb, setCopiedWeb] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [copiedFallback, setCopiedFallback] = useState(false);
 
-  if (configured !== false) return null;
+  if (configured !== false) {
+    return null;
+  }
 
   if (sessionKey) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-paper-sunk/70 px-3 py-2 text-xs text-ink-soft">
-        <span className="inline-flex items-center gap-1.5">
-          <KeyRound className="size-3.5 text-ink" aria-hidden />
-          <span>Using your session Gemini API key</span>
-        </span>
+      <div
+        className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-right/30 bg-right-wash/45 ${
+          compact ? "px-3.5 py-2.5" : "px-4 py-3"
+        } text-xs text-ink`}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-right/15 text-right">
+            <Check className="h-3.5 w-3.5" />
+          </span>
+          <span className="font-medium">Connected to Gemini</span>
+          <span className="rounded-full border border-line bg-paper-raised/85 px-2 py-0.5 font-mono text-[11px] text-ink-soft">
+            {persistence === "session" ? "This tab only" : "Saved in browser"}
+          </span>
+        </div>
         <button
           type="button"
           onClick={onClearKey}
-          className="inline-flex items-center gap-1 text-xs font-medium text-ink-soft underline decoration-line-strong underline-offset-3 hover:text-ink cursor-pointer"
+          className="rounded-full px-2.5 py-1 text-xs font-medium text-ink-soft transition-colors hover:bg-wrong-wash/60 hover:text-wrong cursor-pointer"
         >
-          <X className="size-3" aria-hidden />
-          <span>Clear key</span>
+          Disconnect
         </button>
       </div>
     );
   }
 
-  const handleSave = (e: React.FormEvent) => {
+  async function handleConnect(e: React.FormEvent) {
     e.preventDefault();
-    const cleaned = draftKey.trim();
-    if (!cleaned) return;
-    onSaveKey(cleaned);
-    setDraftKey("");
-  };
+    const trimmed = draftKey.trim();
+    if (!trimmed || verifying) return;
 
-  const handleOpenWebGemini = async () => {
+    setVerifying(true);
+    setVerifyError(null);
+    const result = await verifyGeminiKey(trimmed);
+    setVerifying(false);
+
+    if (!result.ok) {
+      setVerifyError(
+        result.error ||
+          "Could not verify this API key. Check Google AI Studio and try again."
+      );
+      return;
+    }
+
+    const persistenceChoice: GeminiKeyPersistence = remember
+      ? "local"
+      : "session";
+    setDraftKey("");
+    onSaveKey(trimmed, persistenceChoice);
+  }
+
+  async function handleOpenWebFallback() {
     if (fallbackPrompt) {
       try {
         await navigator.clipboard.writeText(fallbackPrompt);
-        setCopiedWeb(true);
-        window.setTimeout(() => setCopiedWeb(false), 2600);
+        setCopiedFallback(true);
+        window.setTimeout(() => setCopiedFallback(false), 2200);
       } catch {
-        // Ignore clipboard rejection
+        // Ignore clipboard errors in restricted contexts
       }
     }
     window.open(GEMINI_WEB_URL, "_blank", "noopener,noreferrer");
-  };
+  }
 
   return (
     <div
-      className={
-        compact
-          ? "space-y-2.5 rounded-2xl border border-line bg-sun-wash/60 p-3 text-xs text-ink-body"
-          : "space-y-3 rounded-2xl border border-line bg-sun-wash/60 p-4 text-xs text-ink-body"
-      }
+      className={`rounded-2xl border border-line-strong bg-sun-wash/35 ${
+        compact ? "p-3.5" : "p-4"
+      } text-ink`}
     >
-      <div className="flex items-start gap-2">
-        <GeminiIcon className="mt-0.5 size-4 text-ink" />
-        <div className="min-w-0 space-y-1">
-          <p className="font-medium text-ink">
-            Connect Gemini to run live Q&amp;A and Audio Overviews here
-          </p>
-          <p className="leading-relaxed text-ink-soft">
-            Paste a temporary Gemini API key for this browser session, or open{" "}
-            <span className="font-mono text-ink">gemini.google.com</span> with
-            your grounded prompt copied.
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <GeminiIcon className="h-4 w-4 shrink-0 text-ink" />
+          <h3 className="font-display text-sm font-semibold tracking-tight text-ink">
+            Connect Gemini
+          </h3>
         </div>
+        <a
+          href={AI_STUDIO_KEY_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 rounded-full border border-line-strong bg-paper-raised px-2.5 py-1 text-xs font-medium text-ink transition-colors hover:border-ink/40 hover:bg-sun-wash/60"
+        >
+          <span>Get free API key</span>
+          <ExternalLink className="h-3 w-3 opacity-75" />
+        </a>
       </div>
 
-      <form onSubmit={handleSave} className="flex flex-wrap items-center gap-2">
+      <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
+        Sign in to Google AI Studio, create a free Gemini API key, and paste it
+        below for live Q&amp;A and Audio Overviews.
+      </p>
+
+      <form
+        onSubmit={handleConnect}
+        className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center"
+      >
         <Input
           type="password"
+          autoComplete="off"
+          spellCheck={false}
+          aria-label="Gemini API key"
+          placeholder="Paste your Gemini API key (AIza…)"
           value={draftKey}
-          onChange={(e) => setDraftKey(e.target.value)}
-          placeholder="AIza… (stored in sessionStorage only)"
-          aria-label="Temporary Gemini API key"
-          className="h-8 min-w-[12rem] flex-1 rounded-full border-line-strong bg-paper px-3 font-mono text-xs text-ink"
+          onChange={(e) => {
+            setDraftKey(e.target.value);
+            if (verifyError) setVerifyError(null);
+          }}
+          disabled={verifying}
+          className="h-9 flex-1 rounded-full border-line-strong bg-paper-raised px-3.5 font-mono text-xs text-ink placeholder:font-sans placeholder:text-ink-soft/75"
         />
         <Button
           type="submit"
-          size="xs"
-          disabled={!draftKey.trim()}
-          className="cursor-pointer"
+          size="sm"
+          disabled={verifying || !draftKey.trim()}
+          className="h-9 shrink-0 rounded-full px-4 cursor-pointer"
         >
-          Use for session
+          {verifying ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>Connecting…</span>
+            </>
+          ) : (
+            <span>Connect</span>
+          )}
         </Button>
       </form>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-        {fallbackPrompt ? (
+      {verifyError && (
+        <p
+          role="alert"
+          className="mt-2 rounded-xl border border-wrong/30 bg-wrong-wash/60 px-3 py-2 text-xs text-wrong"
+        >
+          {verifyError}
+        </p>
+      )}
+
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id={checkboxId}
+            checked={remember}
+            onCheckedChange={(checked) => setRemember(checked === true)}
+            disabled={verifying}
+          />
+          <label
+            htmlFor={checkboxId}
+            className="cursor-pointer select-none text-xs text-ink-soft"
+          >
+            Remember on this browser
+          </label>
+        </div>
+
+        {fallbackPrompt && (
           <button
             type="button"
-            onClick={handleOpenWebGemini}
-            className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-paper-raised px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40 cursor-pointer"
+            onClick={handleOpenWebFallback}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline cursor-pointer"
           >
-            {copiedWeb ? (
-              <Check
-                className="size-3.5 text-[color:var(--right)]"
-                aria-hidden
-              />
+            {copiedFallback ? (
+              <>
+                <Check className="h-3.5 w-3.5 text-right" />
+                <span>Copied prompt &amp; opening gemini.google.com</span>
+              </>
             ) : (
-              <Copy className="size-3.5" aria-hidden />
+              <>
+                <Copy className="h-3 w-3" />
+                <span>Copy prompt &amp; open gemini.google.com</span>
+                <ExternalLink className="h-3 w-3 opacity-70" />
+              </>
             )}
-            <span>
-              {copiedWeb
-                ? "Copied — press ⌘V in Gemini"
-                : "Copy prompt & open gemini.google.com"}
-            </span>
-            <ExternalLink className="size-3 text-ink-faint" aria-hidden />
           </button>
-        ) : null}
-
-        <span className="text-[11px] text-ink-faint">
-          Self-hosting: set{" "}
-          <code className="font-mono text-ink">GEMINI_API_KEY</code> in{" "}
-          <code className="font-mono text-ink">.env.local</code> or Vercel env
-          vars.
-        </span>
+        )}
       </div>
+
+      <p className="mt-2.5 text-[11px] leading-relaxed text-ink-soft/85">
+        Your key stays in your browser and is never stored on C++ Atlas servers.
+      </p>
     </div>
   );
 }

@@ -18,23 +18,49 @@ export interface StreamSourceInfo {
   urlPath: string;
 }
 
+export type GeminiKeyPersistence = "local" | "session";
+
 export function readSessionGeminiKey(): string {
   if (typeof window === "undefined") return "";
   try {
-    return window.sessionStorage.getItem(SESSION_GEMINI_KEY_STORAGE) ?? "";
+    return (
+      window.sessionStorage.getItem(SESSION_GEMINI_KEY_STORAGE) ??
+      window.localStorage.getItem(SESSION_GEMINI_KEY_STORAGE) ??
+      ""
+    );
   } catch {
     return "";
   }
 }
 
-export function writeSessionGeminiKey(value: string): void {
+export function readGeminiKeyPersistence(): GeminiKeyPersistence | null {
+  if (typeof window === "undefined") return null;
+  try {
+    if (window.sessionStorage.getItem(SESSION_GEMINI_KEY_STORAGE)) {
+      return "session";
+    }
+    if (window.localStorage.getItem(SESSION_GEMINI_KEY_STORAGE)) {
+      return "local";
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSessionGeminiKey(
+  value: string,
+  persistence: GeminiKeyPersistence = "local"
+): void {
   if (typeof window === "undefined") return;
   try {
+    window.sessionStorage.removeItem(SESSION_GEMINI_KEY_STORAGE);
+    window.localStorage.removeItem(SESSION_GEMINI_KEY_STORAGE);
     const trimmed = value.trim();
     if (trimmed) {
-      window.sessionStorage.setItem(SESSION_GEMINI_KEY_STORAGE, trimmed);
-    } else {
-      window.sessionStorage.removeItem(SESSION_GEMINI_KEY_STORAGE);
+      const storage =
+        persistence === "local" ? window.localStorage : window.sessionStorage;
+      storage.setItem(SESSION_GEMINI_KEY_STORAGE, trimmed);
     }
     window.dispatchEvent(new Event(SESSION_GEMINI_KEY_EVENT));
   } catch {
@@ -52,16 +78,71 @@ function subscribeSessionGeminiKey(onChange: () => void): () => void {
   };
 }
 
-export function useSessionGeminiKey(): [string, (next: string) => void] {
+export function useSessionGeminiKey(): {
+  key: string;
+  persistence: GeminiKeyPersistence | null;
+  setKey: (next: string, persistence?: GeminiKeyPersistence) => void;
+  clearKey: () => void;
+} {
   const key = useSyncExternalStore(
     subscribeSessionGeminiKey,
     readSessionGeminiKey,
     () => ""
   );
-  const setKey = useCallback((next: string) => {
-    writeSessionGeminiKey(next);
+  const persistence = useSyncExternalStore(
+    subscribeSessionGeminiKey,
+    readGeminiKeyPersistence,
+    () => null
+  );
+  const setKey = useCallback(
+    (next: string, nextPersistence: GeminiKeyPersistence = "local") => {
+      writeSessionGeminiKey(next, nextPersistence);
+    },
+    []
+  );
+  const clearKey = useCallback(() => {
+    writeSessionGeminiKey("");
   }, []);
-  return [key, setKey];
+  return { key, persistence, setKey, clearKey };
+}
+
+export async function verifyGeminiKey(
+  apiKey: string
+): Promise<{ ok: boolean; error?: string }> {
+  const trimmed = apiKey.trim();
+  if (!trimmed) {
+    return {
+      ok: false,
+      error: "Paste a Gemini API key from Google AI Studio first.",
+    };
+  }
+  try {
+    const res = await fetch("/api/ai/verify", {
+      method: "POST",
+      headers: {
+        "x-gemini-api-key": trimmed,
+      },
+      cache: "no-store",
+    });
+    const data = (await res.json().catch(() => null)) as {
+      ok?: boolean;
+      error?: string;
+    } | null;
+    if (res.ok && data?.ok) {
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      error:
+        data?.error ||
+        `Gemini rejected this key (HTTP ${res.status}). Check it in Google AI Studio and try again.`,
+    };
+  } catch {
+    return {
+      ok: false,
+      error: "Network error while checking your Gemini API key. Try again.",
+    };
+  }
 }
 
 export function buildAiHeaders(sessionKey: string): Record<string, string> {

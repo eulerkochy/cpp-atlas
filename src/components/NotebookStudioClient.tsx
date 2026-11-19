@@ -49,6 +49,7 @@ import {
   fetchAiStatus,
   streamAiSse,
   useSessionGeminiKey,
+  type GeminiKeyPersistence,
 } from "@/lib/ai-client";
 import {
   buildBundlePrompt,
@@ -389,7 +390,15 @@ export function NotebookStudioClient({
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [chatModel, setChatModel] = useState("gemini-4-hydrogen");
   const [ttsModel, setTtsModel] = useState("gemini-3.8-flash-tts");
-  const [sessionKey, setSessionKey] = useSessionGeminiKey();
+  const {
+    key: sessionKey,
+    persistence,
+    setKey: saveSessionKey,
+    clearKey: clearSessionKey,
+  } = useSessionGeminiKey();
+  const [chatConnectNotice, setChatConnectNotice] = useState<string | null>(
+    null
+  );
 
   // Tab 1: Notebook Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -624,15 +633,19 @@ export function NotebookStudioClient({
     window.open(NOTEBOOKLM_WEB_URL, "_blank", "noopener,noreferrer");
   };
 
-  const handleSaveKey = (newKey: string) => {
-    setSessionKey(newKey);
+  const handleSaveKey = (
+    newKey: string,
+    nextPersistence: GeminiKeyPersistence
+  ) => {
+    saveSessionKey(newKey, nextPersistence);
     setChatError(null);
+    setChatConnectNotice(null);
     setAudioError(null);
     setGuideError(null);
   };
 
   const handleClearKey = () => {
-    setSessionKey("");
+    clearSessionKey();
   };
 
   // --- Notebook Chat Handlers ---
@@ -751,8 +764,14 @@ export function NotebookStudioClient({
     if (chatStreaming || !chatDraft.trim() || selectedSources.length === 0) {
       return;
     }
+    const hasKey = configured === true || Boolean(sessionKey.trim());
+    if (!hasKey) {
+      setChatConnectNotice("Connect Gemini above to send this prompt.");
+      return;
+    }
     const prompt = chatDraft;
     setChatDraft("");
+    setChatConnectNotice(null);
     void sendChatMessage(prompt);
   };
 
@@ -1565,6 +1584,7 @@ export function NotebookStudioClient({
           <GeminiKeyBanner
             configured={configured}
             sessionKey={sessionKey}
+            persistence={persistence}
             onSaveKey={handleSaveKey}
             onClearKey={handleClearKey}
             fallbackPrompt={bundlePrompt}
@@ -1644,7 +1664,19 @@ export function NotebookStudioClient({
                           key={prompt}
                           type="button"
                           disabled={chatStreaming}
-                          onClick={() => void sendChatMessage(prompt)}
+                          onClick={() => {
+                            const hasKey =
+                              configured === true || Boolean(sessionKey.trim());
+                            if (!hasKey) {
+                              setChatDraft(prompt);
+                              setChatConnectNotice(
+                                "Connect Gemini above to send this prompt."
+                              );
+                              return;
+                            }
+                            setChatConnectNotice(null);
+                            void sendChatMessage(prompt);
+                          }}
                           className="rounded-full border border-line-strong bg-paper-raised px-3 py-1.5 text-xs text-ink transition-colors hover:border-ink/40 hover:bg-sun-wash/50 cursor-pointer disabled:opacity-50"
                         >
                           {prompt}
@@ -1696,10 +1728,19 @@ export function NotebookStudioClient({
                 <div ref={chatBottomRef} />
               </div>
 
+                {chatConnectNotice ? (
+                  <p className="mb-2 rounded-xl border border-line-strong bg-sun-wash/45 px-3 py-1.5 text-xs text-ink-soft">
+                    {chatConnectNotice}
+                  </p>
+                ) : null}
+
               <form onSubmit={handleChatSubmit} className="flex items-end gap-2">
                 <Textarea
                   value={chatDraft}
-                  onChange={(e) => setChatDraft(e.target.value)}
+                  onChange={(e) => {
+                    setChatDraft(e.target.value);
+                    if (chatConnectNotice) setChatConnectNotice(null);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
