@@ -9,7 +9,8 @@ import {
   Cpu,
   FileText,
   History,
-  Network,
+  Map as MapIcon,
+  MapPin,
   Sparkles,
 } from "lucide-react";
 import {
@@ -29,6 +30,88 @@ import type {
 
 export function openGlobalSearch() {
   window.dispatchEvent(new CustomEvent("cppatlas-open-search"));
+}
+
+function topicSlugFromUrlPath(urlPath: string): string | null {
+  if (!urlPath.startsWith("/topics/")) return null;
+  const slug = urlPath.slice("/topics/".length).split(/[?#]/)[0];
+  return slug || null;
+}
+
+function LocateOnMapButton({
+  slug,
+  onLocate,
+}: {
+  slug: string;
+  onLocate: (href: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label="Locate on world map"
+      title="Locate on world map"
+      onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.stopPropagation();
+        }
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onLocate(`/maps?topic=${encodeURIComponent(slug)}`);
+      }}
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-chip)] border border-line bg-paper text-ink-soft transition-colors hover:border-line-strong hover:bg-sun-wash hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink cursor-pointer"
+    >
+      <MapPin className="size-3.5" aria-hidden />
+    </button>
+  );
+}
+
+function TopicCommandItem({
+  value,
+  title,
+  urlPath,
+  badge,
+  badgeClassName,
+  showIcon,
+  onNavigate,
+}: {
+  value: string;
+  title: string;
+  urlPath: string;
+  badge: string;
+  badgeClassName: string;
+  showIcon?: boolean;
+  onNavigate: (href: string) => void;
+}) {
+  const topicSlug = topicSlugFromUrlPath(urlPath);
+  return (
+    <CommandItem
+      value={value}
+      onSelect={() => onNavigate(urlPath)}
+      className="flex items-center justify-between gap-2 py-2.5 cursor-pointer"
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        {showIcon ? <Cpu className="size-4 shrink-0 text-ink-soft" /> : null}
+        <div className="min-w-0 truncate">
+          <div className="truncate text-sm font-medium text-ink">{title}</div>
+          <div className="truncate font-mono text-[11px] text-ink-faint">
+            {urlPath}
+          </div>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <span
+          className={`shrink-0 rounded-[var(--radius-chip)] bg-sun-wash px-2 py-0.5 font-medium text-ink ${badgeClassName}`}
+        >
+          {badge}
+        </span>
+        {topicSlug ? (
+          <LocateOnMapButton slug={topicSlug} onLocate={onNavigate} />
+        ) : null}
+      </div>
+    </CommandItem>
+  );
 }
 
 const FLAGSHIP_LINKS = [
@@ -137,6 +220,15 @@ export function CommandPalette({ referencePages }: { referencePages: number }) {
   const navigateTo = (href: string) => {
     setOpen(false);
     setQuery("");
+    if (
+      typeof window !== "undefined" &&
+      window.location.pathname === "/maps" &&
+      href.startsWith("/maps?")
+    ) {
+      window.history.pushState(null, "", href);
+      window.dispatchEvent(new Event("cppatlas:atlas-url"));
+      return;
+    }
     router.push(href);
   };
 
@@ -177,31 +269,28 @@ export function CommandPalette({ referencePages }: { referencePages: number }) {
                     }))
                   : FLAGSHIP_LINKS
                 ).map((item) => (
-                  <CommandItem
+                  <TopicCommandItem
                     key={item.urlPath}
                     value={item.urlPath}
-                    onSelect={() => navigateTo(item.urlPath)}
-                    className="flex items-center justify-between gap-2 py-2.5 cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Cpu className="size-4 shrink-0 text-ink-soft" />
-                      <div className="truncate">
-                        <div className="text-sm font-medium text-ink truncate">
-                          {item.name}
-                        </div>
-                        <div className="font-mono text-[11px] text-ink-faint truncate">
-                          {item.urlPath}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="shrink-0 rounded-[var(--radius-chip)] bg-sun-wash px-2 py-0.5 text-[11px] font-medium text-ink">
-                      {item.note}
-                    </span>
-                  </CommandItem>
+                    title={item.name}
+                    urlPath={item.urlPath}
+                    badge={item.note}
+                    badgeClassName="text-[11px]"
+                    showIcon
+                    onNavigate={navigateTo}
+                  />
                 ))}
               </CommandGroup>
               <CommandSeparator />
               <CommandGroup heading="Workspaces">
+                <CommandItem
+                  value="world-atlas concept-maps"
+                  onSelect={() => navigateTo("/maps")}
+                  className="py-2 cursor-pointer"
+                >
+                  <MapIcon className="size-4 text-ink-soft" />
+                  <span>Open the World Atlas &amp; concept maps</span>
+                </CommandItem>
                 <CommandItem
                   value="study-desk"
                   onSelect={() => navigateTo("/study")}
@@ -225,14 +314,6 @@ export function CommandPalette({ referencePages }: { referencePages: number }) {
                 >
                   <Compass className="size-4 text-ink-soft" />
                   <span>Browse all study topics</span>
-                </CommandItem>
-                <CommandItem
-                  value="concept-maps"
-                  onSelect={() => navigateTo("/maps")}
-                  className="py-2 cursor-pointer"
-                >
-                  <Network className="size-4 text-ink-soft" />
-                  <span>Explore concept maps</span>
                 </CommandItem>
                 <CommandItem
                   value="explore-directory"
@@ -267,24 +348,15 @@ export function CommandPalette({ referencePages }: { referencePages: number }) {
             <>
               <CommandGroup heading={`Study topics (${topics.length})`}>
                 {topics.map((topic) => (
-                  <CommandItem
+                  <TopicCommandItem
                     key={`topic-${topic.slug}`}
                     value={`topic ${topic.title} ${topic.slug}`}
-                    onSelect={() => navigateTo(topic.urlPath)}
-                    className="flex items-center justify-between gap-2 py-2.5 cursor-pointer"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-ink truncate">
-                        {topic.title}
-                      </div>
-                      <div className="font-mono text-[11px] text-ink-faint truncate">
-                        {topic.urlPath}
-                      </div>
-                    </div>
-                    <span className="shrink-0 rounded-[var(--radius-chip)] bg-sun-wash px-2 py-0.5 text-[10px] font-medium text-ink">
-                      {topic.trackTitle}
-                    </span>
-                  </CommandItem>
+                    title={topic.title}
+                    urlPath={topic.urlPath}
+                    badge={topic.trackTitle}
+                    badgeClassName="text-[10px]"
+                    onNavigate={navigateTo}
+                  />
                 ))}
               </CommandGroup>
               <CommandSeparator />

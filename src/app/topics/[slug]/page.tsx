@@ -3,10 +3,20 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, ExternalLink } from "lucide-react";
+import {
+  MAP_HEIGHT,
+  MAP_WIDTH,
+  type MapIsland,
+  type MapViewBox,
+} from "@/components/atlas-map-geometry";
 import { MemoryMapStage } from "@/components/memory-maps/MemoryMapStage";
 import { MapOutline, MindMap } from "@/components/MindMap";
 import { ReferenceViews } from "@/components/ReferenceViews";
 import { SectionRail } from "@/components/SectionRail";
+import {
+  TopicAtlasInset,
+  type TopicAtlasInsetProps,
+} from "@/components/TopicAtlasInset";
 import { TopicMarkdown } from "@/components/TopicMarkdown";
 import { AllQuestions, TopicQuizRunner } from "@/components/TopicQuizRunner";
 import {
@@ -16,6 +26,7 @@ import {
 } from "@/components/TopicViewActions";
 import { JsonLd } from "@/components/JsonLd";
 import { TrackProgressCount } from "@/components/TrackProgressCount";
+import { getAtlasPayload, type AtlasPayload } from "@/lib/atlas-data";
 import { absoluteUrl, buildOgImageUrl, SITE } from "@/lib/site";
 import {
   getAllTopics,
@@ -24,6 +35,213 @@ import {
   getTopic,
   standardRefToUrl,
 } from "@/lib/topics";
+
+const roundTenth = (n: number) => Math.round(n * 10) / 10;
+
+function encodeIslandOutlinePoints(pathData: string, step: number): number[] {
+  const pts: { x: number; y: number }[] = [];
+  const startMatch = pathData.match(/^M(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/);
+  if (startMatch) {
+    pts.push({ x: Number(startMatch[1]), y: Number(startMatch[2]) });
+  }
+  const curveRe =
+    /C-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g;
+  let match: RegExpExecArray | null;
+  while ((match = curveRe.exec(pathData)) !== null) {
+    pts.push({ x: Number(match[1]), y: Number(match[2]) });
+  }
+  if (
+    pts.length > 1 &&
+    Math.hypot(
+      pts[pts.length - 1].x - pts[0].x,
+      pts[pts.length - 1].y - pts[0].y
+    ) < 0.2
+  ) {
+    pts.pop();
+  }
+  const out: number[] = [];
+  let prevX = 0;
+  let prevY = 0;
+  for (let i = 0; i < pts.length; i += step) {
+    const x = Math.round(pts[i].x);
+    const y = Math.round(pts[i].y);
+    if (i === 0) {
+      out.push(x, y);
+    } else {
+      out.push(x - prevX, y - prevY);
+    }
+    prevX = x;
+    prevY = y;
+  }
+  return out;
+}
+
+function fitInsetViewBox(island: MapIsland): MapViewBox {
+  const aspect = 1.35;
+  const pad = 18;
+  const minX = Math.min(island.bounds.x, island.label.box.x);
+  const minY = Math.min(island.bounds.y, island.label.box.y);
+  const maxX = Math.max(
+    island.bounds.x + island.bounds.w,
+    island.label.box.x + island.label.box.w
+  );
+  const maxY = Math.max(
+    island.bounds.y + island.bounds.h,
+    island.label.box.y + island.label.box.h
+  );
+  let w = maxX - minX + pad * 2;
+  let h = maxY - minY + pad * 2;
+  if (w / h < aspect) {
+    w = h * aspect;
+  } else {
+    h = w / aspect;
+  }
+  w = Math.min(MAP_WIDTH, w);
+  h = Math.min(MAP_HEIGHT, h);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const x = Math.max(0, Math.min(MAP_WIDTH - w, cx - w / 2));
+  const y = Math.max(0, Math.min(MAP_HEIGHT - h, cy - h / 2));
+  return {
+    x: roundTenth(x),
+    y: roundTenth(y),
+    w: roundTenth(w),
+    h: roundTenth(h),
+  };
+}
+
+function boxesIntersect(a: MapViewBox, b: MapViewBox, pad: number): boolean {
+  return (
+    a.x < b.x + b.w + pad &&
+    a.x + a.w + pad > b.x &&
+    a.y < b.y + b.h + pad &&
+    a.y + a.h + pad > b.y
+  );
+}
+
+function cropGraticule(graticule: string[], vb: MapViewBox): string[] {
+  const out: string[] = [];
+  for (const d of graticule) {
+    if (d.includes("H")) {
+      const match = d.match(/^M0 (\d+(?:\.\d+)?)H/);
+      if (match) {
+        const y = Number(match[1]);
+        if (y >= vb.y - 2 && y <= vb.y + vb.h + 2) {
+          out.push(`M${Math.round(vb.x)} ${y}H${Math.round(vb.x + vb.w)}`);
+        }
+      }
+      continue;
+    }
+    const pairs = d
+      .slice(1)
+      .split("L")
+      .map((pair) => pair.split(" ").map(Number));
+    const kept = pairs.filter(
+      ([x, y]) =>
+        x >= vb.x - 28 &&
+        x <= vb.x + vb.w + 28 &&
+        y >= vb.y - 28 &&
+        y <= vb.y + vb.h + 28
+    );
+    if (kept.length >= 2) {
+      const slim = kept.filter(
+        (_pt, idx) => idx === 0 || idx === kept.length - 1 || idx % 2 === 0
+      );
+      out.push(
+        "M" + slim.map(([x, y]) => `${Math.round(x)} ${Math.round(y)}`).join("L")
+      );
+    }
+  }
+  return out;
+}
+
+function buildTopicInsetData(
+  payload: AtlasPayload,
+  topicSlug: string,
+  trackId: string
+): {
+  inset: TopicAtlasInsetProps | null;
+  region: { id: string; label: string } | null;
+} {
+  const matchedRegion =
+    payload.regions.find((r) =>
+      r.tracks.some(
+        (tr) => tr.id === trackId || tr.topics.some((tp) => tp.slug === topicSlug)
+      )
+    ) ?? null;
+
+  const currentIsland = payload.map.islands.find(
+    (isl) =>
+      isl.id === trackId || isl.towns.some((tw) => tw.slug === topicSlug)
+  );
+
+  if (!currentIsland) {
+    return {
+      inset: null,
+      region: matchedRegion
+        ? { id: matchedRegion.id, label: matchedRegion.label }
+        : null,
+    };
+  }
+
+  const fallbackRegionCam = payload.map.regions.find(
+    (r) => r.label === currentIsland.region
+  );
+  const region = matchedRegion
+    ? { id: matchedRegion.id, label: matchedRegion.label }
+    : fallbackRegionCam
+      ? { id: fallbackRegionCam.id, label: fallbackRegionCam.label }
+      : { id: "", label: currentIsland.region };
+
+  const viewBox = fitInsetViewBox(currentIsland);
+  const visibleIslands = payload.map.islands.filter(
+    (isl) =>
+      isl.id === currentIsland.id || boxesIntersect(isl.bounds, viewBox, 12)
+  );
+  const regionNames = [...new Set(visibleIslands.map((isl) => isl.region))];
+
+  const routes = payload.map.routes
+    .filter((rt) => rt.from === topicSlug || rt.to === topicSlug)
+    .map((rt) => ({
+      dir: (rt.to === topicSlug ? "in" : "out") as "in" | "out",
+      d: rt.d,
+      ...(rt.crossesSea ? { sea: true } : {}),
+    }));
+
+  return {
+    region: region.id ? region : null,
+    inset: {
+      currentSlug: topicSlug,
+      islandId: currentIsland.id,
+      islandTitle: currentIsland.title,
+      regionLabel: currentIsland.region,
+      viewBox,
+      islands: visibleIslands.map((isl) => ({
+        id: isl.id,
+        r: regionNames.indexOf(isl.region),
+        pts: encodeIslandOutlinePoints(
+          isl.path,
+          isl.id === currentIsland.id ? 2 : 3
+        ),
+      })),
+      label: {
+        lines: currentIsland.label.lines,
+        x: currentIsland.label.x,
+        y: currentIsland.label.y,
+      },
+      towns: currentIsland.towns.map((town) => ({
+        slug: town.slug,
+        title: town.title,
+        minutes: town.minutes,
+        x: town.x,
+        y: town.y,
+        ...(town.simulator ? { simulator: true } : {}),
+      })),
+      graticule: cropGraticule(payload.map.graticule, viewBox),
+      routes,
+    },
+  };
+}
 
 export async function generateStaticParams() {
   const topics = getAllTopics();
@@ -112,6 +330,11 @@ async function TopicLoader({
     .map((preSlug) => getTopic(preSlug))
     .filter((t): t is NonNullable<typeof t> => Boolean(t));
   const dependents = getDependents(topic.slug);
+  const { inset, region } = buildTopicInsetData(
+    getAtlasPayload(),
+    topic.slug,
+    topic.trackId
+  );
 
   const readPanel = (
     <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[12rem_minmax(0,1fr)] xl:grid-cols-[12rem_minmax(0,1fr)_16rem] xl:gap-12">
@@ -180,6 +403,8 @@ async function TopicLoader({
 
       <aside className="space-y-8 text-sm lg:col-start-2 xl:col-start-3 xl:row-start-1">
         <div className="space-y-8 xl:sticky xl:top-28 xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:overscroll-contain xl:px-1.5 xl:pt-1.5 xl:pb-6">
+          {inset ? <TopicAtlasInset {...inset} /> : null}
+
           {topic.cppreference.length > 0 ? (
             <div className="space-y-3">
               <p className="font-medium text-ink">
@@ -382,29 +607,53 @@ async function TopicLoader({
     <>
       <JsonLd data={jsonLd} />
       <header className="mx-auto max-w-7xl px-4 pt-28 pb-10 sm:px-6 sm:pt-36">
-        <nav aria-label="Breadcrumb">
-          <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-ink-soft">
-            <li>
-              <Link
-                href="/topics"
-                className="underline decoration-transparent underline-offset-4 hover:text-ink hover:decoration-line-strong"
-              >
-                Topics
-              </Link>
-            </li>
-            <li aria-hidden className="text-ink-faint">
-              /
-            </li>
-            <li>
-              <Link
-                href={`/topics#${topic.trackId}`}
-                className="underline decoration-transparent underline-offset-4 hover:text-ink hover:decoration-line-strong"
-              >
-                {topic.trackTitle}
-              </Link>
-            </li>
-          </ol>
-        </nav>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+          <nav aria-label="Breadcrumb">
+            <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-ink-soft">
+              <li>
+                <Link
+                  href="/topics"
+                  className="underline decoration-transparent underline-offset-4 hover:text-ink hover:decoration-line-strong"
+                >
+                  Topics
+                </Link>
+              </li>
+              {region ? (
+                <>
+                  <li aria-hidden className="text-ink-faint">
+                    /
+                  </li>
+                  <li>
+                    <Link
+                      href={`/maps?region=${region.id}`}
+                      className="font-display italic tracking-[0.08em] text-ink-soft underline decoration-transparent underline-offset-4 hover:text-ink hover:decoration-line-strong"
+                    >
+                      {region.label}
+                    </Link>
+                  </li>
+                </>
+              ) : null}
+              <li aria-hidden className="text-ink-faint">
+                /
+              </li>
+              <li>
+                <Link
+                  href={`/topics#${topic.trackId}`}
+                  className="underline decoration-transparent underline-offset-4 hover:text-ink hover:decoration-line-strong"
+                >
+                  {topic.trackTitle}
+                </Link>
+              </li>
+            </ol>
+          </nav>
+
+          <Link
+            href={`/maps?topic=${topic.slug}`}
+            className="text-xs text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-ink hover:decoration-ink"
+          >
+            Locate on map
+          </Link>
+        </div>
 
         <h1 className="mt-4 max-w-[24ch] font-display text-[clamp(2.2rem,5.5vw,4rem)] leading-[1.04] font-[450] tracking-[-0.035em] text-ink text-balance">
           {topic.title}

@@ -252,10 +252,13 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
               </p>
               <ul className="space-y-2">
                 {studyTopics.map((topic) => (
-                  <li key={topic.slug}>
+                  <li
+                    key={topic.slug}
+                    className="rounded-xl border border-line bg-paper-raised px-3 py-2"
+                  >
                     <Link
                       href={`/topics/${topic.slug}`}
-                      className="group block rounded-xl border border-line bg-paper-raised px-3 py-2 transition-colors hover:border-ink/40"
+                      className="group block"
                     >
                       <div className="font-display text-sm font-[450] text-ink decoration-sun decoration-2 underline-offset-3 group-hover:underline">
                         {topic.title}
@@ -264,6 +267,14 @@ export function CppRefPageView({ page }: { page: CppRefPageData }) {
                         {topic.trackTitle} / {topic.minutes} min
                       </div>
                     </Link>
+                    <div className="mt-1.5 border-t border-line pt-1.5">
+                      <Link
+                        href={`/maps?topic=${topic.slug}`}
+                        className="inline-block text-xs text-ink-soft underline decoration-line-strong underline-offset-3 hover:text-ink hover:decoration-ink"
+                      >
+                        Locate on map
+                      </Link>
+                    </div>
                   </li>
                 ))}
               </ul>

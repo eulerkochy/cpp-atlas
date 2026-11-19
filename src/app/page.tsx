@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  type AtlasRegion,
-  HomeAtlasPlate,
-} from "@/components/HomeAtlasPlate";
-import { buildAtlasMap } from "@/components/atlas-map-geometry";
+import { HomeAtlasPlate } from "@/components/HomeAtlasPlate";
 import { HeroExpressionInspector } from "@/components/HeroExpressionInspector";
 import { HomeDock } from "@/components/HomeDock";
 import { HomeTopicShowcase } from "@/components/HomeTopicShowcase";
@@ -12,11 +8,11 @@ import { JsonLd } from "@/components/JsonLd";
 import { SearchPrompt } from "@/components/SearchPrompt";
 import { TopicMarkdown } from "@/components/TopicMarkdown";
 import { buttonVariants } from "@/components/ui/button";
+import { getAtlasPayload } from "@/lib/atlas-data";
 import { getIndexStats } from "@/lib/cppref-index";
 import { SITE } from "@/lib/site";
 import { getSiteStats, siteDescription } from "@/lib/site-stats";
-import { getTopic, getTracks } from "@/lib/topics";
-import { groupTracks } from "@/lib/track-groups";
+import { getTopic } from "@/lib/topics";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -54,20 +50,7 @@ export default function HomePage() {
   const cppStats = getIndexStats("cpp");
   const cStats = getIndexStats("c");
   const stats = getSiteStats();
-  const atlasRegions: AtlasRegion[] = groupTracks(getTracks()).map(
-    (group) => ({
-      label: group.label,
-      tracks: group.tracks.map((track) => ({
-        id: track.id,
-        title: track.title,
-        topics: track.topics.map((topic) => ({
-          slug: topic.slug,
-          title: topic.title,
-          minutes: topic.minutes,
-        })),
-      })),
-    })
-  );
+  const { regions, map } = getAtlasPayload();
   const showcase = getTopic(SHOWCASE_SLUG);
 
   const websiteJsonLd = {
@@ -124,12 +107,40 @@ export default function HomePage() {
       </section>
 
       <section
+        aria-labelledby="tracks-heading"
+        className="mx-auto max-w-6xl px-4 pt-8 text-center sm:px-6 sm:pt-12"
+      >
+        <div className="mx-auto max-w-2xl">
+          <h2 id="tracks-heading" className={H2}>
+            The whole language on one map
+          </h2>
+          <p className={LEAD}>
+            Explore {regions.length} continents, {stats.tracks} countries, and{" "}
+            {stats.topics} towns across C++, trace prerequisite routes between
+            ideas, or{" "}
+            <Link href="/maps" className={QUIET_LINK}>
+              open the full-screen world atlas
+            </Link>
+            .
+          </p>
+        </div>
+        <div className="mt-10 sm:mt-14">
+          <HomeAtlasPlate regions={regions} map={map} />
+        </div>
+        <p className="mt-10 sm:mt-12">
+          <Link href="/topics" className={QUIET_LINK}>
+            Browse all {stats.topics} topics
+          </Link>
+        </p>
+      </section>
+
+      <section
         aria-labelledby="showcase-heading"
-        className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 sm:pt-12"
+        className="mx-auto mt-32 max-w-6xl px-4 sm:mt-40 sm:px-6"
       >
         <div className="mx-auto max-w-2xl text-center">
           <h2 id="showcase-heading" className={H2}>
-            Read it. See it. Trace it.
+            Inside every town: Read it. See it. Trace it.
           </h2>
           <p className={LEAD}>
             Every topic is an article and a concept map, and some add a live
@@ -146,26 +157,6 @@ export default function HomePage() {
             />
           </div>
         ) : null}
-      </section>
-
-      <section
-        aria-labelledby="tracks-heading"
-        className="mx-auto mt-32 max-w-6xl px-4 text-center sm:mt-40 sm:px-6"
-      >
-        <h2 id="tracks-heading" className={H2}>
-          The whole language on one map
-        </h2>
-        <div className="mt-10 sm:mt-14">
-          <HomeAtlasPlate
-            regions={atlasRegions}
-            map={buildAtlasMap(atlasRegions)}
-          />
-        </div>
-        <p className="mt-10 sm:mt-12">
-          <Link href="/topics" className={QUIET_LINK}>
-            Browse all {stats.topics} topics
-          </Link>
-        </p>
       </section>
 
       <section

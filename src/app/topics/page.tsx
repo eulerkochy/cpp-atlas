@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/PageHeader";
 import { TopicsExplorerClient } from "@/components/TopicsExplorerClient";
+import { getAtlasPayload } from "@/lib/atlas-data";
 import { buildOgImageUrl, SITE } from "@/lib/site";
 import { getSiteStats } from "@/lib/site-stats";
 import { getTracks } from "@/lib/topics";
@@ -36,6 +37,7 @@ export function generateMetadata(): Metadata {
 
 export default function TopicsPage() {
   const tracks = getTracks();
+  const atlas = getAtlasPayload();
   const stats = getSiteStats();
   const clientTracks = tracks.map((track) => ({
     ...track,
@@ -56,7 +58,7 @@ export default function TopicsPage() {
       </PageHeader>
 
       <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
-        <TopicsExplorerClient tracks={clientTracks} />
+        <TopicsExplorerClient tracks={clientTracks} atlas={atlas} />
       </div>
     </>
   );

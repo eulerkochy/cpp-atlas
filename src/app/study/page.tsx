@@ -6,6 +6,7 @@ import {
   type StudyQuizMeta,
 } from "@/components/StudyDeskClient";
 import { ALL_QUIZZES } from "@/data/companions";
+import { getAtlasPayload } from "@/lib/atlas-data";
 import { buildOgImageUrl, SITE } from "@/lib/site";
 import { getSiteStats } from "@/lib/site-stats";
 import { getAllTopics, getTracks } from "@/lib/topics";
@@ -43,6 +44,7 @@ export function generateMetadata(): Metadata {
 
 export default function StudyPage() {
   const rawTracks = getTracks();
+  const atlas = getAtlasPayload();
   const tracks: TrackWithTopics[] = rawTracks.map((track) => ({
     ...track,
     topics: track.topics.map((topic) => ({
@@ -100,7 +102,7 @@ export default function StudyPage() {
             href="/maps"
             className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
           >
-            Curriculum graph
+            World atlas
           </Link>
           <Link
             href="/quiz"
@@ -118,7 +120,7 @@ export default function StudyPage() {
       </PageHeader>
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <StudyDeskClient tracks={tracks} quizMeta={quizMeta} />
+        <StudyDeskClient tracks={tracks} quizMeta={quizMeta} atlas={atlas} />
       </div>
     </>
   );

@@ -6,13 +6,18 @@ A calm, high-signal study layer over an **offline 1:1 copy of `en.cppreference.c
 
 ## What C++ Atlas includes
 
-- **Study Topics across 13 Tracks (`/topics` & `/topics/[slug]`):** 115 deep dives pairing mental models, concept maps, Compiler Explorer code links, and clause-cited quizzes (Read / Map / Quiz views). Topic "Further reading" links point directly at the offline `/w/cpp/...` pages.
-- **Curriculum Prerequisite DAG & Concept Maps (`/maps`).**
+- **Interactive World Atlas (`/`, `/maps`, `/topics`, `/topics/[slug]`, `/study`):** The 115-topic curriculum charted across 4 continents (*Language basics*, *Building abstractions*, *The machine*, *Library and C++26*) and 13 track countries, with zoom/pan, search-on-map, prerequisite route arcs, and progress layers:
+  - **`/`:** Interactive World Atlas plate directly beneath the hero, mapping all 4 continents, 13 tracks, and 115 towns.
+  - **`/maps`:** Full World Atlas explorer with continent cameras, `?topic=` / `?region=` / `?track=` deep links, waypoint details, a `Dependency columns` prerequisite DAG toggle, and all topic concept maps grouped by continent.
+  - **`/topics`:** Collapsible World Atlas synced live with the topic gazetteer's search query, status filters (`Next up`, `Saved`, `Completed`), and scroll position.
+  - **`/topics/[slug]`:** Engraved local island inset in the right rail showing neighboring coastlines, shared continental borders, sibling towns, and connected prerequisite routes, plus links to `/maps?topic=<slug>`.
+  - **`/study`:** Personal **Charted territory** view overlaying completed towns, next-up frontier topics, and saved bookmarks on the World Atlas alongside continent-grouped track progress.
+- **Study Topics across 13 Tracks (`/topics` & `/topics/[slug]`):** 115 deep dives pairing mental models, concept maps, Compiler Explorer code links, and clause-cited quizzes (Read / Map / Quiz views). Topic "Further reading" links point directly at the offline `/w/cpp/...` pages, and reference pages link back to their study topics and `/maps?topic=<slug>`.
 - **11 Machine-Model Simulators** mounted across 33 study topics and on the matching reference pages.
 - **Standardese Quiz (`/quiz`):** 876 clause-cited questions across every topic and reference companion, with **Missed** spaced review, shareable `#trap-` deep links, bookmarks, and browser progress persistence.
-- **Study Desk (`/study`):** completed topics, reviewed reference pages, missed traps, bookmarks, `cpp-atlas-progress.json` export/import.
+- **Study Desk (`/study`):** personal charted territory map, continent-grouped track mastery, completed topics, reviewed reference pages, missed traps, bookmarks, and `cpp-atlas-progress.json` export/import.
 - **C++11–C++26 Evolution Timeline (`/standards`).**
-- **Offline C++ and C reference (`/w/cpp/...`, `/w/c/...`, `/w`, `/explore`):** 5,971 C++ pages and 616 C pages from the cppreference snapshot of 9 February 2025, with breadcrumbs, "In this section", an on-this-page rail, standards chips, Compiler Explorer buttons on examples, and **Focus Mode** to dim pre-C++11/14 rows and defect reports. Links between C and C++ pages stay inside the site. Unknown paths are real 404s and cppreference redirect pages are real 308 redirects; the legacy `/cpp/...` and `/c/...` addresses redirect to `/w/...`.
+- **Offline C++ and C reference (`/w/cpp/...`, `/w/c/...`, `/w`, `/explore`):** 5,971 C++ pages and 616 C pages from the cppreference snapshot of 9 February 2025, with breadcrumbs, "In this section", an on-this-page rail, standards chips, Compiler Explorer buttons on examples, `Study topics` links back to topics and `/maps?topic=<slug>`, and **Focus Mode** to dim pre-C++11/14 rows and defect reports. Links between C and C++ pages stay inside the site. Unknown paths are real 404s and cppreference redirect pages are real 308 redirects; the legacy `/cpp/...` and `/c/...` addresses redirect to `/w/...`.
 - **NotebookLM Markdown Studio (`/notebook` & `/api/notebook/...`):** Audio-Overview-ready markdown for reference pages (`/api/notebook/cpp/<path>`, `/api/notebook/c/<path>`), single topics (`/api/notebook/topic/[slug]`), or all topics (`/api/notebook/topics-all`).
 - **Search & Crawlability:** `⌘K` / `Ctrl+K` / `/` command palette backed by `/api/search`, plus `/sitemap.xml`, `/robots.txt`, `/llms.txt`, canonical URLs, OpenGraph cards and JSON-LD.
 

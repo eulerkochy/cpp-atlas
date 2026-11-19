@@ -16,10 +16,13 @@ import {
   Upload,
 } from "lucide-react";
 import { useProgress } from "@/components/ProgressProvider";
+import { WorldAtlas } from "@/components/WorldAtlas";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Window } from "@/components/Window";
+import type { AtlasPayload } from "@/lib/atlas-data";
+import { groupTracks } from "@/lib/track-groups";
 import { cn } from "@/lib/utils";
 import type { TopicSummary, TrackWithTopics } from "@/types/topics";
 
@@ -52,9 +55,11 @@ function parseReferenceKey(rawKey: string): {
 export function StudyDeskClient({
   tracks,
   quizMeta,
+  atlas,
 }: {
   tracks: TrackWithTopics[];
   quizMeta: StudyQuizMeta[];
+  atlas: AtlasPayload;
 }) {
   const {
     hydrated,
@@ -89,13 +94,20 @@ export function StudyDeskClient({
     [tracks]
   );
 
+  const groupedTracks = useMemo(
+    () => groupTracks(activeTracks),
+    [activeTracks]
+  );
+
   const { allTopics, topicBySlug } = useMemo(() => {
-    const list = activeTracks.flatMap((tr) => tr.topics);
+    const list = groupedTracks
+      .flatMap((group) => group.tracks)
+      .flatMap((tr) => tr.topics);
     return {
       allTopics: list,
       topicBySlug: new Map<string, TopicSummary>(list.map((t) => [t.slug, t])),
     };
-  }, [activeTracks]);
+  }, [groupedTracks]);
 
   const quizMetaById = useMemo(
     () => new Map(quizMeta.map((q) => [q.id, q])),
@@ -166,17 +178,21 @@ export function StudyDeskClient({
     bookmarkedPageList.length +
     bookmarkedQuizList.length;
 
-  const recommendedTopics = useMemo(() => {
-    return allTopics
-      .filter(
-        (topic) =>
-          !completedSet.has(topic.slug) &&
-          topic.prerequisites.every(
-            (pre) => !topicBySlug.has(pre) || completedSet.has(pre)
-          )
-      )
-      .slice(0, 3);
+  const nextUpTopics = useMemo(() => {
+    return allTopics.filter(
+      (topic) =>
+        !completedSet.has(topic.slug) &&
+        topic.prerequisites.every(
+          (pre) => !topicBySlug.has(pre) || completedSet.has(pre)
+        )
+    );
   }, [allTopics, completedSet, topicBySlug]);
+
+  const nextUpCount = nextUpTopics.length;
+  const recommendedTopics = useMemo(
+    () => nextUpTopics.slice(0, 3),
+    [nextUpTopics]
+  );
 
   const topicsPct =
     allTopics.length > 0
@@ -358,7 +374,33 @@ export function StudyDeskClient({
           </div>
         </div>
 
-        <div className="space-y-4 rounded-[var(--radius-panel)] border border-line bg-paper-raised p-5 sm:p-6">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div className="space-y-1">
+              <h3 className="font-display text-xl font-[450] tracking-[-0.015em] text-ink">
+                Charted territory
+              </h3>
+              <p className="text-xs text-ink-soft">
+                Completed sunlit towns, ringed next-up frontier towns, and saved
+                pennants across the four continents.
+              </p>
+            </div>
+            <span className="text-xs text-ink-soft tabular-nums">
+              {hydrated
+                ? `${completedCount} charted, ${nextUpCount} next up`
+                : "Loading browser progress…"}
+            </span>
+          </div>
+
+          <WorldAtlas
+            mode="locator"
+            regions={atlas.regions}
+            map={atlas.map}
+            defaultLayers={["next-up", "saved"]}
+          />
+        </div>
+
+        <div className="space-y-5 rounded-[var(--radius-panel)] border border-line bg-paper-raised p-5 sm:p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="font-display text-xl font-[450] tracking-[-0.015em] text-ink">
               Track progress ({activeTracks.length} tracks)
@@ -367,52 +409,89 @@ export function StudyDeskClient({
               href="/maps"
               className="text-xs text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-ink hover:decoration-ink"
             >
-              View dependency graph
+              Open world atlas
             </Link>
           </div>
 
-          <div className="grid gap-x-8 gap-y-4 md:grid-cols-2 lg:grid-cols-3">
-            {activeTracks.map((track) => {
-              const trackTopicsTotal = track.topics.length;
-              const trackTopicsDone = track.topics.filter((t) =>
-                completedSet.has(t.slug)
-              ).length;
-              const trackQuestionIds = track.topics.flatMap(
-                (t) => t.questionIds
+          <div className="space-y-6">
+            {groupedTracks.map((group) => {
+              const groupTopicsTotal = group.tracks.reduce(
+                (sum, tr) => sum + tr.topics.length,
+                0
               );
-              const trackCleared = hydrated
-                ? trackQuestionIds.filter((id) => answeredQuizzes[id]?.correct)
-                    .length
-                : 0;
-              const trackPct =
-                trackTopicsTotal > 0
-                  ? Math.round((trackTopicsDone / trackTopicsTotal) * 100)
-                  : 0;
+              const groupTopicsDone = group.tracks.reduce(
+                (sum, tr) =>
+                  sum + tr.topics.filter((t) => completedSet.has(t.slug)).length,
+                0
+              );
 
               return (
-                <div key={track.id} className="space-y-2">
-                  <div className="flex items-baseline justify-between gap-2 text-sm">
-                    <Link
-                      href={`/topics#${track.id}`}
-                      className="truncate font-medium text-ink underline decoration-transparent underline-offset-3 hover:decoration-sun"
-                    >
-                      {track.title}
-                    </Link>
-                    <span className="shrink-0 font-mono text-xs text-ink-soft tabular-nums">
-                      {trackTopicsDone}/{trackTopicsTotal}
+                <div
+                  key={group.id}
+                  className="space-y-3 border-t border-line pt-4 first:border-t-0 first:pt-0"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h4 className="font-display text-[0.975rem] italic tracking-[0.08em] text-ink-soft">
+                      {group.label}
+                    </h4>
+                    <span className="font-mono text-xs text-ink-faint tabular-nums">
+                      {groupTopicsDone}/{groupTopicsTotal}
                     </span>
                   </div>
-                  <Progress value={trackPct} className="h-1.5 bg-paper-sunk" />
-                  <div className="flex items-center justify-between text-[11px] text-ink-faint tabular-nums">
-                    <span>
-                      {trackCleared}/{trackQuestionIds.length} traps cleared
-                    </span>
-                    {trackTopicsDone === trackTopicsTotal &&
-                    trackTopicsTotal > 0 ? (
-                      <span className="font-medium text-[color:var(--right)]">
-                        Done
-                      </span>
-                    ) : null}
+
+                  <div className="grid gap-x-8 gap-y-4 md:grid-cols-2 lg:grid-cols-3">
+                    {group.tracks.map((track) => {
+                      const trackTopicsTotal = track.topics.length;
+                      const trackTopicsDone = track.topics.filter((t) =>
+                        completedSet.has(t.slug)
+                      ).length;
+                      const trackQuestionIds = track.topics.flatMap(
+                        (t) => t.questionIds
+                      );
+                      const trackCleared = hydrated
+                        ? trackQuestionIds.filter(
+                            (id) => answeredQuizzes[id]?.correct
+                          ).length
+                        : 0;
+                      const trackPct =
+                        trackTopicsTotal > 0
+                          ? Math.round(
+                              (trackTopicsDone / trackTopicsTotal) * 100
+                            )
+                          : 0;
+
+                      return (
+                        <div key={track.id} className="space-y-2">
+                          <div className="flex items-baseline justify-between gap-2 text-sm">
+                            <Link
+                              href={`/topics#${track.id}`}
+                              className="truncate font-medium text-ink underline decoration-transparent underline-offset-3 hover:decoration-sun"
+                            >
+                              {track.title}
+                            </Link>
+                            <span className="shrink-0 font-mono text-xs text-ink-soft tabular-nums">
+                              {trackTopicsDone}/{trackTopicsTotal}
+                            </span>
+                          </div>
+                          <Progress
+                            value={trackPct}
+                            className="h-1.5 bg-paper-sunk"
+                          />
+                          <div className="flex items-center justify-between text-[11px] text-ink-faint tabular-nums">
+                            <span>
+                              {trackCleared}/{trackQuestionIds.length} traps
+                              cleared
+                            </span>
+                            {trackTopicsDone === trackTopicsTotal &&
+                            trackTopicsTotal > 0 ? (
+                              <span className="font-medium text-[color:var(--right)]">
+                                Done
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
