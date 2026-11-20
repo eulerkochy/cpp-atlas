@@ -106,6 +106,7 @@ export function HeroExpressionInspector() {
     <div onKeyDown={onKeyDown}>
       <Window
         as="section"
+        data-hero-demo=""
         aria-label="Try a question"
         title={`${q.companionId}.quiz`}
         actions={

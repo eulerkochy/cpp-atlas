@@ -2,9 +2,10 @@
 
 import { Search } from "lucide-react";
 import { openGlobalSearch } from "@/components/CommandPalette";
+import { SearchShortcutHint } from "@/components/SearchShortcutHint";
 import { cn } from "@/lib/utils";
 
-/** A search field look-alike that opens the ⌘K palette. */
+/** A search field look-alike that opens the command palette. */
 export function SearchPrompt({
   label,
   className,
@@ -24,9 +25,7 @@ export function SearchPrompt({
     >
       <Search className="size-4 shrink-0" aria-hidden />
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      <kbd className="rounded-md border border-line bg-paper px-1.5 font-sans text-[11px] text-ink-faint">
-        ⌘K
-      </kbd>
+      <SearchShortcutHint className="rounded-md border border-line bg-paper px-1.5 font-sans text-[11px] text-ink-faint" />
     </button>
   );
 }

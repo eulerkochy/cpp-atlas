@@ -7,6 +7,7 @@ import { Menu, Search } from "lucide-react";
 import { GoogleIcon, NotebookLmIcon } from "@/components/AiBrandIcons";
 import { useGoogleNotebook } from "@/components/GoogleNotebookProvider";
 import { LogoMark } from "@/components/LogoMark";
+import { SearchShortcutHint } from "@/components/SearchShortcutHint";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useProgress } from "@/components/ProgressProvider";
 import { buttonVariants } from "@/components/ui/button";
@@ -277,15 +278,12 @@ export function Navbar() {
           <button
             type="button"
             onClick={openGlobalSearch}
-            aria-label="Search C++ and C reference"
             aria-keyshortcuts="Meta+K Control+K Slash"
             className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full px-3 text-sm whitespace-nowrap text-ink-soft transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer"
           >
             <Search className="size-4" aria-hidden />
             <span>Search</span>
-            <kbd className="rounded-md border border-line bg-paper px-1.5 font-sans text-[11px] text-ink-faint">
-              ⌘K
-            </kbd>
+            <SearchShortcutHint className="rounded-md border border-line bg-paper px-1.5 font-sans text-[11px] text-ink-faint" />
           </button>
           <NavGoogleAuth />
           <ThemeToggle />

@@ -1,14 +1,15 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { openGlobalSearch } from "@/components/CommandPalette";
+import { SearchShortcutHint } from "@/components/SearchShortcutHint";
 import { cn } from "@/lib/utils";
 
 /**
  * The home page's pinned search dock: a wide paper arc floating over the
- * bottom of the viewport with one search button. It slides away while the
- * site footer is on screen so it never covers it.
+ * bottom of the viewport with one search button. It stays off-screen while
+ * it would cover the hero quiz, and while the footer is on screen.
  */
 export function HomeDock({
   topics,
@@ -17,20 +18,51 @@ export function HomeDock({
   topics: number;
   referencePages: number;
 }) {
-  const [hidden, setHidden] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Hidden until measurement so the first paint never covers the hero quiz.
+  const [hidden, setHidden] = useState(true);
 
   useEffect(() => {
-    const footer = document.querySelector("footer");
-    if (!footer) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      setHidden(entry.isIntersecting);
-    });
-    observer.observe(footer);
-    return () => observer.disconnect();
+    const root = rootRef.current;
+    let frame = 0;
+
+    const update = () => {
+      frame = 0;
+      const band = root?.offsetHeight ?? 128;
+      const hero = document.querySelector("[data-hero-demo]");
+      const footer = document.querySelector("footer");
+      let hide = false;
+      if (hero) {
+        const rect = hero.getBoundingClientRect();
+        const viewBottom = window.innerHeight;
+        if (rect.top < viewBottom && rect.bottom > viewBottom - band) {
+          hide = true;
+        }
+      }
+      if (footer && footer.getBoundingClientRect().top < window.innerHeight) {
+        hide = true;
+      }
+      setHidden(hide);
+    };
+
+    const schedule = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }, []);
 
   return (
     <div
+      ref={rootRef}
       inert={hidden}
       aria-hidden={hidden || undefined}
       className={cn(
@@ -52,9 +84,7 @@ export function HomeDock({
         >
           <Search className="size-[1.05rem] shrink-0" aria-hidden />
           <span>Search C++ Atlas</span>
-          <kbd className="rounded-md border border-paper/25 px-1.5 font-sans text-[11px] leading-5 text-paper/70">
-            ⌘K
-          </kbd>
+          <SearchShortcutHint className="rounded-md border border-paper/25 px-1.5 font-sans text-[11px] leading-5 text-paper/70" />
         </button>
         <p className="mt-2.5 text-xs text-ink-faint">
           {topics} topics and {referencePages.toLocaleString("en-US")}{" "}
