@@ -1,13 +1,43 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import { ArrowRight, ExternalLink } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { DifficultyBadge } from "@/components/build/DifficultyBadge";
 import { StageDoneCount, StageDoneDot } from "@/components/build/StageDone";
 import { JsonLd } from "@/components/JsonLd";
 import { TopicMarkdown } from "@/components/TopicMarkdown";
 import { getBuildChallenge, getLiveChallengeSlugs } from "@/lib/build-challenges";
 import { absoluteUrl, buildOgImageUrl, SITE } from "@/lib/site";
+
+const SETUP: { title: string; body: ReactNode; href?: string; cta?: string }[] = [
+  { title: "Use the template", body: "Make your own copy of the challenge repository." },
+  { title: "Clone it", body: "Or open it in a Codespace." },
+  {
+    title: "Submit",
+    body: (
+      <>
+        Run <code className="font-mono text-[0.9em] text-ink">./cppatlas submit</code>. A pass advances{" "}
+        <code className="font-mono text-[0.9em] text-ink">.cppatlas.json</code>.
+      </>
+    ),
+  },
+  {
+    title: "Install the app",
+    body: "Optional. Grades every push, on any or all of your repositories.",
+    href: "https://github.com/apps/c-atlas-grader/installations/new",
+    cta: "Install c-atlas-grader",
+  },
+  {
+    title: "Push",
+    body: (
+      <>
+        Look for the <code className="font-mono text-[0.9em] text-ink">cppatlas / vector</code> check on the commit.
+      </>
+    ),
+  },
+];
 
 type Params = Promise<{ challenge: string }>;
 
@@ -79,22 +109,67 @@ export default async function ChallengePage({ params }: { params: Params }) {
         <p className="mt-5 max-w-[60ch] text-[1.125rem] leading-relaxed text-ink-soft sm:text-[1.2rem]">
           {challenge.description}
         </p>
-        <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-ink-soft">
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-ink-soft">
           <span className="inline-flex items-center rounded-[var(--radius-chip)] border border-line bg-paper-raised px-2 py-0.5 font-mono text-xs">
             {challenge.standard}
           </span>
           <span className="tabular-nums">{challenge.stages.length} stages</span>
+          <StageDoneCount ids={stageIds} />
+        </div>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
           <a
             href={challenge.repoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 underline decoration-line-strong underline-offset-4 hover:text-ink hover:decoration-ink"
+            className={buttonVariants({ size: "lg" })}
           >
-            <span>Template repository</span>
-            <ExternalLink className="size-3" aria-hidden />
+            Use the template
+            <ExternalLink className="size-4" aria-hidden />
           </a>
-          <StageDoneCount ids={stageIds} />
+          <Link
+            href={`/build/${challenge.slug}/${challenge.stages[0].slug}`}
+            className={buttonVariants({ size: "lg", variant: "outline" })}
+          >
+            Read stage 1
+            <ArrowRight className="size-4" aria-hidden />
+          </Link>
         </div>
+
+        <section
+          aria-labelledby="setup-heading"
+          className="mt-12 rounded-[var(--radius-panel)] border border-line bg-paper-raised"
+        >
+          <h2
+            id="setup-heading"
+            className="border-b border-line px-5 py-3 text-sm font-medium text-ink"
+          >
+            Set up in five steps
+          </h2>
+          <ol className="grid divide-y divide-line md:grid-cols-5 md:divide-x md:divide-y-0">
+            {SETUP.map((step, i) => (
+              <li key={step.title} className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 p-5 md:block">
+                <span className="font-display text-xl leading-none font-[450] text-ink-faint tabular-nums md:block">
+                  {i + 1}
+                </span>
+                <div className="min-w-0 md:mt-3">
+                  <p className="font-medium text-ink">{step.title}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-soft">{step.body}</p>
+                  {step.href ? (
+                    <a
+                      href={step.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={buttonVariants({ variant: "outline", size: "sm", className: "mt-3 h-10 border-ink/25" })}
+                    >
+                      {step.cta}
+                      <ExternalLink className="size-3.5" aria-hidden />
+                    </a>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
       </header>
 
       <div className="mx-auto grid max-w-6xl gap-12 px-4 pb-16 sm:px-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
@@ -110,7 +185,7 @@ export default async function ChallengePage({ params }: { params: Params }) {
                 <li key={s.slug}>
                   <Link
                     href={`/build/${challenge.slug}/${s.slug}`}
-                    className="group grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 p-4 transition-colors hover:bg-paper-sunk/65 sm:p-5"
+                    className="group grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 p-4 transition-colors hover:bg-paper-sunk/65 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink sm:p-5"
                   >
                     <span className="font-display text-xl leading-tight font-[450] text-ink-faint tabular-nums">
                       {s.number}

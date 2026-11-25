@@ -772,7 +772,8 @@ file as `include/my/vector.hpp`, stage 2, so failing output is shown:
 - **Base image digests.** Refresh them deliberately (see the comment in
   `grader/Dockerfile`), then re-run the samples and the solution matrix before
   pushing.
-- **Reporting a vulnerability.** Email `security@cppatlas.com` (TODO: owner to
-  confirm this address). Do not open a public issue for security reports.
+- **Reporting a vulnerability.** Report it privately through GitHub:
+  https://github.com/eulerkochy/cpp-atlas/security/advisories/new (private
+  vulnerability reporting is enabled). Do not open a public issue for security reports.
   Please include the sample submission or request that shows the problem. We
   aim to acknowledge within 3 working days.

@@ -8,11 +8,11 @@ import { buildOgImageUrl, SITE } from "@/lib/site";
 export function generateMetadata(): Metadata {
   const title = "Build it yourself";
   const description =
-    "Hands-on C++ challenges: implement std::vector from an empty class, stage by stage, against a real test suite, with each stage linked to the Atlas topics behind it.";
+    "Hands-on C++ challenges: implement std::vector from an empty class, stage by stage, against a real test suite graded remotely, with each stage linked to the Atlas topics behind it.";
   const ogImage = buildOgImageUrl({
     title: "Build it yourself",
     kicker: "C++ Atlas Challenges",
-    meta: "Stage-by-stage / tested locally",
+    meta: "Stage-by-stage / graded remotely",
   });
   return {
     title,
@@ -40,8 +40,8 @@ export default function BuildIndexPage() {
       <PageHeader title="Build">
         <p>
           Learn C++ by writing the library yourself. Each challenge is a series of
-          small stages with a test suite you run locally, and every stage points
-          back to the Atlas topics that explain the ideas.
+          small stages. A remote test suite grades your code on one command or on
+          every push, and each stage points back to the Atlas topics behind it.
         </p>
       </PageHeader>
 
@@ -55,7 +55,7 @@ export default function BuildIndexPage() {
               <li key={c.slug}>
                 <Link
                   href={`/build/${c.slug}`}
-                  className="group flex h-full flex-col rounded-[var(--radius-panel)] border border-line bg-paper-raised p-6 transition-colors hover:border-line-strong"
+                  className="group flex h-full flex-col rounded-[var(--radius-panel)] border border-line bg-paper-raised p-6 transition-colors hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <h3 className="font-display text-xl font-[450] tracking-[-0.02em] text-ink decoration-sun decoration-2 underline-offset-4 group-hover:underline">
                     {c.title}
@@ -66,7 +66,7 @@ export default function BuildIndexPage() {
                       {c.stageCount ? `${c.stageCount} stages` : "Live"}
                     </span>
                     <span className="inline-flex items-center gap-1.5 font-medium text-ink">
-                      Start building <ArrowRight className="size-3.5" aria-hidden />
+                      Start building <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
                     </span>
                   </div>
                 </Link>

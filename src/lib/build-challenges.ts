@@ -233,3 +233,20 @@ export function getBuildStage(challengeSlug: string, stageSlug: string): BuildSt
     next: challenge.stages[idx + 1] ?? null,
   };
 }
+
+/** The one file a learner edits per challenge (also the path the grader expects). */
+const STARTER_FILES: Record<string, string> = { vector: "include/my/vector.hpp" };
+
+/**
+ * The learner-editable starter file, read at build time from the challenge
+ * template (challenges/<slug>/...). Null when the challenge has none.
+ */
+export function getChallengeStarter(slug: string): { path: string; content: string } | null {
+  const rel = STARTER_FILES[slug];
+  if (!rel || !isSafeSlug(slug)) return null;
+  try {
+    return { path: rel, content: fs.readFileSync(path.join(process.cwd(), "challenges", slug, rel), "utf8") };
+  } catch {
+    return null;
+  }
+}

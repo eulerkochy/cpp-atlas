@@ -6,30 +6,21 @@ import { getBuildCatalog, getBuildChallenge } from "@/lib/build-challenges";
 const H2 =
   "font-display text-[clamp(2rem,4.5vw,2.75rem)] leading-[1.1] font-[450] tracking-[-0.03em] text-ink text-balance";
 const QUIET_LINK =
-  "text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink";
+  "inline-flex min-h-10 items-center rounded-[var(--radius-chip)] text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
-/** Lines the real `./cppatlas test` prints at stage 6 (see challenges/vector/cppatlas). */
-const TERMINAL: { text: string; tone?: "ok" | "bad" | "dim" | "cmd" }[] = [
-  { text: "$ ./cppatlas test", tone: "cmd" },
-  { text: "stage 1 ✓ empty-vector", tone: "ok" },
-  { text: "stage 2 ✓ push-back", tone: "ok" },
-  { text: "stage 3 ✓ growth", tone: "ok" },
-  { text: "stage 4 ✓ copy-and-move", tone: "ok" },
-  { text: "stage 5 ✓ emplace-back", tone: "ok" },
-  { text: "stage 6 ✗ exception-safety", tone: "bad" },
+/** Lines the real `./cppatlas submit` prints for a passing stage 1 (see challenges/vector/cppatlas). */
+const TERMINAL: { text: string; tone?: "ok" | "dim" | "cmd" }[] = [
+  { text: "$ ./cppatlas submit", tone: "cmd" },
+  { text: "[tester::#1] Running tests for Stage #1: Empty vector", tone: "dim" },
+  { text: "[tester::#1] ✓ a default-constructed vector has size() == 0" },
+  { text: "[tester::#1] 9 of 9 test cases passed (17 ms)" },
+  { text: "[tester::#1] Test passed." },
   { text: "" },
-  { text: "TEST CASE: relocation moves a type whose move" },
-  { text: "           constructor is noexcept (0 copies)" },
-  { text: "  push_back(T&&) of a noexcept-movable T with reallocation", tone: "dim" },
-  { text: "  hint: relocate with std::move_if_noexcept(old[i]):", tone: "dim" },
-  { text: "        for a noexcept move it moves.", tone: "dim" },
-  { text: "" },
-  { text: "next: read https://cppatlas.com/build/vector/exception-safety" },
+  { text: "stage 1 passed ✓ — advanced to stage 2: push_back and storage.", tone: "ok" },
 ];
 
 const TONE = {
   ok: "text-emerald-400",
-  bad: "text-rose-400",
   dim: "text-white/55",
   cmd: "text-white",
 } as const;
@@ -54,9 +45,9 @@ export function HomeBuildSection() {
         </h2>
         <p className="mx-auto mt-4 max-w-[56ch] text-[1.0625rem] leading-relaxed text-ink-soft text-pretty">
           {vector.stages.length} staged challenges in {vector.standard}. Code in
-          your own editor and run the tests locally or on every git push. They
-          count every copy and move, inject exceptions and run under
-          sanitizers, then tell you what you got wrong.
+          your own editor, grade with one command or on every git push, and
+          skip the local compiler. The tests count every copy and move, inject
+          exceptions and run under sanitizers, then tell you what you got wrong.
         </p>
       </div>
 
@@ -66,7 +57,7 @@ export function HomeBuildSection() {
             <li key={s.slug}>
               <Link
                 href={`/build/vector/${s.slug}`}
-                className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-ink/[0.03]"
+                className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-ink/[0.03] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
               >
                 <span className="w-5 shrink-0 font-mono text-sm text-ink-faint tabular-nums">
                   {s.number}
@@ -81,7 +72,7 @@ export function HomeBuildSection() {
         </ol>
 
         <figure
-          aria-label="Example ./cppatlas test output at stage 6"
+          aria-label="Example ./cppatlas submit output for a passing stage 1"
           className="overflow-hidden rounded-[var(--radius-window)] border border-line bg-[#14161a] shadow-[0_24px_48px_-28px_rgb(0_0_0/0.45)]"
         >
           <div aria-hidden className="flex gap-1.5 border-b border-white/10 px-4 py-3">
@@ -89,7 +80,7 @@ export function HomeBuildSection() {
             <span className="size-2.5 rounded-full bg-white/15" />
             <span className="size-2.5 rounded-full bg-white/15" />
           </div>
-          <pre className="overflow-x-auto px-5 py-4 font-mono text-[0.8125rem] leading-[1.7] text-white/80">
+          <pre tabIndex={0} className="overflow-x-auto px-5 py-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white/60 font-mono text-[0.8125rem] leading-[1.7] text-white/80">
             {TERMINAL.map((line, i) => (
               <div key={i} className={line.tone ? TONE[line.tone] : undefined}>
                 {line.text || " "}
@@ -99,7 +90,7 @@ export function HomeBuildSection() {
         </figure>
       </div>
 
-      <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+      <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
         <Link href="/build/vector" className={buttonVariants({ size: "lg" })}>
           Start the vector challenge
         </Link>

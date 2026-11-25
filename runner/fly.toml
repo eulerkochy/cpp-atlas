@@ -27,7 +27,7 @@ primary_region = "sin"
   # Image the run machines boot. Changes with every grader rebuild: paste the
   # ref printed by `scripts/build-grader.sh --push-fly` here, then redeploy
   # (see scripts/deploy.md). Runs fail with backend_unavailable until it is real.
-  GRADER_IMAGE = "registry.fly.io/cppatlas-grader:9681ec7d2-d60a97e0"
+  GRADER_IMAGE = "registry.fly.io/cppatlas-grader:9f8035983-58d51cf2"
   GRADER_REGION = "sin" # run machines are created here; keep in sync with primary_region
   GRADER_VM_CPU_KIND = "shared"
   GRADER_VM_CPUS = "4"

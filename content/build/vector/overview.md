@@ -16,11 +16,13 @@ Three ideas recur across the stages:
 
 ## How it works
 
-Each stage has a test executable and a page on this site describing the task, what the tests check, hints, common traps and a pointer to how the three major standard libraries solve the same problem.
+Each stage has a page on this site describing the task, what the tests check, hints, common traps and a pointer to how the three major standard libraries solve the same problem.
 
 1. Read the stage page and add the described members to `include/my/vector.hpp`.
-2. Run `./cppatlas test`. It builds and runs the stages in order and stops at the first one that fails.
-3. When the stage passes, move on. Earlier stages keep running, so a regression shows up immediately.
+2. Run `./cppatlas submit`. It sends your header to the grader at run.cppatlas.com, prints a live `[tester::#N]` log, and stops at the first failing stage.
+3. When the stage passes, `.cppatlas.json` advances to the next one. Commit it and move on. Earlier stages are graded again each time, so a regression shows up immediately.
+
+Grading needs only `curl` and `python3` or `jq` on your machine. No local compiler is required. The grader builds with GCC 16.2 or Clang 21 in C++23 mode, optionally under AddressSanitizer and UndefinedBehaviorSanitizer.
 
 The tests count constructions, copies, moves and destructions of instrumented element types, so a leak, a double destroy or an unnecessary copy is a failure, not a silent inefficiency.
 
@@ -31,21 +33,39 @@ The same test suite compiles and passes against `std::vector` when you configure
 ## Setup
 
 1. **Use the template.** Open [eulerkochy/cpp-vector-challenge](https://github.com/eulerkochy/cpp-vector-challenge) and click **Use this template**, or [create your copy directly](https://github.com/new?template_name=cpp-vector-challenge&template_owner=eulerkochy).
-2. **Clone it** (or open it in a Codespace) and run the tests:
+2. **Clone it** (or open it in a Codespace).
+3. **Run `./cppatlas submit`.** For stage 1, first uncomment the marked lines in `include/my/vector.hpp`; the [stage 1 page](/build/vector/empty-vector) shows which. The command prints the tester log and, when the stage passes, advances `.cppatlas.json` to the next stage. Commit that file.
+4. **Install the GitHub App.** [Install c-atlas-grader](https://github.com/apps/c-atlas-grader/installations/new) on your account. Choosing "All repositories" is safe: the app ignores any repository that has no `.cppatlas.json`. You can also pick just your challenge repository.
+5. **Push.** From then on, `git push` also grades your commit and posts a check named `cppatlas / vector` on it.
 
 ```
 git clone https://github.com/<you>/<your-copy>
 cd <your-copy>
+./cppatlas submit                        # grade stages 1..your current stage, advance on pass
+./cppatlas submit --stage 3              # grade stages 1..3 (never advances)
+./cppatlas submit --compiler clang       # gcc (default) or clang
+./cppatlas submit --sanitize             # AddressSanitizer + UndefinedBehaviorSanitizer
+./cppatlas help
+```
+
+Your progress lives in `.cppatlas.json` at the repository root, for example `{"challenge":"vector","stage":1}`. The App reads that file and `include/my/vector.hpp` at the pushed commit and grades stages 1..current, so commit `.cppatlas.json` after it advances. The stage pages also have a "Run on the grader" panel where you can paste your header and see the same log in the browser.
+
+If you would rather not install the App, `./cppatlas submit` alone is enough, and the repository also ships a manual GitHub Actions workflow (Actions tab, then "tests", then "Run workflow").
+
+If you get stuck, the [reference solution](https://github.com/eulerkochy/cpp-atlas/tree/main/challenges/vector/solution) is public. Try the stage's hints first.
+
+## Optional: run the tests locally
+
+Remote grading is the default. Running the suite on your own machine is a faster loop if you have a toolchain, and it is the only way to attach a debugger. `./cppatlas test` runs the same stages locally, and `./cppatlas doctor` checks your tools against the grader's versions. It is only needed for local testing.
+
+```
+./cppatlas doctor        # checks cmake, ninja, compilers, a C++23 probe, a sanitizer probe
 ./cppatlas test          # runs stages 1..your current stage, stops at the first failure
 ./cppatlas test 3        # run stages 1..3 (explicit stage numbers never advance your progress)
 ./cppatlas test --preset asan-ubsan
 ```
 
-3. **Push to get graded.** `git push` runs the same stages on GitHub Actions, under GCC 16.2 and Clang 21, with and without the sanitizers.
-
-Your progress lives in `.cppatlas.json` at the repository root, for example `{"challenge":"vector","stage":1}`. When every stage up to the current one passes, `./cppatlas test` advances the file to the next stage and prints a link to its page. Commit the file after it advances: CI and the grader read the stage from it, so `git push` grades the same stages you just ran locally.
-
-If you get stuck, the [reference solution](https://github.com/eulerkochy/cpp-atlas/tree/main/challenges/vector/solution) is public. Try the stage's hints first.
+When every stage up to the current one passes, `./cppatlas test` advances `.cppatlas.json` the same way `submit` does.
 
 ### Requirements
 
@@ -55,7 +75,7 @@ If you get stuck, the [reference solution](https://github.com/eulerkochy/cpp-atl
 
 Supported environments, in order of preference:
 
-1. **Tier 1: devcontainer.** The provided `.devcontainer` has GCC 16.2 (the default) and Clang 21 installed. This is the reference environment, and it is what CI runs.
+1. **Tier 1: devcontainer.** The provided `.devcontainer` has GCC 16.2 (the default) and Clang 21 installed. This is the reference environment, and it matches the grader's toolchain.
 2. **Tier 2: macOS.** Homebrew GCC 16.2 or LLVM 21. Apple's bundled Clang may lag behind in C++23 library support. macOS has no LeakSanitizer, but the tester's own allocation tracking still reports leaked buffers there.
 3. **Tier 3: Windows/MSVC.** Best effort. No UBSan; use the `debug` preset (the devcontainer or WSL is recommended).
 

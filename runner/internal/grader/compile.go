@@ -195,7 +195,7 @@ func SummarizeCompile(lines []string, opt SummaryOptions) *protocol.CompileSumma
 	}
 	for i, l := range shown {
 		// Mangled linker noise can be enormous; keep each line readable.
-		shown[i] = capLine(sectionRe.ReplaceAllString(l, ":"), 2000)
+		shown[i] = capOutputLine(sectionRe.ReplaceAllString(l, ":"), 2000)
 	}
 	text := strings.Join(shown, "\n")
 	if text != "" {

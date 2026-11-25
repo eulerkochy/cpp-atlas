@@ -40,7 +40,7 @@ If `T` is nothrow move constructible, relocate by moving. If it is not, but is c
 - Forgetting the deallocation in `reserve`'s error path is the most common leak in this stage: `push_back` gets the rollback right and `reserve` gets a copy of it without the `deallocate`. Share one relocation function so both paths have the same cleanup.
 - The rollback must not destroy elements it never constructed, and must not leak the new buffer when a throw happens before any element is constructed.
 - Do not destroy the old elements until the new buffer is fully built. Destructors are the one thing you can rely on not throwing.
-- The rollback paths are unreachable in normal tests. Run them under the sanitizer preset: `./cppatlas test --preset asan-ubsan`.
+- The rollback paths are unreachable in normal tests. Run them under the sanitizers: `./cppatlas submit --sanitize` (or locally, `./cppatlas test --preset asan-ubsan`).
 
 ## Now read the real one
 

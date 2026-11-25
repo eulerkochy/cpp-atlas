@@ -18,6 +18,8 @@ import vectorChallenge from "../content/build/vector/challenge.json";
  * Build challenge pages (/build/<challenge>[/<stage>]) are checked the same
  * way against the bundled catalog and challenge JSON. To add a live
  * challenge, import its challenge.json and add it to CHALLENGE_FILES.
+ * /build/connected is the static landing page GitHub redirects to after the
+ * grader app is installed; it is not a challenge slug, so it is let through.
  */
 
 const KNOWN = {
@@ -62,6 +64,7 @@ export function proxy(request: NextRequest) {
   }
   if (pathname.startsWith("/build/")) {
     const parts = pathname.split("/").filter(Boolean).slice(1);
+    if (parts.length === 1 && parts[0] === "connected") return NextResponse.next();
     const stages = BUILD_STAGES.get(parts[0] ?? "");
     const ok =
       stages !== undefined &&

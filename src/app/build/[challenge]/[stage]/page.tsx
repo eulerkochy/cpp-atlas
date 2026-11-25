@@ -3,10 +3,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { DifficultyBadge } from "@/components/build/DifficultyBadge";
+import { GraderPanel } from "@/components/build/GraderPanel";
 import { StageDoneButton } from "@/components/build/StageDone";
 import { JsonLd } from "@/components/JsonLd";
 import { TopicMarkdown } from "@/components/TopicMarkdown";
-import { getBuildChallenge, getBuildStage, getLiveChallengeSlugs } from "@/lib/build-challenges";
+import {
+  getBuildChallenge,
+  getBuildStage,
+  getChallengeStarter,
+  getLiveChallengeSlugs,
+} from "@/lib/build-challenges";
 import { absoluteUrl, buildOgImageUrl, SITE } from "@/lib/site";
 
 type Params = Promise<{ challenge: string; stage: string }>;
@@ -56,6 +62,13 @@ export default async function StagePage({ params }: { params: Params }) {
   if (!data) notFound();
   const { stage, prev, next } = data;
   const base = `/build/${challenge}`;
+  // Read at build time (the page is prerendered via generateStaticParams).
+  const starter = getChallengeStarter(challenge);
+  const allStages = (getBuildChallenge(challenge)?.stages ?? []).map((s) => ({
+    number: s.number,
+    slug: s.slug,
+    title: s.title,
+  }));
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -117,16 +130,42 @@ export default async function StagePage({ params }: { params: Params }) {
         <div className="min-w-0 space-y-10">
           <TopicMarkdown content={data.body} />
 
-          <div className="max-w-[var(--measure)] space-y-3 rounded-[var(--radius-panel)] border border-line bg-paper-sunk/65 p-5">
-            <p className="text-sm font-medium text-ink">Run this stage&apos;s tests</p>
-            <pre className="overflow-x-auto rounded-[var(--radius-chip)] border border-line bg-paper-raised px-4 py-3 font-mono text-[0.82rem] text-ink-body">
-              <code>./cppatlas test {stage.number}</code>
-            </pre>
-            <p className="text-xs text-ink-soft">
-              Tests live in <code className="font-mono">{stage.testFile}</code>.
-            </p>
-            <StageDoneButton id={`${challenge}/${stage.slug}`} />
-          </div>
+          <section aria-labelledby="run-heading" className="max-w-[var(--measure)] space-y-8">
+            <div className="space-y-2">
+              <h2 id="run-heading" className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink">
+                Run the tests
+              </h2>
+              <p className="text-[0.98rem] leading-relaxed text-ink-soft">
+                {stage.number === 1
+                  ? "The grader builds your header and runs the stage 1 tests."
+                  : `The grader runs stages 1 to ${stage.number} in order and stops at the first stage that fails.`}
+              </p>
+            </div>
+
+            <div className="space-y-3 rounded-[var(--radius-panel)] border border-line bg-paper-sunk/65 p-5">
+              <h3 className="text-base font-medium text-ink">From your challenge repo</h3>
+              <pre className="overflow-x-auto rounded-[var(--radius-chip)] border border-line bg-paper-raised px-4 py-3 font-mono text-[0.82rem] text-ink-body">
+                <code>./cppatlas submit</code>
+              </pre>
+              <p className="text-sm text-ink-soft">
+                To run the same tests on your machine instead, use{" "}
+                <code className="font-mono text-[0.9em]">./cppatlas test {stage.number}</code>. They live in{" "}
+                <code className="font-mono text-[0.9em]">{stage.testFile}</code>.
+              </p>
+              <div className="pt-1">
+                <StageDoneButton id={`${challenge}/${stage.slug}`} />
+              </div>
+            </div>
+
+            <GraderPanel
+              key={stage.slug}
+              challenge={challenge}
+              challengeTitle={data.challenge.title}
+              stage={stage.number}
+              stages={allStages}
+              starter={starter}
+            />
+          </section>
 
           <nav aria-label="Adjacent stages" className="grid max-w-[var(--measure)] gap-4 border-t border-line pt-8 sm:grid-cols-2">
             {prev ? (

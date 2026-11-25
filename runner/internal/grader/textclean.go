@@ -171,7 +171,16 @@ func CleanCapped(raw []byte, ps *PathStripper, limit int, captureTruncated bool)
 
 // capLine shortens a single line for summaries (FirstError, hints).
 func capLine(s string, n int) string {
-	s = strings.TrimSpace(s)
+	return capTrimmed(strings.TrimSpace(s), n)
+}
+
+// capOutputLine is capLine for lines of displayed compiler output: it keeps
+// the leading whitespace, so source snippets and caret lines stay aligned.
+func capOutputLine(s string, n int) string {
+	return capTrimmed(strings.TrimRight(s, " \t\r\n"), n)
+}
+
+func capTrimmed(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
