@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctest binary="stage_02" version="2.5.3">
+  <Options order_by="file" rand_seed="0" first="0" last="4294967295" abort_after="0" subcase_filter_levels="2147483647" case_sensitive="false" no_throw="false" no_skip="false"/>
+  <TestSuite>
+    <TestCase name="push_back on an empty vector stores one element" filename="stage_02.cpp" line="87">
+      <OverallResultsAsserts successes="4" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="push_back appends in order (a few elements)" filename="stage_02.cpp" line="97">
+      <OverallResultsAsserts successes="5" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="push_back keeps every element when the storage grows (100 elements)" filename="stage_02.cpp" line="109">
+      <OverallResultsAsserts successes="3" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="operator[] returns a reference to the stored element" filename="stage_02.cpp" line="121">
+      <OverallResultsAsserts successes="7" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="const operator[] reads elements of a const vector" filename="stage_02.cpp" line="139">
+      <OverallResultsAsserts successes="5" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="push_back(const T&amp;) copy-constructs the new element in place" filename="stage_02.cpp" line="152">
+      <OverallResultsAsserts successes="6" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="storage is allocated without default-constructing T" filename="stage_02.cpp" line="169">
+      <OverallResultsAsserts successes="3" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="works for an element type without a default constructor" filename="stage_02.cpp" line="180">
+      <OverallResultsAsserts successes="2" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="the destructor destroys every element exactly once" filename="stage_02.cpp" line="190">
+      <OverallResultsAsserts successes="5" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="an empty vector and a vector with one element are destroyed cleanly" filename="stage_02.cpp" line="204">
+      <OverallResultsAsserts successes="3" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="works with std::string (a type that owns heap memory)" filename="stage_02.cpp" line="218">
+      <OverallResultsAsserts successes="30" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="two vectors do not share storage" filename="stage_02.cpp" line="239">
+      <OverallResultsAsserts successes="6" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="works with short std::string elements (small-string optimisation)" filename="stage_02.cpp" line="253">
+      <OverallResultsAsserts successes="100" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="elements of an over-aligned type (alignas(64)) are suitably aligned" filename="stage_02.cpp" line="284">
+      <OverallResultsAsserts successes="336" failures="0" test_case_success="true"/>
+    </TestCase>
+  </TestSuite>
+  <OverallResultsAsserts successes="515" failures="0"/>
+  <OverallResultsTestCases successes="14" failures="0" skipped="0"/>
+</doctest>

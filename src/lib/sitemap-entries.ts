@@ -3,6 +3,7 @@ import { COMPANION_OVERLAYS } from "@/data/companions";
 import { REFERENCE_SNAPSHOT } from "@/lib/cppref-engine";
 import { listedReferenceEntries, referenceHref } from "@/lib/reference";
 import { SITE } from "@/lib/site";
+import { getBuildCatalog, getBuildChallenge } from "@/lib/build-challenges";
 import { getAllTopics } from "@/lib/topics";
 
 const BASE_URL = SITE.url;
@@ -91,7 +92,32 @@ function coreAndTopics(): MetadataRoute.Sitemap {
     priority: 0.92,
   }));
 
-  return [...coreRoutes, ...topicRoutes];
+  const buildRoutes: MetadataRoute.Sitemap = [
+    {
+      url: `${BASE_URL}/build`,
+      lastModified: CONTENT_MODIFIED,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+  ];
+  for (const c of getBuildCatalog().filter((e) => e.status === "live")) {
+    buildRoutes.push({
+      url: `${BASE_URL}/build/${c.slug}`,
+      lastModified: CONTENT_MODIFIED,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    });
+    for (const s of getBuildChallenge(c.slug)?.stages ?? []) {
+      buildRoutes.push({
+        url: `${BASE_URL}/build/${c.slug}/${s.slug}`,
+        lastModified: CONTENT_MODIFIED,
+        changeFrequency: "weekly",
+        priority: 0.75,
+      });
+    }
+  }
+
+  return [...coreRoutes, ...topicRoutes, ...buildRoutes];
 }
 
 function referenceRoutes(

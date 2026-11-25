@@ -1,0 +1,67 @@
+# Fly.io config for the cppatlas.com challenge runner API (run.cppatlas.com).
+#
+# - Fly org: `personal`. Deploy is done by a human following scripts/deploy.md;
+#   nothing here is applied automatically.
+# - Secrets are NOT in this file. Set them with `fly secrets set` (names only):
+#     FLY_API_TOKEN, GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_WEBHOOK_SECRET
+# - Port 8081 (internal job/result endpoints for grader machines) is private,
+#   reachable over 6PN only, and must NEVER appear in a service section below.
+
+app = "cppatlas-runner"
+# Region: sin (Singapore), chosen by the user. Keep GRADER_REGION below in sync:
+primary_region = "sin"
+
+[build]
+  dockerfile = "api/Dockerfile"
+
+[env]
+  BACKEND = "fly"
+  TRUSTED_PROXY = "fly"
+  # IPv4 only on purpose: Fly's proxy reaches the app on 0.0.0.0, while the
+  # private network (6PN) is IPv6. Binding ":8080" would also listen on 6PN,
+  # where a peer could connect directly and forge Fly-Client-IP.
+  LISTEN_ADDR = "0.0.0.0:8080"
+  INTERNAL_LISTEN_ADDR = "fly-local-6pn:8081"
+  INTERNAL_API_URL = "http://cppatlas-runner.internal:8081"
+  FLY_GRADER_APP = "cppatlas-grader"
+  # Image the run machines boot. Changes with every grader rebuild: paste the
+  # ref printed by `scripts/build-grader.sh --push-fly` here, then redeploy
+  # (see scripts/deploy.md). Runs fail with backend_unavailable until it is real.
+  GRADER_IMAGE = "registry.fly.io/cppatlas-grader:9681ec7d2-d60a97e0"
+  GRADER_REGION = "sin" # run machines are created here; keep in sync with primary_region
+  GRADER_VM_CPU_KIND = "shared"
+  GRADER_VM_CPUS = "4"
+  GRADER_VM_MEMORY_MB = "4096"
+  # Production site only; set true only for a staging API used from local dev.
+  ALLOW_LOCALHOST_ORIGINS = "false"
+  ALLOWED_ORIGINS = "https://cppatlas.com,https://www.cppatlas.com"
+  MAX_CONCURRENT_RUNS = "4"
+  QUEUE_SIZE = "20"
+  RUN_TIMEOUT = "120s"
+  RESULT_TTL = "15m"
+  LOG_LEVEL = "info"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Run state lives in memory, so the machine must stay up; never auto-stop.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 100
+    hard_limit = 200
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    protocol = "http"
+    interval = "15s"
+    timeout = "3s"
+    grace_period = "10s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb" # 256mb is enough if the queue stays small

@@ -1,0 +1,6 @@
+.git
+**/*_test.go
+grader
+api
+fly.toml
+*.md

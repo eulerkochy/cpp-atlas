@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctest binary="stage_01" version="2.5.3">
+  <Options order_by="file" rand_seed="0" first="0" last="4294967295" abort_after="0" subcase_filter_levels="2147483647" case_sensitive="false" no_throw="false" no_skip="false"/>
+  <TestSuite>
+    <TestCase name="a default-constructed vector has size() == 0" filename="stage_01.cpp" line="66">
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="69">
+        <Original>
+          v.size() == 0
+        </Original>
+        <Expanded>
+          18446744073709551615 == 0
+        </Expanded>
+        <Info>
+          a vector that was just created holds no elements, so size() must return 0
+        </Info>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="a default-constructed vector is empty()" filename="stage_01.cpp" line="72">
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="75">
+        <Original>
+          v.empty()
+        </Original>
+        <Expanded>
+          false
+        </Expanded>
+        <Info>
+          empty() must be true exactly when size() == 0
+        </Info>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="capacity() is never smaller than size()" filename="stage_01.cpp" line="78">
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="81">
+        <Original>
+          v.capacity() >= v.size()
+        </Original>
+        <Expanded>
+          0 >= 18446744073709551615
+        </Expanded>
+        <Info>
+          capacity() counts allocated slots; it can be 0 for an empty vector, but never less than size()
+        </Info>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="size(), capacity() and empty() work on a const vector" filename="stage_01.cpp" line="84">
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="86">
+        <Original>
+          v.size() == 0
+        </Original>
+        <Expanded>
+          18446744073709551615 == 0
+        </Expanded>
+      </Expression>
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="87">
+        <Original>
+          v.empty()
+        </Original>
+        <Expanded>
+          false
+        </Expanded>
+      </Expression>
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="88">
+        <Original>
+          v.capacity() >= v.size()
+        </Original>
+        <Expanded>
+          0 >= 18446744073709551615
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="3" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="size() returns an unsigned type" filename="stage_01.cpp" line="91">
+      <OverallResultsAsserts successes="1" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="the default constructor is noexcept" filename="stage_01.cpp" line="97">
+      <OverallResultsAsserts successes="1" failures="0" test_case_success="true"/>
+    </TestCase>
+    <TestCase name="an empty vector creates no elements" filename="stage_01.cpp" line="103">
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="107">
+        <Original>
+          v.empty()
+        </Original>
+        <Expanded>
+          false
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="1" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="vector&lt;T> of a type without a default constructor can be created" filename="stage_01.cpp" line="112">
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="116">
+        <Original>
+          v.size() == 0
+        </Original>
+        <Expanded>
+          18446744073709551615 == 0
+        </Expanded>
+      </Expression>
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="117">
+        <Original>
+          v.empty()
+        </Original>
+        <Expanded>
+          false
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="2" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="vectors of different element types are all empty" filename="stage_01.cpp" line="120">
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="124">
+        <Original>
+          strings.size() == 0
+        </Original>
+        <Expanded>
+          18446744073709551615 == 0
+        </Expanded>
+      </Expression>
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="125">
+        <Original>
+          doubles.size() == 0
+        </Original>
+        <Expanded>
+          18446744073709551615 == 0
+        </Expanded>
+      </Expression>
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="126">
+        <Original>
+          tracked.size() == 0
+        </Original>
+        <Expanded>
+          18446744073709551615 == 0
+        </Expanded>
+      </Expression>
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="127">
+        <Original>
+          strings.empty()
+        </Original>
+        <Expanded>
+          false
+        </Expanded>
+      </Expression>
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="128">
+        <Original>
+          doubles.empty()
+        </Original>
+        <Expanded>
+          false
+        </Expanded>
+      </Expression>
+      <Expression success="false" type="CHECK" filename="stage_01.cpp" line="129">
+        <Original>
+          tracked.empty()
+        </Original>
+        <Expanded>
+          false
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="6" test_case_success="false"/>
+    </TestCase>
+  </TestSuite>
+  <OverallResultsAsserts successes="3" failures="15"/>
+  <OverallResultsTestCases successes="2" failures="7" skipped="0"/>
+</doctest>

@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import cPaths from "../data/reference-c/paths.json";
 import cppPaths from "../data/reference/paths.json";
 import tracks from "../content/tracks.json";
+import buildCatalog from "../content/build/catalog.json";
+import vectorChallenge from "../content/build/vector/challenge.json";
 
 /**
  * Unknown reference and topic paths get a real (and fast) 404 status.
@@ -12,12 +14,29 @@ import tracks from "../content/tracks.json";
  * time) answers unknown paths with the not-found page and 404 straight away.
  * Redirect sources never reach this (next.config redirects run first) and
  * known paths pass straight through.
+ *
+ * Build challenge pages (/build/<challenge>[/<stage>]) are checked the same
+ * way against the bundled catalog and challenge JSON. To add a live
+ * challenge, import its challenge.json and add it to CHALLENGE_FILES.
  */
 
 const KNOWN = {
   cpp: new Set<string>(cppPaths),
   c: new Set<string>(cPaths),
 };
+const CHALLENGE_FILES = [vectorChallenge];
+const BUILD_STAGES = new Map<string, Set<string>>(
+  buildCatalog.challenges
+    .filter((c) => c.status === "live")
+    .map((c) => [
+      c.slug,
+      new Set(
+        CHALLENGE_FILES.find((f) => f.slug === c.slug)?.stages.map(
+          (st) => st.slug
+        ) ?? []
+      ),
+    ])
+);
 const TOPICS = new Set<string>(tracks.tracks.flatMap((t) => t.topics));
 
 export function proxy(request: NextRequest) {
@@ -41,6 +60,15 @@ export function proxy(request: NextRequest) {
   if (topic) {
     return TOPICS.has(topic[1]) ? NextResponse.next() : notFound(request);
   }
+  if (pathname.startsWith("/build/")) {
+    const parts = pathname.split("/").filter(Boolean).slice(1);
+    const stages = BUILD_STAGES.get(parts[0] ?? "");
+    const ok =
+      stages !== undefined &&
+      parts.length <= 2 &&
+      (parts.length === 1 || stages.has(parts[1]));
+    return ok ? NextResponse.next() : notFound(request);
+  }
   const m = pathname.match(/^\/w\/(cpp|c)\/(.+?)\/?$/);
   if (!m) return NextResponse.next();
   const lang = m[1] as keyof typeof KNOWN;
@@ -60,5 +88,11 @@ function notFound(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/w/cpp/:path+", "/w/c/:path+", "/topics/:slug"],
+  matcher: [
+    "/",
+    "/w/cpp/:path+",
+    "/w/c/:path+",
+    "/topics/:slug",
+    "/build/:path+",
+  ],
 };

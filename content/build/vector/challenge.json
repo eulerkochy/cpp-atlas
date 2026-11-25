@@ -1,0 +1,25 @@
+{
+  "slug": "vector",
+  "title": "Build your own std::vector",
+  "tagline": "Eight test-driven stages from an empty class to a vector with move semantics, the strong exception guarantee and insert/erase.",
+  "description": "Implement my::vector<T> in a single header, one stage at a time, against a doctest suite that stops at the first failing stage. You manage raw storage and object lifetime by hand, grow geometrically, forward arguments into place, and make reallocation exception-safe. The same tests pass against std::vector, so they check only what the standard guarantees.",
+  "standard": "C++23",
+  "repoPath": "challenges/vector",
+  "repoUrl": "https://github.com/eulerkochy/cpp-vector-challenge",
+  "prerequisites": [
+    "object-lifetime-and-storage",
+    "dynamic-allocation-new-and-delete",
+    "raii-and-resource-management",
+    "copy-and-move"
+  ],
+  "stages": [
+    { "number": 1, "slug": "empty-vector", "title": "Empty vector", "summary": "Declare the class template and its size, capacity and empty observers so the toolchain loop works.", "difficulty": "very-easy", "estimate": "5 min", "atlasTopics": ["sequence-containers", "member-functions-and-this", "noexcept"], "concepts": ["class template", "const member functions", "noexcept observers"], "testFile": "tests/stage_01.cpp" },
+    { "number": 2, "slug": "push-back", "title": "push_back and storage", "summary": "Manage raw storage, construct elements in place and destroy each exactly once.", "difficulty": "easy", "estimate": "30 min", "atlasTopics": ["object-lifetime-and-storage", "dynamic-allocation-new-and-delete", "raii-and-resource-management", "object-layout-and-alignment"], "concepts": ["raw storage", "placement construction", "destructor", "no default construction"], "testFile": "tests/stage_02.cpp" },
+    { "number": 3, "slug": "growth", "title": "Reserve and geometric growth", "summary": "Reallocate geometrically so push_back is amortized constant time, and add reserve.", "difficulty": "medium", "estimate": "45 min", "atlasTopics": ["sequence-containers", "iterator-invalidation", "dynamic-allocation-new-and-delete"], "concepts": ["amortized O(1)", "relocation", "reference invalidation", "aliasing"], "testFile": "tests/stage_03.cpp" },
+    { "number": 4, "slug": "copy-and-move", "title": "Copy and move", "summary": "Implement the rule of five with a pointer-stealing noexcept move and a deep copy.", "difficulty": "medium", "estimate": "45 min", "atlasTopics": ["copy-and-move", "value-categories", "noexcept", "raii-and-resource-management"], "concepts": ["rule of five", "pointer steal", "self-assignment", "move-only elements"], "testFile": "tests/stage_04.cpp" },
+    { "number": 5, "slug": "emplace-back", "title": "emplace_back, pop_back, clear", "summary": "Forward constructor arguments into uninitialized storage and remove elements.", "difficulty": "medium", "estimate": "30 min", "atlasTopics": ["forwarding-references-and-perfect-forwarding", "variadic-templates-and-fold-expressions", "value-categories"], "concepts": ["perfect forwarding", "parameter packs", "construct_at", "destroy_at"], "testFile": "tests/stage_05.cpp" },
+    { "number": 6, "slug": "exception-safety", "title": "Strong exception safety", "summary": "Make reallocation transactional and choose between copying and moving with move_if_noexcept.", "difficulty": "hard", "estimate": "60 min", "atlasTopics": ["exception-safety-guarantees", "exceptions-and-stack-unwinding", "noexcept", "copy-and-move"], "concepts": ["strong guarantee", "rollback", "move_if_noexcept", "two-phase commit"], "testFile": "tests/stage_06.cpp" },
+    { "number": 7, "slug": "iterators", "title": "Iterators and member types", "summary": "Expose contiguous iterators and the standard member typedefs so algorithms and ranges work.", "difficulty": "easy", "estimate": "25 min", "atlasTopics": ["iterator-categories-and-concepts", "pointers-arrays-and-pointer-arithmetic", "algorithms"], "concepts": ["contiguous iterator", "const-correctness", "member typedefs", "data()"], "testFile": "tests/stage_07.cpp" },
+    { "number": 8, "slug": "insert-erase", "title": "insert and erase", "summary": "Shift elements in the middle of the buffer correctly, with aliasing and lifetime rules respected.", "difficulty": "hard", "estimate": "60 min", "atlasTopics": ["containers-and-iterator-invalidation", "iterator-invalidation", "copy-and-move", "algorithms"], "concepts": ["shifting", "move_backward", "aliasing", "basic guarantee"], "testFile": "tests/stage_08.cpp" }
+  ]
+}

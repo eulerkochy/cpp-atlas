@@ -1,0 +1,25 @@
+[cppatlas-ninja 1/6] Building CXX object CMakeFiles/stage_02.dir/tests/stage_02.cpp.o
+FAILED: CMakeFiles/stage_02.dir/tests/stage_02.cpp.o 
+/usr/bin/ccache /usr/local/bin/g++  -I/work/vector/include -I/work/vector/tests/support -g -std=c++20 -fno-diagnostics-color -Wall -Wextra -MD -MT CMakeFiles/stage_02.dir/tests/stage_02.cpp.o -MF CMakeFiles/stage_02.dir/tests/stage_02.cpp.o.d -o CMakeFiles/stage_02.dir/tests/stage_02.cpp.o -c /work/vector/tests/stage_02.cpp
+In file included from /work/vector/tests/support/harness.hpp:26,
+                 from /work/vector/tests/stage_02.cpp:13:
+/work/vector/tests/stage_02.cpp:33:20: error: static assertion failed: stage 2 (push-back): my::vector<T> needs `void push_back(const T& value)`.
+   33 | CPPATLAS_PREFLIGHT(has_push_back,
+      |                    ^~~~~~~~~~~~~
+/work/vector/tests/support/preflight.hpp:63:19: note: in definition of macro 'CPPATLAS_PREFLIGHT'
+   63 |     static_assert(id, message)
+      |                   ^~
+[cppatlas-ninja 2/6] Building CXX object CMakeFiles/stage_03.dir/tests/stage_03.cpp.o
+FAILED: CMakeFiles/stage_03.dir/tests/stage_03.cpp.o 
+/usr/bin/ccache /usr/local/bin/g++  -I/work/vector/include -I/work/vector/tests/support -g -std=c++20 -fno-diagnostics-color -Wall -Wextra -MD -MT CMakeFiles/stage_03.dir/tests/stage_03.cpp.o -MF CMakeFiles/stage_03.dir/tests/stage_03.cpp.o.d -o CMakeFiles/stage_03.dir/tests/stage_03.cpp.o -c /work/vector/tests/stage_03.cpp
+In file included from /work/vector/tests/support/harness.hpp:26,
+                 from /work/vector/tests/stage_03.cpp:13:
+/work/vector/tests/stage_03.cpp:32:20: error: static assertion failed: stage 3 (growth) builds on stage 2: my::vector<T> needs `void push_back(const T& value)`.
+   32 | CPPATLAS_PREFLIGHT(has_push_back,
+      |                    ^~~~~~~~~~~~~
+/work/vector/tests/support/preflight.hpp:63:19: note: in definition of macro 'CPPATLAS_PREFLIGHT'
+   63 |     static_assert(id, message)
+      |                   ^~
+[cppatlas-ninja 3/6] Building CXX object CMakeFiles/stage_01.dir/tests/stage_01.cpp.o
+[cppatlas-ninja 4/6] Linking CXX executable stage_01
+ninja: build stopped: cannot make progress due to previous errors.

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { HomeBuildSection } from "@/components/build/HomeBuildSection";
 import { HomeAtlasPlate } from "@/components/HomeAtlasPlate";
 import { HeroExpressionInspector } from "@/components/HeroExpressionInspector";
 import { HomeDock } from "@/components/HomeDock";
@@ -104,6 +105,12 @@ export default function HomePage() {
               Browse topics
             </Link>
           </div>
+          <p className="settle-line mt-4 text-sm text-ink-soft">
+            New:{" "}
+            <Link href="/build/vector" className={QUIET_LINK}>
+              build your own std::vector, stage by stage
+            </Link>
+          </p>
         </div>
 
         <div
@@ -172,6 +179,8 @@ export default function HomePage() {
           </div>
         ) : null}
       </section>
+
+      <HomeBuildSection />
 
       <section
         aria-labelledby="reference-heading"
