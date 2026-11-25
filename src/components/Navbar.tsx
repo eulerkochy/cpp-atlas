@@ -26,6 +26,7 @@ const NAV_LINKS = [
   { href: "/topics", label: "Topics" },
   { href: "/maps", label: "Maps" },
   { href: "/quiz", label: "Quiz" },
+  { href: "/scroll", label: "Scroll" },
   { href: "/w/cpp", label: "Reference" },
   { href: "/notebook", label: "NotebookLM" },
 ];

@@ -22,6 +22,21 @@ const TOPICS = new Set<string>(tracks.tracks.flatMap((t) => t.topics));
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (pathname === "/") {
+    const rawHost =
+      request.headers.get("x-forwarded-host") ??
+      request.headers.get("host") ??
+      request.nextUrl.hostname;
+    const hostname = rawHost.split(",")[0].trim().split(":")[0].toLowerCase();
+    if (hostname.startsWith("scroll.")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/scroll";
+      return NextResponse.rewrite(url);
+    }
+    return NextResponse.next();
+  }
+
   const topic = pathname.match(/^\/topics\/([^/]+)\/?$/);
   if (topic) {
     return TOPICS.has(topic[1]) ? NextResponse.next() : notFound(request);
@@ -45,5 +60,5 @@ function notFound(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/w/cpp/:path+", "/w/c/:path+", "/topics/:slug"],
+  matcher: ["/", "/w/cpp/:path+", "/w/c/:path+", "/topics/:slug"],
 };

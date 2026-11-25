@@ -86,6 +86,8 @@ const nextConfig: NextConfig = {
     "/api/ai/chat": AI_TRACE_FILES,
     "/api/ai/studio": AI_TRACE_FILES,
     "/api/ai/audio-overview": AI_TRACE_FILES,
+    "/api/scroll/generate": AI_TRACE_FILES,
+    "/api/scroll/feed": AI_TRACE_FILES,
     "/api/notebooklm/push": AI_TRACE_FILES,
     "/api/search": REFERENCE_INDEXES,
     "/explore": REFERENCE_INDEXES,

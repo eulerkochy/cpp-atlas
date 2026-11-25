@@ -1,0 +1,176 @@
+/* ==========================================================================
+ * C++ Atlas /scroll — 16:9 Manim-style technical stage visuals & animations
+ * Always renders crisp white-on-pure-black regardless of site light/dark theme.
+ * ========================================================================== */
+
+.scroll-stage-root {
+  background-color: #050608;
+  color: #ffffff;
+  color-scheme: dark;
+}
+
+.scroll-stage-grid {
+  background-image:
+    radial-gradient(ellipse 80% 70% at 50% 48%, rgba(255, 255, 255, 0.035) 0%, transparent 72%),
+    linear-gradient(to right, rgba(255, 255, 255, 0.032) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.032) 1px, transparent 1px);
+  background-size: 100% 100%, 24px 24px, 24px 24px;
+}
+
+/* Override light-mode globals.css syntax tokens inside the pure-black stage */
+.scroll-stage-code {
+  color: rgba(244, 246, 250, 0.94);
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-variant-ligatures: none;
+}
+
+.scroll-stage-code .tok-kw {
+  color: #7dd3fc;
+  font-weight: 600;
+}
+
+.scroll-stage-code .tok-type {
+  color: #e9d5ff;
+}
+
+.scroll-stage-code .tok-string {
+  color: #fde68a;
+}
+
+.scroll-stage-code .tok-num {
+  color: #fdba74;
+}
+
+.scroll-stage-code .tok-preproc {
+  color: #94a3b8;
+}
+
+.scroll-stage-code .tok-comment {
+  color: #7c8b9e;
+  font-style: italic;
+}
+
+/* Keyframes */
+@keyframes stage-node-halo {
+  0%,
+  100% {
+    opacity: 0.24;
+  }
+  50% {
+    opacity: 0.68;
+  }
+}
+
+@keyframes stage-edge-march {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes stage-beat-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes stage-sheen {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+@keyframes stage-verdict-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes stage-caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stage-node-pulse {
+  animation: stage-node-halo 2.2s ease-in-out infinite;
+}
+
+.stage-edge-flow {
+  stroke-dasharray: 6 6;
+  animation: stage-edge-march 1.05s linear infinite;
+}
+
+.stage-beat-enter {
+  animation: stage-beat-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stage-sheen-sweep {
+  animation: stage-sheen 2.1s ease-in-out infinite;
+}
+
+.stage-verdict-enter {
+  animation: stage-verdict-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stage-caption-enter {
+  animation: stage-caption-in 180ms ease-out both;
+}
+
+/* Freeze continuous animations cleanly when paused or offscreen */
+.scroll-stage-paused .stage-node-pulse,
+.scroll-stage-paused .stage-edge-flow,
+.scroll-stage-paused .stage-sheen-sweep {
+  animation-play-state: paused !important;
+}
+
+/* Subtle dark scrollbar for dense trap snippets */
+.stage-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+.stage-scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.stage-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 9999px;
+}
+
+.stage-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-node-pulse,
+  .stage-edge-flow,
+  .stage-sheen-sweep,
+  .stage-beat-enter,
+  .stage-verdict-enter,
+  .stage-caption-enter {
+    animation: none !important;
+  }
+}
