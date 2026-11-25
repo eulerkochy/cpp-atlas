@@ -8,6 +8,7 @@ import { GeminiTutorProvider } from "@/components/GeminiTutorDrawer";
 import { GoogleNotebookProvider } from "@/components/GoogleNotebookProvider";
 import { Navbar } from "@/components/Navbar";
 import { ProgressProvider } from "@/components/ProgressProvider";
+import { SiteChrome } from "@/components/SiteChrome";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SITE } from "@/lib/site";
 import { getSiteStats, siteDescription, siteTitle } from "@/lib/site-stats";
@@ -125,12 +126,19 @@ export default function RootLayout({
           <ProgressProvider>
             <GoogleNotebookProvider>
               <GeminiTutorProvider>
-                <Navbar />
-                <CommandPalette referencePages={getSiteStats().referencePages} />
-                <main id="main" className="flex-1">
+                <SiteChrome
+                  header={
+                    <>
+                      <Navbar />
+                      <CommandPalette
+                        referencePages={getSiteStats().referencePages}
+                      />
+                    </>
+                  }
+                  footer={<Footer />}
+                >
                   {children}
-                </main>
-                <Footer />
+                </SiteChrome>
               </GeminiTutorProvider>
             </GoogleNotebookProvider>
           </ProgressProvider>
