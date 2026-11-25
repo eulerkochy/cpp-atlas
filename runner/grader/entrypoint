@@ -1,0 +1,4 @@
+#!/bin/sh
+# Image ENTRYPOINT: with no arguments, grade one job (see cppatlas-grader run).
+[ "$#" -eq 0 ] && set -- run
+exec /usr/local/bin/cppatlas-grader "$@"

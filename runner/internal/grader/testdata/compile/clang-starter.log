@@ -1,0 +1,12 @@
+[cppatlas-ninja 1/6] Building CXX object CMakeFiles/stage_01.dir/tests/stage_01.cpp.o
+[cppatlas-ninja 2/6] Building CXX object CMakeFiles/stage_03.dir/tests/stage_03.cpp.o
+FAILED: CMakeFiles/stage_03.dir/tests/stage_03.cpp.o 
+/usr/bin/ccache /usr/bin/clang++-21  -I/work/vector/include -I/work/vector/tests/support -g -std=c++20 -fno-color-diagnostics -Wall -Wextra -MD -MT CMakeFiles/stage_03.dir/tests/stage_03.cpp.o -MF CMakeFiles/stage_03.dir/tests/stage_03.cpp.o.d -o CMakeFiles/stage_03.dir/tests/stage_03.cpp.o -c /work/vector/tests/stage_03.cpp
+/work/vector/tests/stage_03.cpp:46:20: error: static assertion failed due to requirement 'has_reserve': stage 3 (growth): my::vector<T> needs `void reserve(std::size_t new_cap)`.
+   46 | CPPATLAS_PREFLIGHT(has_reserve,
+      |                    ^~~~~~~~~~~
+1 error generated.
+[cppatlas-ninja 3/6] Linking CXX executable stage_01
+[cppatlas-ninja 4/6] Building CXX object CMakeFiles/stage_02.dir/tests/stage_02.cpp.o
+[cppatlas-ninja 5/6] Linking CXX executable stage_02
+ninja: build stopped: cannot make progress due to previous errors.

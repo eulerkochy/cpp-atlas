@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctest binary="stage_02" version="2.5.3">
+  <Options order_by="file" rand_seed="0" first="0" last="4294967295" abort_after="0" subcase_filter_levels="2147483647" case_sensitive="false" no_throw="false" no_skip="false"/>
+  <TestSuite>
+    <TestCase name="push_back on an empty vector stores one element" filename="stage_02.cpp" line="87">
+      <Expression success="false" type="REQUIRE" filename="stage_02.cpp" line="91">
+        <Original>
+          v.size() == 1
+        </Original>
+        <Expanded>
+          18446744073709551615 == 1
+        </Expanded>
+        <Info>
+          after one push_back(42): size() == 1, empty() == false, capacity() >= 1
+        </Info>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="push_back appends in order (a few elements)" filename="stage_02.cpp" line="97">
+      <Expression success="false" type="REQUIRE" filename="stage_02.cpp" line="102">
+        <Original>
+          v.size() == 3
+        </Original>
+        <Expanded>
+          18446744073709551615 == 3
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="push_back keeps every element when the storage grows (100 elements)" filename="stage_02.cpp" line="109">
+      <Message type="FATAL ERROR" filename="stage_02.cpp" line="70">
+        <Text>
+          after 1 push_back calls size() is 18446744073709551615, expected 1
+-> push_back must add exactly one element (and grow the storage when size() == capacity()).
+        </Text>
+      </Message>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="operator[] returns a reference to the stored element" filename="stage_02.cpp" line="121">
+      <Expression success="false" type="REQUIRE" filename="stage_02.cpp" line="126">
+        <Original>
+          v.size() == 3
+        </Original>
+        <Expanded>
+          18446744073709551615 == 3
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="const operator[] reads elements of a const vector" filename="stage_02.cpp" line="139">
+      <Expression success="false" type="REQUIRE" filename="stage_02.cpp" line="143">
+        <Original>
+          v.size() == 2
+        </Original>
+        <Expanded>
+          18446744073709551615 == 2
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="push_back(const T&amp;) copy-constructs the new element in place" filename="stage_02.cpp" line="152">
+      <Expression success="false" type="REQUIRE" filename="stage_02.cpp" line="158">
+        <Original>
+          v.size() == 1
+        </Original>
+        <Expanded>
+          18446744073709551615 == 1
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="storage is allocated without default-constructing T" filename="stage_02.cpp" line="169">
+      <Message type="FATAL ERROR" filename="stage_02.cpp" line="70">
+        <Text>
+          after 1 push_back calls size() is 18446744073709551615, expected 1
+-> push_back must add exactly one element (and grow the storage when size() == capacity()).
+        </Text>
+      </Message>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="works for an element type without a default constructor" filename="stage_02.cpp" line="180">
+      <Message type="FATAL ERROR" filename="stage_02.cpp" line="70">
+        <Text>
+          after 1 push_back calls size() is 18446744073709551615, expected 1
+-> push_back must add exactly one element (and grow the storage when size() == capacity()).
+        </Text>
+      </Message>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="the destructor destroys every element exactly once" filename="stage_02.cpp" line="190">
+      <Message type="FATAL ERROR" filename="stage_02.cpp" line="70">
+        <Text>
+          after 1 push_back calls size() is 18446744073709551615, expected 1
+-> push_back must add exactly one element (and grow the storage when size() == capacity()).
+        </Text>
+      </Message>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="an empty vector and a vector with one element are destroyed cleanly" filename="stage_02.cpp" line="204">
+      <Expression success="false" type="REQUIRE" filename="stage_02.cpp" line="212">
+        <Original>
+          one.size() == 1
+        </Original>
+        <Expanded>
+          18446744073709551615 == 1
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="works with std::string (a type that owns heap memory)" filename="stage_02.cpp" line="218">
+      <Expression success="false" type="REQUIRE" filename="stage_02.cpp" line="225">
+        <Original>
+          v.size() == static_cast&lt;std::size_t>(i) + 1
+        </Original>
+        <Expanded>
+          18446744073709551615 == 1
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="two vectors do not share storage" filename="stage_02.cpp" line="239">
+      <Expression success="false" type="REQUIRE" filename="stage_02.cpp" line="245">
+        <Original>
+          a.size() == 2
+        </Original>
+        <Expanded>
+          18446744073709551615 == 2
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="works with short std::string elements (small-string optimisation)" filename="stage_02.cpp" line="253">
+      <Expression success="false" type="REQUIRE" filename="stage_02.cpp" line="261">
+        <Original>
+          v.size() == static_cast&lt;std::size_t>(i) + 1
+        </Original>
+        <Expanded>
+          18446744073709551615 == 1
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+    <TestCase name="elements of an over-aligned type (alignas(64)) are suitably aligned" filename="stage_02.cpp" line="284">
+      <Expression success="false" type="REQUIRE" filename="stage_02.cpp" line="289">
+        <Original>
+          v.size() == static_cast&lt;std::size_t>(i) + 1
+        </Original>
+        <Expanded>
+          18446744073709551615 == 1
+        </Expanded>
+      </Expression>
+      <OverallResultsAsserts successes="0" failures="1" test_case_success="false"/>
+    </TestCase>
+  </TestSuite>
+  <OverallResultsAsserts successes="0" failures="14"/>
+  <OverallResultsTestCases successes="0" failures="14" skipped="0"/>
+</doctest>

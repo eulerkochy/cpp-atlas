@@ -1,0 +1,37 @@
+{
+  "challenges": [
+    {
+      "slug": "vector",
+      "title": "Build your own std::vector",
+      "tagline": "Eight stages from an empty class to a standard-conforming dynamic array, with exception safety and move semantics tested along the way.",
+      "status": "live",
+      "stageCount": 8,
+      "dependsOn": [],
+      "note": ""
+    },
+    {
+      "slug": "allocators",
+      "title": "Build your own allocator",
+      "tagline": "Write a minimal allocator, then an arena and a pool, and plug them into containers.",
+      "status": "coming-soon",
+      "dependsOn": ["vector"],
+      "note": "Allocator-aware containers, std::pmr and arena or pool resources are easiest to understand once you have written the raw-storage and relocation code of a vector yourself."
+    },
+    {
+      "slug": "coroutines",
+      "title": "Build your own task and generator",
+      "tagline": "Implement promise types, awaiters and symmetric transfer by writing a lazy task and a generator from scratch.",
+      "status": "coming-soon",
+      "dependsOn": [],
+      "note": "Starts from the coroutine frame and promise_type machinery, with no prerequisite challenge."
+    },
+    {
+      "slug": "execution",
+      "title": "Build your own std::execution",
+      "tagline": "Build senders, receivers and operation states, then compose them into algorithms such as then and when_all.",
+      "status": "coming-soon",
+      "dependsOn": ["coroutines"],
+      "note": "Senders and receivers are awaitable and coroutine tasks are senders, so writing your own task and awaiters first makes the connect/start model and operation-state lifetimes much clearer."
+    }
+  ]
+}

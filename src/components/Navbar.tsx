@@ -34,7 +34,14 @@ const NAV_LINKS = [
 const STUDY_LINK = { href: "/study", label: "Study" };
 const STANDARDS_LINK = { href: "/standards", label: "C++11–26" };
 
-const ALL_ACTIVE_CANDIDATES = [...NAV_LINKS, STUDY_LINK, STANDARDS_LINK];
+const BUILD_LINK = { href: "/build", label: "Build" };
+
+const ALL_ACTIVE_CANDIDATES = [
+  ...NAV_LINKS,
+  BUILD_LINK,
+  STUDY_LINK,
+  STANDARDS_LINK,
+];
 
 function getActiveNavHref(pathname: string): string | undefined {
   if (pathname === "/") return "/";
@@ -56,6 +63,7 @@ function NavLinksStatic({
   studyCount?: number;
 }) {
   const studyActive = active === STUDY_LINK.href;
+  const buildActive = active === BUILD_LINK.href;
 
   return (
     <>
@@ -80,6 +88,18 @@ function NavLinksStatic({
           </Link>
         );
       })}
+      <Link
+        href={BUILD_LINK.href}
+        aria-current={buildActive ? "page" : undefined}
+        className={cn(
+          "hidden h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[0.9rem] whitespace-nowrap transition-colors lg:inline-flex",
+          buildActive
+            ? "bg-sun text-ink font-medium"
+            : "text-ink-soft hover:bg-ink/5 hover:text-ink"
+        )}
+      >
+        <span>{BUILD_LINK.label}</span>
+      </Link>
       <Link
         href={STUDY_LINK.href}
         aria-current={studyActive ? "page" : undefined}
@@ -125,6 +145,7 @@ function NavLinks() {
 const MOBILE_NAV_LINKS = [
   { href: "/", label: "Home" },
   ...NAV_LINKS,
+  BUILD_LINK,
   STUDY_LINK,
   STANDARDS_LINK,
 ];

@@ -1,0 +1,43 @@
+[cppatlas-ninja 1/6] Building CXX object CMakeFiles/stage_01.dir/tests/stage_01.cpp.o
+[cppatlas-ninja 2/6] Linking CXX executable stage_01
+FAILED: stage_01 
+: && /usr/local/bin/g++ -g -Wl,--dependency-file=CMakeFiles/stage_01.dir/link.d CMakeFiles/stage_01.dir/tests/stage_01.cpp.o -o stage_01  libcppatlas_doctest_main.a && :
+/usr/bin/ld: CMakeFiles/stage_01.dir/tests/stage_01.cpp.o: in function `my::vector<int>::size() const':
+/work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorIiE4sizeEv[_ZNK2my6vectorIiE4sizeEv]+0x10): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: /work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorIiE4sizeEv[_ZNK2my6vectorIiE4sizeEv]+0x14): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: CMakeFiles/stage_01.dir/tests/stage_01.cpp.o: in function `my::vector<cppatlas::BasicTracked<cppatlas::TrackedTraits{false, true, true, true}> >::size() const':
+/work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb0ELb1ELb1ELb1EEEEEE4sizeEv[_ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb0ELb1ELb1ELb1EEEEEE4sizeEv]+0x10): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: /work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb0ELb1ELb1ELb1EEEEEE4sizeEv[_ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb0ELb1ELb1ELb1EEEEEE4sizeEv]+0x14): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: CMakeFiles/stage_01.dir/tests/stage_01.cpp.o: in function `my::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >::size() const':
+/work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEE4sizeEv[_ZNK2my6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEE4sizeEv]+0x10): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: CMakeFiles/stage_01.dir/tests/stage_01.cpp.o:/work/vector/include/my/vector.hpp:63: more undefined references to `cppatlas_missing_symbol' follow
+collect2: error: ld returned 1 exit status
+[cppatlas-ninja 3/6] Building CXX object CMakeFiles/stage_02.dir/tests/stage_02.cpp.o
+[cppatlas-ninja 4/6] Linking CXX executable stage_02
+FAILED: stage_02 
+: && /usr/local/bin/g++ -g -Wl,--dependency-file=CMakeFiles/stage_02.dir/link.d CMakeFiles/stage_02.dir/tests/stage_02.cpp.o -o stage_02  libcppatlas_doctest_main.a && :
+/usr/bin/ld: CMakeFiles/stage_02.dir/tests/stage_02.cpp.o: in function `my::vector<(anonymous namespace)::Wide>::size() const':
+/work/vector/include/my/vector.hpp:63:(.text+0x9b94): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: /work/vector/include/my/vector.hpp:63:(.text+0x9b98): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: CMakeFiles/stage_02.dir/tests/stage_02.cpp.o: in function `my::vector<int>::size() const':
+/work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorIiE4sizeEv[_ZNK2my6vectorIiE4sizeEv]+0x10): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: /work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorIiE4sizeEv[_ZNK2my6vectorIiE4sizeEv]+0x14): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: CMakeFiles/stage_02.dir/tests/stage_02.cpp.o: in function `my::vector<cppatlas::BasicTracked<cppatlas::TrackedTraits{true, true, true, true}> >::size() const':
+/work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb1ELb1ELb1ELb1EEEEEE4sizeEv[_ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb1ELb1ELb1ELb1EEEEEE4sizeEv]+0x10): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: CMakeFiles/stage_02.dir/tests/stage_02.cpp.o:/work/vector/include/my/vector.hpp:63: more undefined references to `cppatlas_missing_symbol' follow
+collect2: error: ld returned 1 exit status
+[cppatlas-ninja 5/6] Building CXX object CMakeFiles/stage_03.dir/tests/stage_03.cpp.o
+[cppatlas-ninja 6/6] Linking CXX executable stage_03
+FAILED: stage_03 
+: && /usr/local/bin/g++ -g -Wl,--dependency-file=CMakeFiles/stage_03.dir/link.d CMakeFiles/stage_03.dir/tests/stage_03.cpp.o -o stage_03  libcppatlas_doctest_main.a && :
+/usr/bin/ld: CMakeFiles/stage_03.dir/tests/stage_03.cpp.o: in function `my::vector<cppatlas::BasicTracked<cppatlas::TrackedTraits{true, true, true, true}> >::size() const':
+/work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb1ELb1ELb1ELb1EEEEEE4sizeEv[_ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb1ELb1ELb1ELb1EEEEEE4sizeEv]+0x10): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: /work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb1ELb1ELb1ELb1EEEEEE4sizeEv[_ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb1ELb1ELb1ELb1EEEEEE4sizeEv]+0x14): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: CMakeFiles/stage_03.dir/tests/stage_03.cpp.o: in function `my::vector<cppatlas::BasicTracked<cppatlas::TrackedTraits{false, true, true, true}> >::size() const':
+/work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb0ELb1ELb1ELb1EEEEEE4sizeEv[_ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb0ELb1ELb1ELb1EEEEEE4sizeEv]+0x10): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: /work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb0ELb1ELb1ELb1EEEEEE4sizeEv[_ZNK2my6vectorIN8cppatlas12BasicTrackedIXtlNS1_13TrackedTraitsELb0ELb1ELb1ELb1EEEEEE4sizeEv]+0x14): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: CMakeFiles/stage_03.dir/tests/stage_03.cpp.o: in function `my::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >::size() const':
+/work/vector/include/my/vector.hpp:63:(.text._ZNK2my6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEE4sizeEv[_ZNK2my6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEE4sizeEv]+0x10): undefined reference to `cppatlas_missing_symbol'
+/usr/bin/ld: CMakeFiles/stage_03.dir/tests/stage_03.cpp.o:/work/vector/include/my/vector.hpp:63: more undefined references to `cppatlas_missing_symbol' follow
+collect2: error: ld returned 1 exit status
+ninja: build stopped: cannot make progress due to previous errors.
