@@ -8,7 +8,7 @@ import { buildOgImageUrl, SITE } from "@/lib/site";
 export function generateMetadata(): Metadata {
   const title = "Build it yourself";
   const description =
-    "Hands-on C++ challenges: implement std::vector from an empty class, stage by stage, against a real test suite graded remotely, with each stage linked to the Atlas topics behind it.";
+    "Hands-on C++ challenges: implement std::vector, a UCI chess engine, and more from scratch, stage by stage, against a real test suite graded remotely.";
   const ogImage = buildOgImageUrl({
     title: "Build it yourself",
     kicker: "C++ Atlas Challenges",

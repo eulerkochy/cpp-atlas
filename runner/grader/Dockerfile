@@ -120,8 +120,10 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 # ---------------------------------------------------------------- grader
 FROM toolchain AS grader
 ARG CHALLENGE=vector
+ARG ALLOWED_PREFIXES=include/
 ARG GRADER_VERSION=dev
-ENV LANG=C.UTF-8
+ENV LANG=C.UTF-8 \
+    CPPATLAS_ALLOWED_PREFIXES=${ALLOWED_PREFIXES}
 
 LABEL com.cppatlas.grader.version="${GRADER_VERSION}" \
       com.cppatlas.challenge="${CHALLENGE}" \

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -599,5 +600,83 @@ func TestLoadChallenges(t *testing.T) {
 	s.Stages = []int{9}
 	if _, err := m.Submit(context.Background(), s); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func chessSub() protocol.Submission {
+	return protocol.Submission{
+		Challenge: "chess",
+		Source:    protocol.SourceWeb,
+		Files: map[string]string{
+			"include/chess/types.hpp":    "#pragma once\n",
+			"include/chess/bitboard.hpp": "#pragma once\n",
+			"include/chess/magic.hpp":    "#pragma once\n",
+			"include/chess/position.hpp": "#pragma once\n",
+			"include/chess/movegen.hpp":  "#pragma once\n",
+			"include/chess/eval.hpp":     "#pragma once\n",
+			"include/chess/tt.hpp":       "#pragma once\n",
+			"include/chess/search.hpp":   "#pragma once\n",
+			"include/chess/uci.hpp":      "#pragma once\n",
+			"include/chess/chess.hpp":    "#pragma once\n",
+			"src/main.cpp":               "int main() { return 0; }\n",
+		},
+	}
+}
+
+func TestChessChallengeSpec(t *testing.T) {
+	if err := ValidateChallenges(DefaultChallenges()); err != nil {
+		t.Fatalf("DefaultChallenges invalid: %v", err)
+	}
+	m := newTestManager(t, Config{}, &fakeBackend{})
+	spec, ok := m.Challenge("chess")
+	if !ok {
+		t.Fatal("default registry missing chess challenge")
+	}
+	if spec.Stages != 9 || len(spec.AllowedFiles) != 11 || len(spec.RequiredFiles) != 11 ||
+		!slices.Contains(spec.AllowedFiles, "include/chess/magic.hpp") ||
+		!slices.Contains(spec.RequiredFiles, "include/chess/magic.hpp") ||
+		spec.MaxFileBytes != 256<<10 || spec.MaxTotalBytes != 512<<10 {
+		t.Fatalf("unexpected chess spec: %+v", spec)
+	}
+
+	sub9 := chessSub()
+	sub9.Stages = []int{1, 2, 3, 4, 5, 6, 7, 8, 9}
+	if _, _, _, err := m.validate(sub9); err != nil {
+		t.Fatalf("valid 11-file chess submission rejected: %v", err)
+	}
+
+	var ve *protocol.ValidationError
+	badStage := chessSub()
+	badStage.Stages = []int{10}
+	if _, _, _, err := m.validate(badStage); !errors.As(err, &ve) || ve.Field != "stage" {
+		t.Fatalf("stage 10: want ValidationError(stage), got %v", err)
+	}
+
+	missing := chessSub()
+	delete(missing.Files, "src/main.cpp")
+	if _, _, _, err := m.validate(missing); !errors.As(err, &ve) || ve.Field != "files" {
+		t.Fatalf("missing required file: want ValidationError(files), got %v", err)
+	}
+
+	missingMagic := chessSub()
+	delete(missingMagic.Files, "include/chess/magic.hpp")
+	if _, _, _, err := m.validate(missingMagic); !errors.As(err, &ve) || ve.Field != "files" {
+		t.Fatalf("missing magic.hpp: want ValidationError(files), got %v", err)
+	}
+
+	extra := chessSub()
+	extra.Files["include/chess/extra.hpp"] = "#pragma once\n"
+	if _, _, _, err := m.validate(extra); !errors.As(err, &ve) || ve.Field != "files" {
+		t.Fatalf("disallowed file: want ValidationError(files), got %v", err)
+	}
+
+	// Three files each under MaxFileBytes (256 KiB), but summing over MaxTotalBytes (512 KiB).
+	tooBigTotal := chessSub()
+	chunk := strings.Repeat("a", 200<<10)
+	tooBigTotal.Files["include/chess/position.hpp"] = chunk
+	tooBigTotal.Files["include/chess/movegen.hpp"] = chunk
+	tooBigTotal.Files["include/chess/search.hpp"] = chunk
+	if _, _, _, err := m.validate(tooBigTotal); !errors.As(err, &ve) || ve.Field != "files" || !ve.TooLarge {
+		t.Fatalf("total cap exceeded: want TooLarge ValidationError(files), got %v", err)
 	}
 }

@@ -5,7 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 
 const title = "Grader connected";
 const description =
-  "The c-atlas-grader GitHub App is installed. Pushes to repositories with a .cppatlas.json are graded and get a cppatlas / vector check.";
+  "The c-atlas-grader GitHub App is installed. Pushes to repositories with a .cppatlas.json are graded and receive a cppatlas check.";
 
 export const metadata: Metadata = {
   title,
@@ -38,12 +38,12 @@ export default function ConnectedPage() {
           anything else on GitHub.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Link href="/build/vector/empty-vector" className={buttonVariants({ size: "lg" })}>
-            Go to stage 1
+          <Link href="/build" className={buttonVariants({ size: "lg" })}>
+            Browse challenges
             <ArrowRight className="size-4" aria-hidden />
           </Link>
           <Link href="/build/vector" className={buttonVariants({ size: "lg", variant: "outline" })}>
-            See all stages
+            Vector challenge
           </Link>
         </div>
       </header>
@@ -59,13 +59,13 @@ export default function ConnectedPage() {
               the repository. Repositories without one are ignored.
             </li>
             <li>
-              It reads that file and <code className={CODE}>include/my/vector.hpp</code>{" "}
-              at the pushed commit.
+              It reads that file and your solution files at the pushed commit.
             </li>
             <li>It grades stages 1 through your current stage.</li>
             <li>
-              It posts a check named <code className={CODE}>cppatlas / vector</code>{" "}
-              on the commit.
+              It posts a check named{" "}
+              <code className={CODE}>cppatlas / &lt;challenge&gt;</code> on the
+              commit.
             </li>
           </ul>
         </section>

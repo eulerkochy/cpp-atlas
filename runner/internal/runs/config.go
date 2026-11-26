@@ -170,16 +170,39 @@ func MergeLimits(l protocol.Limits) protocol.Limits {
 	return l
 }
 
-// DefaultChallenges is the built-in registry: the 8-stage std::vector challenge.
+// DefaultChallenges is the built-in registry: the 8-stage std::vector and 9-stage chess challenges.
 func DefaultChallenges() []protocol.ChallengeSpec {
-	return []protocol.ChallengeSpec{{
-		Name:          "vector",
-		Stages:        8,
-		AllowedFiles:  []string{"include/my/vector.hpp"},
-		RequiredFiles: []string{"include/my/vector.hpp"},
-		MaxFileBytes:  256 << 10,
-		MaxTotalBytes: 256 << 10,
-	}}
+	chessFiles := []string{
+		"include/chess/types.hpp",
+		"include/chess/bitboard.hpp",
+		"include/chess/magic.hpp",
+		"include/chess/position.hpp",
+		"include/chess/movegen.hpp",
+		"include/chess/eval.hpp",
+		"include/chess/tt.hpp",
+		"include/chess/search.hpp",
+		"include/chess/uci.hpp",
+		"include/chess/chess.hpp",
+		"src/main.cpp",
+	}
+	return []protocol.ChallengeSpec{
+		{
+			Name:          "vector",
+			Stages:        8,
+			AllowedFiles:  []string{"include/my/vector.hpp"},
+			RequiredFiles: []string{"include/my/vector.hpp"},
+			MaxFileBytes:  256 << 10,
+			MaxTotalBytes: 256 << 10,
+		},
+		{
+			Name:          "chess",
+			Stages:        9,
+			AllowedFiles:  chessFiles,
+			RequiredFiles: append([]string(nil), chessFiles...),
+			MaxFileBytes:  256 << 10,
+			MaxTotalBytes: 512 << 10,
+		},
+	}
 }
 
 // LoadChallenges reads a challenge registry from a JSON file: either an array
