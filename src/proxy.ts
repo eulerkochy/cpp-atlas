@@ -4,6 +4,7 @@ import cppPaths from "../data/reference/paths.json";
 import tracks from "../content/tracks.json";
 import buildCatalog from "../content/build/catalog.json";
 import vectorChallenge from "../content/build/vector/challenge.json";
+import chessChallenge from "../content/build/chess/challenge.json";
 
 /**
  * Unknown reference and topic paths get a real (and fast) 404 status.
@@ -26,7 +27,7 @@ const KNOWN = {
   cpp: new Set<string>(cppPaths),
   c: new Set<string>(cPaths),
 };
-const CHALLENGE_FILES = [vectorChallenge];
+const CHALLENGE_FILES = [vectorChallenge, chessChallenge];
 const BUILD_STAGES = new Map<string, Set<string>>(
   buildCatalog.challenges
     .filter((c) => c.status === "live")

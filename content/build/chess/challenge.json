@@ -1,0 +1,160 @@
+{
+  "slug": "chess",
+  "title": "Build your own chess engine",
+  "tagline": "Nine test-driven stages from bitboards and magic bitboards to Perft-verified move generation, alpha-beta search, transposition tables, and UCI.",
+  "description": "Implement a complete C++23 chess engine under include/chess/, one stage at a time, against a doctest suite that stops at the first failing stage. You pair a 64-square mailbox with 64-bit bitboards, take sliding attack generation from ~20 ns naive rays to <1 ns fancy magic bitboards, build incremental make/unmake with Zobrist hashing, verify legal move generation against Perft ground truth, and climb from static evaluation to quiescence search, transposition tables, and a working UCI binary.",
+  "standard": "C++23",
+  "repoPath": "challenges/chess",
+  "repoUrl": "https://github.com/eulerkochy/cpp-chess-challenge",
+  "prerequisites": [
+    "bit-manipulation",
+    "enumerations-and-unions",
+    "optional-expected-and-error-codes",
+    "strings-and-string-view",
+    "array-bitset-and-vector-bool"
+  ],
+  "stages": [
+    {
+      "number": 1,
+      "slug": "board-and-fen",
+      "title": "Board representation and FEN",
+      "summary": "Keep a 64-square mailbox and piece/color bitboards in sync, and parse and serialize FEN strings with std::expected.",
+      "difficulty": "easy",
+      "estimate": "35 min",
+      "atlasTopics": [
+        "enumerations-and-unions",
+        "optional-expected-and-error-codes",
+        "strings-and-string-view",
+        "array-bitset-and-vector-bool"
+      ],
+      "concepts": ["FEN parsing", "std::expected", "mailbox + bitboard sync", "square indexing"],
+      "testFile": "tests/stage_01.cpp"
+    },
+    {
+      "number": 2,
+      "slug": "bitboards-and-attacks",
+      "title": "Bitboards, directional shifts and naive sliders",
+      "summary": "Implement if-constexpr directional shifts without wrap-around, consteval leaper tables, ASCII debugging, and unary-fold naive sliding attacks.",
+      "difficulty": "medium",
+      "estimate": "45 min",
+      "atlasTopics": [
+        "bit-manipulation",
+        "constant-expressions",
+        "variadic-templates-and-fold-expressions",
+        "attributes"
+      ],
+      "concepts": ["if constexpr shifts", "[[nodiscard]]", "consteval tables", "unary fold rays"],
+      "testFile": "tests/stage_02.cpp"
+    },
+    {
+      "number": 3,
+      "slug": "magic-bitboards",
+      "title": "Magic bitboards: from 20ns to 1ns",
+      "summary": "Replace ~20 ns ray loops with <1 ns fancy magic bitboards using relevancy masks, Carry-Rippler subsets, sparse magics, and hardware PEXT.",
+      "difficulty": "hard",
+      "estimate": "60 min",
+      "atlasTopics": [
+        "bit-manipulation",
+        "constant-expressions",
+        "integer-arithmetic-and-overflow",
+        "random-numbers"
+      ],
+      "concepts": ["relevancy masks", "Carry-Rippler", "fancy magic tables", "BMI2 PEXT"],
+      "testFile": "tests/stage_03.cpp"
+    },
+    {
+      "number": 4,
+      "slug": "make-unmake-and-zobrist",
+      "title": "Make, unmake and Zobrist hashing",
+      "summary": "Apply and undo every chess move type in place using an UndoState snapshot while updating a Zobrist key incrementally.",
+      "difficulty": "medium",
+      "estimate": "60 min",
+      "atlasTopics": [
+        "object-layout-and-alignment",
+        "bit-manipulation",
+        "random-numbers",
+        "sequence-containers"
+      ],
+      "concepts": ["make/unmake", "en passant", "castling rights", "Zobrist hashing"],
+      "testFile": "tests/stage_04.cpp"
+    },
+    {
+      "number": 5,
+      "slug": "movegen-and-perft",
+      "title": "Legal move generation and perft",
+      "summary": "Generate all legal moves including castling, promotions, and en passant pins, and match Perft counts across benchmark positions.",
+      "difficulty": "hard",
+      "estimate": "75 min",
+      "atlasTopics": [
+        "array-bitset-and-vector-bool",
+        "bit-manipulation",
+        "optional-expected-and-error-codes",
+        "algorithms"
+      ],
+      "concepts": ["pseudo-legal vs legal", "en passant pin", "castling through check", "Perft"],
+      "testFile": "tests/stage_05.cpp"
+    },
+    {
+      "number": 6,
+      "slug": "evaluation",
+      "title": "Static evaluation",
+      "summary": "Score positions from the side to move using material values, color-mirrored piece-square tables, and endgame king activity.",
+      "difficulty": "easy",
+      "estimate": "35 min",
+      "atlasTopics": [
+        "constant-expressions",
+        "integer-arithmetic-and-overflow",
+        "array-bitset-and-vector-bool",
+        "noexcept"
+      ],
+      "concepts": ["centipawns", "piece-square tables", "color symmetry", "tapered eval"],
+      "testFile": "tests/stage_06.cpp"
+    },
+    {
+      "number": 7,
+      "slug": "alpha-beta-and-quiescence",
+      "title": "Alpha-beta search and quiescence",
+      "summary": "Implement negamax with alpha-beta pruning, MVV-LVA capture ordering, quiescence search, and distance-to-mate scoring.",
+      "difficulty": "hard",
+      "estimate": "75 min",
+      "atlasTopics": [
+        "algorithms",
+        "integer-arithmetic-and-overflow",
+        "sequence-containers"
+      ],
+      "concepts": ["negamax", "alpha-beta pruning", "quiescence search", "horizon effect"],
+      "testFile": "tests/stage_07.cpp"
+    },
+    {
+      "number": 8,
+      "slug": "transposition-table",
+      "title": "Transposition table and iterative deepening",
+      "summary": "Cache search bounds in a power-of-two transposition table with ply-normalized mate scores, iterative deepening, and time/node limits.",
+      "difficulty": "hard",
+      "estimate": "75 min",
+      "atlasTopics": [
+        "callable-wrappers",
+        "chrono",
+        "atomics-and-memory-ordering",
+        "object-layout-and-alignment"
+      ],
+      "concepts": ["transposition table", "mate-score normalization", "iterative deepening", "std::atomic stop"],
+      "testFile": "tests/stage_08.cpp"
+    },
+    {
+      "number": 9,
+      "slug": "uci-protocol",
+      "title": "UCI protocol and draw detection",
+      "summary": "Detect threefold repetition, fifty-move, and insufficient-material draws, and speak the Universal Chess Interface over stdin/stdout.",
+      "difficulty": "medium",
+      "estimate": "50 min",
+      "atlasTopics": [
+        "iostreams",
+        "strings-and-string-view",
+        "sequence-containers"
+      ],
+      "concepts": ["UCI protocol", "threefold repetition", "fifty-move rule", "insufficient material"],
+      "testFile": "tests/stage_09.cpp"
+    }
+  ]
+}

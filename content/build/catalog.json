@@ -10,6 +10,15 @@
       "note": ""
     },
     {
+      "slug": "chess",
+      "title": "Build your own chess engine",
+      "tagline": "Nine stages from bitboards, directional shifts, and magic bitboards to Perft-verified legal movegen, alpha-beta with quiescence, transposition tables, and UCI.",
+      "status": "live",
+      "stageCount": 9,
+      "dependsOn": [],
+      "note": ""
+    },
+    {
       "slug": "allocators",
       "title": "Build your own allocator",
       "tagline": "Write a minimal allocator, then an arena and a pool, and plug them into containers.",

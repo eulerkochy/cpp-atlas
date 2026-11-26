@@ -848,7 +848,7 @@ export function GraderPanel({ challenge, challengeTitle, stage, stages, starter 
             {passedStage >= lastStage ? (
               <>
                 <p className="font-display text-xl font-[450] tracking-[-0.01em] text-ink">
-                  All {lastStage} stages pass. You built std::vector.
+                  All {lastStage} stages pass. You completed {challengeTitle}.
                 </p>
                 <Link
                   href={`/build/${challenge}`}

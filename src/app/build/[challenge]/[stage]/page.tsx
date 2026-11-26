@@ -137,7 +137,9 @@ export default async function StagePage({ params }: { params: Params }) {
               </h2>
               <p className="text-[0.98rem] leading-relaxed text-ink-soft">
                 {stage.number === 1
-                  ? "The grader builds your header and runs the stage 1 tests."
+                  ? starter
+                    ? "The grader builds your header and runs the stage 1 tests."
+                    : "The grader builds your project and runs the stage 1 tests."
                   : `The grader runs stages 1 to ${stage.number} in order and stops at the first stage that fails.`}
               </p>
             </div>
@@ -152,19 +154,42 @@ export default async function StagePage({ params }: { params: Params }) {
                 <code className="font-mono text-[0.9em]">./cppatlas test {stage.number}</code>. They live in{" "}
                 <code className="font-mono text-[0.9em]">{stage.testFile}</code>.
               </p>
+              {!starter ? (
+                <div className="space-y-2 border-t border-line pt-3 text-sm text-ink-soft">
+                  <p>
+                    Or push your commits to GitHub with{" "}
+                    <code className="font-mono text-[0.9em]">.cppatlas.json</code> at stage{" "}
+                    <code className="font-mono text-[0.9em]">{stage.number}</code>: the{" "}
+                    <a
+                      href="https://github.com/apps/c-atlas-grader/installations/new"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-ink underline decoration-line-strong underline-offset-3 hover:decoration-ink"
+                    >
+                      c-atlas-grader
+                    </a>{" "}
+                    app posts a <code className="font-mono text-[0.9em]">cppatlas / {challenge}</code> check on every push.
+                  </p>
+                  <pre className="overflow-x-auto rounded-[var(--radius-chip)] border border-line bg-paper-raised px-4 py-2.5 font-mono text-[0.8rem] text-ink-body">
+                    <code>git add -A && git commit -m &quot;stage {stage.number}&quot; && git push</code>
+                  </pre>
+                </div>
+              ) : null}
               <div className="pt-1">
                 <StageDoneButton id={`${challenge}/${stage.slug}`} />
               </div>
             </div>
 
-            <GraderPanel
-              key={stage.slug}
-              challenge={challenge}
-              challengeTitle={data.challenge.title}
-              stage={stage.number}
-              stages={allStages}
-              starter={starter}
-            />
+            {starter ? (
+              <GraderPanel
+                key={stage.slug}
+                challenge={challenge}
+                challengeTitle={data.challenge.title}
+                stage={stage.number}
+                stages={allStages}
+                starter={starter}
+              />
+            ) : null}
           </section>
 
           <nav aria-label="Adjacent stages" className="grid max-w-[var(--measure)] gap-4 border-t border-line pt-8 sm:grid-cols-2">

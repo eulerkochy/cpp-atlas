@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, ExternalLink } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { ChessWorkbench } from "@/components/build/ChessWorkbench";
 import { DifficultyBadge } from "@/components/build/DifficultyBadge";
 import { StageDoneCount, StageDoneDot } from "@/components/build/StageDone";
 import { JsonLd } from "@/components/JsonLd";
@@ -11,33 +12,35 @@ import { TopicMarkdown } from "@/components/TopicMarkdown";
 import { getBuildChallenge, getLiveChallengeSlugs } from "@/lib/build-challenges";
 import { absoluteUrl, buildOgImageUrl, SITE } from "@/lib/site";
 
-const SETUP: { title: string; body: ReactNode; href?: string; cta?: string }[] = [
-  { title: "Use the template", body: "Make your own copy of the challenge repository." },
-  { title: "Clone it", body: "Or open it in a Codespace." },
-  {
-    title: "Submit",
-    body: (
-      <>
-        Run <code className="font-mono text-[0.9em] text-ink">./cppatlas submit</code>. A pass advances{" "}
-        <code className="font-mono text-[0.9em] text-ink">.cppatlas.json</code>.
-      </>
-    ),
-  },
-  {
-    title: "Install the app",
-    body: "Optional. Grades every push, on any or all of your repositories.",
-    href: "https://github.com/apps/c-atlas-grader/installations/new",
-    cta: "Install c-atlas-grader",
-  },
-  {
-    title: "Push",
-    body: (
-      <>
-        Look for the <code className="font-mono text-[0.9em] text-ink">cppatlas / vector</code> check on the commit.
-      </>
-    ),
-  },
-];
+function buildSetupSteps(slug: string): { title: string; body: ReactNode; href?: string; cta?: string }[] {
+  return [
+    { title: "Use the template", body: "Make your own copy of the challenge repository." },
+    { title: "Clone it", body: "Or open it in a Codespace." },
+    {
+      title: "Submit",
+      body: (
+        <>
+          Run <code className="font-mono text-[0.9em] text-ink">./cppatlas submit</code>. A pass advances{" "}
+          <code className="font-mono text-[0.9em] text-ink">.cppatlas.json</code>.
+        </>
+      ),
+    },
+    {
+      title: "Install the app",
+      body: "Optional. Grades every push, on any or all of your repositories.",
+      href: "https://github.com/apps/c-atlas-grader/installations/new",
+      cta: "Install c-atlas-grader",
+    },
+    {
+      title: "Push",
+      body: (
+        <>
+          Look for the <code className="font-mono text-[0.9em] text-ink">cppatlas / {slug}</code> check on the commit.
+        </>
+      ),
+    },
+  ];
+}
 
 type Params = Promise<{ challenge: string }>;
 
@@ -76,6 +79,7 @@ export default async function ChallengePage({ params }: { params: Params }) {
   const challenge = getBuildChallenge(slug);
   if (!challenge) notFound();
 
+  const setupSteps = buildSetupSteps(challenge.slug);
   const stageIds = challenge.stages.map((s) => `${challenge.slug}/${s.slug}`);
   const jsonLd = {
     "@context": "https://schema.org",
@@ -146,7 +150,7 @@ export default async function ChallengePage({ params }: { params: Params }) {
             Set up in five steps
           </h2>
           <ol className="grid divide-y divide-line md:grid-cols-5 md:divide-x md:divide-y-0">
-            {SETUP.map((step, i) => (
+            {setupSteps.map((step, i) => (
               <li key={step.title} className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 p-5 md:block">
                 <span className="font-display text-xl leading-none font-[450] text-ink-faint tabular-nums md:block">
                   {i + 1}
@@ -171,6 +175,12 @@ export default async function ChallengePage({ params }: { params: Params }) {
           </ol>
         </section>
       </header>
+
+      {challenge.slug === "chess" ? (
+        <div className="mx-auto max-w-6xl px-4 pb-12 sm:px-6">
+          <ChessWorkbench />
+        </div>
+      ) : null}
 
       <div className="mx-auto grid max-w-6xl gap-12 px-4 pb-16 sm:px-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
         <div className="min-w-0 space-y-12">

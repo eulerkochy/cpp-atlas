@@ -89,6 +89,11 @@ if [ "$PUSH_FLY" = 1 ]; then
   PUSH_ARGS=(--push)
 fi
 
+ALLOWED_PREFIXES="include/"
+if [ "$CHALLENGE" = "chess" ] || [ -d "$STAGE_DIR/src" ]; then
+  ALLOWED_PREFIXES="include/,src/"
+fi
+
 echo "== building target=$TARGET platform=$PLATFORM tag=$TAG version=$GRADER_VERSION"
 docker buildx build \
   --platform "$PLATFORM" \
@@ -96,6 +101,7 @@ docker buildx build \
   --file "$RUNNER_DIR/grader/Dockerfile" \
   --build-context "challenge=$STAGE_DIR" \
   --build-arg "CHALLENGE=$CHALLENGE" \
+  --build-arg "ALLOWED_PREFIXES=$ALLOWED_PREFIXES" \
   --build-arg "GRADER_VERSION=$GRADER_VERSION" \
   --tag "$TAG" \
   "${PUSH_ARGS[@]}" \

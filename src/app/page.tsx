@@ -107,8 +107,8 @@ export default function HomePage() {
           </div>
           <p className="settle-line mt-4 text-sm text-ink-soft">
             New:{" "}
-            <Link href="/build/vector" className={QUIET_LINK}>
-              build your own std::vector, stage by stage
+            <Link href="/build" className={QUIET_LINK}>
+              build std::vector or a chess engine, stage by stage
             </Link>
           </p>
         </div>
