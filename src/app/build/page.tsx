@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { BuildCatalogProgress } from "@/components/build/BuildCatalogProgress";
 import { PageHeader } from "@/components/PageHeader";
-import { getBuildCatalog } from "@/lib/build-challenges";
+import {
+  getBuildCatalog,
+  getBuildChallenge,
+  getChallengeStarter,
+} from "@/lib/build-challenges";
 import { buildOgImageUrl, SITE } from "@/lib/site";
 
 export function generateMetadata(): Metadata {
@@ -50,28 +55,65 @@ export default function BuildIndexPage() {
           <h2 id="live-heading" className="font-display text-2xl font-[450] tracking-[-0.02em] text-ink">
             Available now
           </h2>
-          <ul className="grid gap-4 md:grid-cols-2">
-            {live.map((c) => (
-              <li key={c.slug}>
-                <Link
-                  href={`/build/${c.slug}`}
-                  className="group flex h-full flex-col rounded-[var(--radius-panel)] border border-line bg-paper-raised p-6 transition-colors hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                >
-                  <h3 className="font-display text-xl font-[450] tracking-[-0.02em] text-ink decoration-sun decoration-2 underline-offset-4 group-hover:underline">
-                    {c.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-soft">{c.tagline}</p>
-                  <div className="mt-auto flex items-center justify-between gap-3 pt-5 text-sm">
-                    <span className="text-ink-soft tabular-nums">
-                      {c.stageCount ? `${c.stageCount} stages` : "Live"}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 font-medium text-ink">
-                      Start building <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
-                    </span>
-                  </div>
-                </Link>
-              </li>
-            ))}
+          <ul className="grid gap-5 md:grid-cols-2">
+            {live.map((c) => {
+              const full = getBuildChallenge(c.slug);
+              const stages = full?.stages ?? [];
+              const stageSlugs = stages.map((s) => s.slug);
+              const hasBrowser = getChallengeStarter(c.slug) !== null;
+              return (
+                <li key={c.slug}>
+                  <Link
+                    href={`/build/${c.slug}`}
+                    className="group flex h-full flex-col rounded-[var(--radius-panel)] border border-line bg-paper-raised p-6 transition-colors hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  >
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
+                      {full?.standard ? (
+                        <span className="inline-flex items-center rounded-[var(--radius-chip)] border border-line bg-paper-sunk px-2 py-0.5 font-mono text-ink">
+                          {full.standard}
+                        </span>
+                      ) : null}
+                      <span className="inline-flex items-center rounded-[var(--radius-chip)] border border-line bg-paper px-2 py-0.5">
+                        {hasBrowser ? "Repo + browser" : "Template repo"}
+                      </span>
+                    </div>
+
+                    <h3 className="mt-3 font-display text-xl font-[450] tracking-[-0.02em] text-ink decoration-sun decoration-2 underline-offset-4 group-hover:underline">
+                      {c.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-ink-soft">{c.tagline}</p>
+
+                    {stages.length > 0 ? (
+                      <div className="mt-4 flex flex-wrap items-center gap-1.5" aria-label="Stages">
+                        {stages.map((s) => (
+                          <span
+                            key={s.slug}
+                            title={`Stage ${s.number}: ${s.title}`}
+                            className="inline-flex size-6 items-center justify-center rounded-full border border-line bg-paper-sunk/80 font-mono text-[11px] font-medium text-ink-soft tabular-nums transition-colors group-hover:border-line-strong group-hover:text-ink"
+                          >
+                            {s.number}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <div className="mt-auto space-y-4 pt-5">
+                      <BuildCatalogProgress challengeSlug={c.slug} stageSlugs={stageSlugs} />
+
+                      <div className="flex items-center justify-between gap-3 border-t border-line pt-4 text-sm">
+                        <span className="text-xs text-ink-soft tabular-nums">
+                          {stages.length > 0 ? `${stages.length} stages` : "Live"}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 font-medium text-ink">
+                          Start building{" "}
+                          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </section>
 

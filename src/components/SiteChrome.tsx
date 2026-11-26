@@ -1,11 +1,17 @@
 "use client";
 
 import { Suspense, type ReactNode } from "react";
-import { useSelectedLayoutSegment } from "next/navigation";
+import { usePathname, useSelectedLayoutSegment } from "next/navigation";
+
+function isCourseRailRoute(pathname: string): boolean {
+  if (!pathname.startsWith("/build/")) return false;
+  return pathname !== "/build/connected" && !pathname.startsWith("/build/connected/");
+}
 
 function ChromeSlot({ children }: { children: ReactNode }) {
   const segment = useSelectedLayoutSegment();
-  if (segment === "scroll") {
+  const pathname = usePathname();
+  if (segment === "scroll" || isCourseRailRoute(pathname)) {
     return null;
   }
   return <>{children}</>;

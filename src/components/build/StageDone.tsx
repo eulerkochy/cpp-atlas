@@ -44,7 +44,19 @@ export function useBuildDone(): { done: Set<string>; hydrated: boolean } {
   return { done: new Set(parse(raw)), hydrated };
 }
 
-export function StageDoneButton({ id }: { id: string }) {
+export function markStagesDone(ids: string[]) {
+  try {
+    const current = parse(readDone());
+    const next = new Set(current);
+    for (const id of ids) next.add(id);
+    window.localStorage.setItem(KEY, JSON.stringify([...next]));
+    window.dispatchEvent(new Event(EVENT));
+  } catch {
+    // storage unavailable
+  }
+}
+
+export function StageDoneButton({ id, className }: { id: string; className?: string }) {
   const { done, hydrated } = useBuildDone();
   const isDone = done.has(id);
 
@@ -69,7 +81,8 @@ export function StageDoneButton({ id }: { id: string }) {
         "inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
         hydrated && isDone
           ? "border-ink bg-sun text-ink"
-          : "border-line-strong bg-paper-raised text-ink-soft hover:border-ink hover:text-ink"
+          : "border-line-strong bg-paper-raised text-ink-soft hover:border-ink hover:text-ink",
+        className
       )}
     >
       <Check className="size-3.5" aria-hidden />

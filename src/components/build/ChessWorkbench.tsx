@@ -718,9 +718,10 @@ export function ChessWorkbench() {
       </div>
 
       {/* Main 2-column workbench: Board (left) + Inspector (right) */}
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,26.5rem)_minmax(0,1fr)]">
+      <div className="@container">
+      <div className="grid items-start gap-6 @[48rem]:grid-cols-[minmax(0,21.5rem)_minmax(0,1fr)]">
         {/* Left column: Board + controls */}
-        <div className="space-y-3">
+        <div className="mx-auto w-full max-w-[26rem] space-y-3 @[48rem]:max-w-none">
           <div className="relative overflow-hidden rounded-[var(--radius-panel)] border border-line-strong bg-paper-sunk p-2 shadow-sm">
             <svg
               viewBox="0 0 400 400"
@@ -1133,12 +1134,12 @@ export function ChessWorkbench() {
         </div>
 
         {/* Right column: Engine Inspector */}
-        <div className="min-w-0 space-y-4">
+        <div className="@container min-w-0 space-y-4">
           {/* Inspector tabs */}
           <div
             role="tablist"
             aria-label="Engine inspector"
-            className="grid w-full grid-cols-2 gap-1 rounded-[var(--radius-panel)] border border-line bg-paper-sunk p-1 sm:flex"
+            className="grid w-full grid-cols-2 gap-1 rounded-[var(--radius-panel)] border border-line bg-paper-sunk p-1 @[29rem]:flex"
           >
             {(
               [
@@ -2170,6 +2171,7 @@ export function ChessWorkbench() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </Window>
   );

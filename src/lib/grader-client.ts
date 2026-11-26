@@ -17,6 +17,7 @@ export type Preset = "debug" | "asan-ubsan";
 export interface RunRequest {
   challenge: string;
   stage: number;
+  only?: boolean;
   files: Record<string, string>;
   options: { compiler: Compiler; preset: Preset };
 }

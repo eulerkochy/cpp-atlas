@@ -30,6 +30,8 @@ export interface BuildStageMeta {
   atlasTopics: BuildTopicRef[];
   concepts: string[];
   testFile: string;
+  editFile: string;
+  tests: string[];
 }
 
 export interface BuildChallenge {
@@ -116,6 +118,41 @@ function readText(file: string): string {
   }
 }
 
+const CHESS_EDIT_FILES: Record<number, string> = {
+  1: "include/chess/position.hpp",
+  2: "include/chess/bitboard.hpp",
+  3: "include/chess/magic.hpp",
+  4: "include/chess/position.hpp",
+  5: "include/chess/movegen.hpp",
+  6: "include/chess/eval.hpp",
+  7: "include/chess/search.hpp",
+  8: "include/chess/tt.hpp",
+  9: "include/chess/uci.hpp",
+};
+
+function resolveEditFile(challengeSlug: string, stageNumber: number, explicit?: unknown): string {
+  if (typeof explicit === "string" && explicit.trim()) return explicit.trim();
+  if (challengeSlug === "vector") return "include/my/vector.hpp";
+  if (challengeSlug === "chess") return CHESS_EDIT_FILES[stageNumber] ?? "include/chess/chess.hpp";
+  return `include/${challengeSlug}.hpp`;
+}
+
+function extractStageTests(challengeSlug: string, testFile: string): string[] {
+  const fullPath = path.join(process.cwd(), "challenges", challengeSlug, testFile);
+  let src: string;
+  try {
+    src = fs.readFileSync(fullPath, "utf8");
+  } catch {
+    return [];
+  }
+  const names: string[] = [];
+  const re = /CPPATLAS_TEST\(\s*"((?:\\.|[^"\\])*)"\s*\)/g;
+  for (const m of src.matchAll(re)) {
+    names.push(m[1].replace(/\\"/g, '"').replace(/\\\\/g, "\\"));
+  }
+  return names;
+}
+
 export function getBuildCatalog(): BuildCatalogEntry[] {
   const file = path.join(BUILD_DIR, "catalog.json");
   const data = readJson(file);
@@ -185,6 +222,7 @@ export function getBuildChallenge(slug: string): BuildChallenge | null {
     if (!DIFFICULTIES.includes(difficulty)) {
       return fail(file, `${where}"difficulty" must be one of ${DIFFICULTIES.join(", ")}`);
     }
+    const testFile = str(file, o, "testFile", where);
     return {
       number: i + 1,
       slug: stageSlug,
@@ -194,7 +232,9 @@ export function getBuildChallenge(slug: string): BuildChallenge | null {
       estimate: str(file, o, "estimate", where),
       atlasTopics: resolveTopics(file, strList(file, o, "atlasTopics", where), `${where}atlasTopics`),
       concepts: strList(file, o, "concepts", where),
-      testFile: str(file, o, "testFile", where),
+      testFile,
+      editFile: resolveEditFile(slug, i + 1, o.editFile),
+      tests: extractStageTests(slug, testFile),
     };
   });
 
